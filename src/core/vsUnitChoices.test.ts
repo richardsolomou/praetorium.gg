@@ -47,6 +47,11 @@ describe('vsUnitToggles', () => {
     expect(vsUnitToggles(definitions, captain, { roster: { faction: 'host', detachments: [] } })).toHaveLength(1)
   })
 
+  it('offers the Warlord to the CHARACTER model of a unit that is not one', () => {
+    const command = vsFirstFielding(definitions, 'host.command')
+    expect(vsUnitToggles(definitions, command, { roster: { faction: 'host', detachments: [] } })[0]?.key).toBe('host.command.commander')
+  })
+
   it('requires the Warlord a faction without Detachments names', () => {
     const walker = vsFirstFielding(definitions, 'titans.walker')
     expect(vsUnitToggles(definitions, walker, { roster: { faction: 'titans', detachments: [] } })[0]?.required).toBe(true)

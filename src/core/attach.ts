@@ -29,6 +29,38 @@ export type Attachment = {
   requiresLeader?: true
   /** The other role the ability takes depending on the army, as Cato Sicarius leads unless the army includes Marneus Calgar. */
   swap?: AttachmentSwap
+  /** Hosts taken only in some armies, which {@link inArmy} settles. */
+  conditional?: AttachmentCondition[]
+  /** Keyword sets a host holding every keyword of is admitted, which settled conditions give. */
+  holding?: string[][]
+  /** Hosts admitted only while both units hold `keyword`, which settled conditions give. */
+  sharing?: { keyword: string; targets: string[]; keywords?: string[] }[]
+}
+
+/**
+ * Who a datasheet may join by its VS Data attachment record, each host named as the catalogue names its datasheets. VS
+ * Data decides every host it names, in any role or army (`named`); the catalogue's own reading adds only hosts it never names.
+ */
+export type VsAttachment = {
+  /** The role of `targets`, absent where the record names hosts only in some armies. */
+  kind?: Attachment['kind']
+  targets: string[]
+  conditional?: AttachmentCondition[]
+  named: string[]
+}
+
+/** Hosts a unit takes only in some armies, until {@link inArmy} settles them; unsettled, every one is admitted. */
+export type AttachmentCondition = {
+  kind: Attachment['kind']
+  targets?: string[]
+  /** Keywords a host holding every one of is admitted, as `BATTLELINE`, `IMPERIUM` and `INFANTRY` are for an Inquisitor. */
+  keywords?: string[]
+  /** Groups of entry or Detachment ids, of each of which the army must hold one. */
+  requires?: string[][]
+  /** Entry or Detachment ids the army must hold none of. */
+  excludes?: string[]
+  /** A keyword the unit and its host must both hold, as a Mark of Chaos in Pactbound Zealots. */
+  shared?: string
 }
 
 /** `kind` while the army does (`present`) or does not hold a unit with entry or keyword `id`. */
@@ -55,7 +87,10 @@ const EMPHASISED = /\^\^\*\*(.+?)(?:\*\*\^\^|\^\^\*\*)/s
 const GENERIC_SUBSTITUTION =
   /if a character unit from your army with the leader ability can be attached to (?:an?|the) (.+?), it can be attached to this unit instead/gi
 
-const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachment | null>>()
+const attachmentCache = new WeakMap<
+  CatalogueIndex,
+  { read: WeakMap<Definition, Attachment | null>; merged: WeakMap<Definition, Attachment | null> }
+>()
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 const associationCandidateCache = new WeakMap<CatalogueIndex, readonly Definition[]>()
@@ -175,30 +210,59 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
  * dropped rather than guessed at.
  */
 export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection): Attachment | null {
-  const attachment = remember(
-    remember(attachmentCache, index, () => new WeakMap()),
-    definition,
-    () => findAttachment(definition, index),
-  )
-  if (!selection) return attachment
+  const caches = remember(attachmentCache, index, () => ({ read: new WeakMap(), merged: new WeakMap() }))
+  const attachment = remember(caches.read, definition, () => findAttachment(definition, index))
+  const vsData = vsAttachmentOf(definition, index)
+  if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
 
   const associated = attachmentFromAssociations(definition, selection, index)
-  if (!associated) return attachment
+  if (!associated) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
+  return withVsData(
+    {
+      kind: attachment?.kind ?? associated.kind,
+      targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
+      ...(attachment?.keywords ? { keywords: attachment.keywords } : {}),
+      ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
+      ...(attachment?.swap ? { swap: attachment.swap } : {}),
+    },
+    vsData,
+  )
+}
+
+const vsAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
+  index.attachments?.[definition.id] ?? index.attachments?.[targetOf(definition, index.definitions).id]
+
+/** The catalogue's reading with VS Data's record laid over it: VS Data's hosts, then the catalogue's for hosts it never names. */
+function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): Attachment | null {
+  const conditional = vsData?.conditional ?? []
+  if (!vsData || (!vsData.targets.length && !conditional.length)) return read
+  const deferred = new Set(vsData.named.map(normalizedName))
+  const granted = new Set(vsData.targets.map(normalizedName))
+  // The catalogue's order first, as its datasheets print their hosts, then the hosts only VS Data gives.
+  const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)) || granted.has(normalizedName(target)))
   return {
-    kind: attachment?.kind ?? associated.kind,
-    targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
-    ...(attachment?.keywords ? { keywords: attachment.keywords } : {}),
-    ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
-    ...(attachment?.swap ? { swap: attachment.swap } : {}),
+    kind: vsData.kind ?? read?.kind ?? conditional[0]!.kind,
+    targets: uniqueNormalizedNames([...kept, ...vsData.targets]),
+    ...(read?.keywords ? { keywords: read.keywords } : {}),
+    ...(read?.requiresLeader ? { requiresLeader: true as const } : {}),
+    ...(read?.swap ? { swap: read.swap } : {}),
+    ...(conditional.length ? { conditional } : {}),
   }
 }
 
 /**
- * The attachment a datasheet page shows: its ability text, or failing that its unselected associations.
- * Association targets are not shown alongside text because many name Legends and Crucible units the printed datasheet does not.
+ * The attachment a datasheet page shows: its ability text, or failing that its unselected associations, with every host
+ * it takes in some army. Association targets are not shown alongside text because many name Legends and Crucible units
+ * the printed datasheet does not.
  */
-export const referenceAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
-  attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
+export function referenceAttachmentOf(definition: Definition, index: CatalogueIndex): Attachment | null {
+  const attachment = attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
+  if (!attachment?.conditional) return attachment
+  return {
+    ...attachment,
+    targets: uniqueNormalizedNames([...attachment.targets, ...attachment.conditional.flatMap((condition) => condition.targets ?? [])]),
+  }
+}
 
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
   const sources = definitionAndTarget(definition, index)
@@ -421,10 +485,38 @@ const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, no
  * this list. A Tempestus Scions unit is Battleline only while Bridgehead Strike and
  * its Warlord say so, which no datasheet link records.
  */
-export function admitsHost(attachment: Attachment, hostName: string, hostKeywords: readonly string[] = []): boolean {
-  if (attachment.targets.some((target) => sameText(target, hostName))) return true
-  const held = new Set(hostKeywords.map((keyword) => withoutFactionPrefix(normalizedName(keyword))))
-  return (attachment.keywords ?? []).some((phrase) => phrase.split(' ').every((word) => held.has(word)))
+export function admitsHost(attachment: Attachment, hostName: string, hostKeywords?: readonly string[]): boolean {
+  const named = (targets: readonly string[] = []) => targets.some((target) => sameText(target, hostName))
+  const held = new Set((hostKeywords ?? []).map(heldKeyword))
+  const holds = (keywords: readonly string[] = []) => keywords.length > 0 && keywords.every((keyword) => held.has(heldKeyword(keyword)))
+  return (
+    named(attachment.targets) ||
+    (attachment.keywords ?? []).some((phrase) => phrase.split(' ').every((word) => held.has(word))) ||
+    (attachment.holding ?? []).some(holds) ||
+    // A host whose keywords are not known is not refused for a keyword it may hold.
+    (attachment.sharing ?? []).some(
+      (entry) => (!hostKeywords || held.has(heldKeyword(entry.keyword))) && (named(entry.targets) || holds(entry.keywords)),
+    ) ||
+    // Unsettled, a host any army lets the unit join is admitted, as an imported list's groups are read before its army is.
+    (attachment.conditional ?? []).some((condition) => named(condition.targets) || holds(condition.keywords))
+  )
+}
+
+const heldKeyword = (keyword: string) => withoutFactionPrefix(normalizedName(keyword))
+
+/**
+ * The attachment as judged against a host not yet in the list, which may still take the keyword a settled condition asks
+ * both units to share, as a Chosen unit added in Pactbound Zealots takes its Mark of Chaos once fielded.
+ */
+export function beforeHostChoices(attachment: Attachment): Attachment {
+  if (!attachment.sharing) return attachment
+  const { sharing, ...rest } = attachment
+  const holding = [...(rest.holding ?? []), ...sharing.flatMap((entry) => (entry.keywords ? [entry.keywords] : []))]
+  return {
+    ...rest,
+    targets: uniqueNormalizedNames([...rest.targets, ...sharing.flatMap((entry) => entry.targets)]),
+    ...(holding.length ? { holding } : {}),
+  }
 }
 
 /**
@@ -538,11 +630,13 @@ export function attachmentErrors(
   selections: readonly (Selection | undefined)[] = [],
   /** Each unit's keyword names in this list, by position. */
   keywords: readonly (readonly string[] | undefined)[] = [],
+  detachmentIds: readonly string[] = [],
 ): EvaluationError[] {
   const errors: EvaluationError[] = []
   const army = armyIds(
     units.map((unit) => unit.entryId),
     index,
+    detachmentIds,
   )
   const parties = units.map((unit, position): AttachmentParty & { definition?: Definition } => {
     const definition = index.definitions.get(unit.entryId)
@@ -552,7 +646,7 @@ export function attachmentErrors(
       name: definition?.name ?? unit.entryId,
       keywords: keywords[position],
       ...party,
-      attachment: inArmy(party.attachment, army),
+      attachment: inArmy(party.attachment, army, keywords[position]),
     }
   })
   const occupants = new Map<number, typeof parties>()
@@ -676,10 +770,11 @@ function withSwap(modifiers: readonly Modifier[]): { swap: AttachmentSwap } | Re
   return {}
 }
 
-/** The ids and keyword ids an army's units answer to, which an attachment's swap asks about. */
-export function armyIds(entryIds: readonly string[], index: CatalogueIndex): Set<string> {
-  return new Set(
-    entryIds.flatMap((id) => {
+/** The ids and keyword ids an army's units answer to, and its Detachments, which an attachment's swap and conditions ask about. */
+export function armyIds(entryIds: readonly string[], index: CatalogueIndex, detachmentIds: readonly string[] = []): Set<string> {
+  return new Set([
+    ...detachmentIds,
+    ...entryIds.flatMap((id) => {
       const definition = index.definitions.get(id)
       if (!definition) return []
       const target = targetOf(definition, index.definitions)
@@ -689,18 +784,53 @@ export function armyIds(entryIds: readonly string[], index: CatalogueIndex): Set
         ...[definition, target].flatMap((source) => (source.categoryLinks ?? []).map((link) => link.targetId)),
       ]
     }),
-  )
+  ])
 }
 
 /** Every role the attachment can take, its own first, as a reference page lists Cato Sicarius both leading and supporting. */
 export const attachmentRoles = (attachment: Attachment): Attachment['kind'][] =>
   attachment.swap && attachment.swap.kind !== attachment.kind ? [attachment.kind, attachment.swap.kind] : [attachment.kind]
 
-/** The attachment as this army has it, its swap settled. */
-export function inArmy<T extends Attachment | null>(attachment: T, army: ReadonlySet<string>): T {
-  if (!attachment?.swap) return attachment
-  const { swap, ...rest } = attachment
-  return (army.has(swap.id) === swap.present ? { ...rest, kind: swap.kind } : rest) as T
+/**
+ * The attachment as this army has it, its swap and conditions settled. `army` holds the army's entry, keyword and
+ * Detachment ids; `keywords` are the unit's own, which a condition both units must share asks about.
+ */
+export function inArmy<T extends Attachment | null>(attachment: T, army: ReadonlySet<string>, keywords?: readonly string[]): T {
+  if (!attachment?.swap && !attachment?.conditional) return attachment
+  const { swap, conditional = [], ...rest } = attachment
+  const swapped = swap && army.has(swap.id) === swap.present ? swap.kind : rest.kind
+  // A unit whose keywords are not known is not refused for a keyword it may hold.
+  const held = keywords && new Set(keywords.map(heldKeyword))
+  const holding = conditional.filter(
+    (condition) =>
+      (condition.requires ?? []).every((group) => group.some((id) => army.has(id))) &&
+      !(condition.excludes ?? []).some((id) => army.has(id)) &&
+      (condition.shared === undefined || !held || held.has(heldKeyword(condition.shared))),
+  )
+  // A unit that joins only under conditions takes the role of those that hold, as Cato Sicarius supports Victrix Honour
+  // Guard beside Marneus Calgar and leads them without him.
+  const kind =
+    !rest.targets.length && !rest.keywords?.length && !holding.some((condition) => condition.kind === swapped)
+      ? (holding[0]?.kind ?? swapped)
+      : swapped
+  const own = holding.filter((condition) => condition.kind === kind)
+  const targets = uniqueNormalizedNames([
+    ...rest.targets,
+    ...own.flatMap((condition) => (condition.shared ? [] : (condition.targets ?? []))),
+  ])
+  const holdingKeywords = own.flatMap((condition) => (condition.shared || !condition.keywords ? [] : [condition.keywords]))
+  const sharing = own.flatMap((condition) =>
+    condition.shared
+      ? [{ keyword: condition.shared, targets: condition.targets ?? [], ...(condition.keywords ? { keywords: condition.keywords } : {}) }]
+      : [],
+  )
+  return {
+    ...rest,
+    kind,
+    targets,
+    ...(holdingKeywords.length ? { holding: holdingKeywords } : {}),
+    ...(sharing.length ? { sharing } : {}),
+  } as T
 }
 
 function names(text: string): string[] {

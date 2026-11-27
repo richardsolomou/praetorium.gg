@@ -27,6 +27,7 @@ import { gradeReferences, measureRosterUnits, referenceUnit } from '../src/share
 import { importCorpusLists } from './lib/importCorpusLists'
 import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
 import { errorText } from './lib/errorText'
+import { inBook } from '../src/shared/vsDataPoints'
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -122,7 +123,10 @@ async function compare(scope: string, label: string, data: PriceInput) {
 const sheets = [...catalogue.index.catalogues.values()]
   .filter((book) => !book.id.includes('~'))
   .flatMap((book) => [...datasheetsOf(catalogue.index, book.id)].map((entryId) => ({ catalogueId: book.id, entryId })))
-  .filter(({ entryId }, at, all) => catalogue.vsProfiles!.units[entryId] && all.findIndex((other) => other.entryId === entryId) === at)
+  .filter(
+    ({ catalogueId, entryId }, at, all) =>
+      inBook(catalogue.vsProfiles!.units, catalogueId, entryId) && all.findIndex((other) => other.entryId === entryId) === at,
+  )
   .slice(0, Number(values.datasheets ?? 5000))
 for (const [at, { catalogueId, entryId }] of sheets.entries()) {
   await compare('datasheet', entryId, {

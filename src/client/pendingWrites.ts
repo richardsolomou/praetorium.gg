@@ -18,14 +18,19 @@ export function sendingBattleCommands<T>(token: string, write: Promise<T>): Prom
     () => {},
     () => {},
   )
-  battleCommands.set(token, settled)
-  void settled.then(() => {
-    if (battleCommands.get(token) === settled) battleCommands.delete(token)
+  // A page left inside the app keeps sending, so a battle opened again can drain twice at once and has settled only when both have.
+  const all = Promise.all([battleCommands.get(token), settled]).then(() => {})
+  battleCommands.set(token, all)
+  void all.then(() => {
+    if (battleCommands.get(token) === all) battleCommands.delete(token)
   })
   return holding
 }
 
 export const battleCommandsSettled = (token: string) => battleCommands.get(token)
+
+/** Whether any battle's commands are still queued or sending. */
+export const battleCommandsPending = () => battleCommands.size > 0
 
 /** Whether a reload now could drop a change this page has not finished sending or saving. */
 export const writesPending = (client: QueryClient) => held > 0 || client.isMutating() > 0

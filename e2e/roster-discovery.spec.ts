@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import {
   chooseRosterAction,
-  createRoster,
+  seededRoster,
   retryUntilVisible,
   signUp,
   uniqueName,
@@ -58,7 +58,7 @@ test('a published army is found, duplicated and edited without changing it, and 
   )
   await shot(owner.locator('main header'), `roster-library-header.png`)
   const armyName = uniqueName('Found army')
-  await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
+  await seededRoster(owner, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: armyName })
   await addNotedUnit(owner)
   await setRosterAccess(owner, 'Public — listed on your profile', 'public')
   const sourceId = lastPathSegment(owner.url())

@@ -7,6 +7,8 @@ import rawMissions from '../../catalogue/legacy-ids/missions.json' with { type: 
  * `units.json` also gives, under the same key, the VS Data allegiance a datasheet implies for a pick that holds no
  * allegiance choice of its own: the one its name spells, as Khorne Soul Grinder is the Soul Grinder taking Khorne, else
  * the one it is built on before any choice is made, as Daemon Prince of Chaos starts on Khorne. An ID only ever gains one.
+ * A Library datasheet that is another unit in some books, as a chaos book's Warhound Titan is the Chaos Warhound Titan,
+ * is also keyed `<book>/<ID>`, which a list of that book reads first.
  */
 export const legacyIdsSchema = z.object({
   format: z.literal('praetorium.legacy-ids.v1'),
@@ -15,8 +17,8 @@ export const legacyIdsSchema = z.object({
 })
 
 /**
- * A frozen map from each choice a saved pick holds (`<choice key>|<option ID>` on a BSData datasheet entry) to the VS
- * Data selections it stands for, or the allegiance it takes. It reads the current rules version only: never read it for
+ * A frozen map from each choice a saved pick holds (`<choice key>|<option ID>` on a BSData datasheet entry, keyed as
+ * `units.json` keys the datasheet) to the VS Data selections it stands for, or the allegiance it takes. It reads the current rules version only: never read it for
  * a list of a retained rules version, whose choices can differ.
  *
  * A reader translates a pick in order. A `floor: true` pick first takes, for each choice in `floor` it does not hold,

@@ -3,7 +3,7 @@ import {
   attachRoster,
   chooseBattlefield,
   createBattle,
-  createRoster,
+  seededRoster,
   recordFirstTurn,
   setupStep,
   signUp,
@@ -35,21 +35,21 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   const partnerName = uniqueName('Partner')
 
   await signUp(ally, allyName)
-  const allyRoster = await createRoster(ally, {
+  const allyRoster = await seededRoster(ally, {
     faction: 'Necrons',
-    detachment: /Obeisance Phalanx/,
+    detachment: 'Obeisance Phalanx',
     name: 'Ally army',
-    size: /Incursion/,
+    limit: 1000,
   })
   await signUp(partner, partnerName)
-  const partnerRoster = await createRoster(partner, {
+  const partnerRoster = await seededRoster(partner, {
     faction: 'Necrons',
-    detachment: /Hypercrypt Legion/,
+    detachment: 'Hypercrypt Legion',
     name: 'Partner army',
-    size: /Incursion/,
+    limit: 1000,
   })
   await signUp(host, hostName)
-  const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Host army' })
+  const hostRoster = await seededRoster(host, { faction: 'Necrons', detachment: 'Canoptek Court', name: 'Host army' })
   await createBattle(host, { opponent: ally, ally: partner })
 
   await attachRoster(host, hostRoster)

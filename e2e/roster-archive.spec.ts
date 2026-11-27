@@ -1,14 +1,14 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, expectNoPageOverflow, chooseLibraryAction } from './account'
+import { seededRoster, signUp, uniqueName, expectNoPageOverflow, chooseLibraryAction } from './account'
 import { productOperator, lastPathSegment } from './storage'
 import { screenshot } from './screenshots'
 
 test('deleting offers to archive a roster, which leaves the library list and Home until it is unarchived', async ({ page }) => {
   test.setTimeout(180_000)
   await signUp(page, uniqueName('Archivist'))
-  const kept = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Kept list' })
+  const kept = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Kept list' })
   const keptId = lastPathSegment(page.url())
-  const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shelved list' })
+  const name = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Shelved list' })
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
 

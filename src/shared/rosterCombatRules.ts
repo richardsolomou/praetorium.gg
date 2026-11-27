@@ -232,7 +232,12 @@ export function rosterCombatant(
           ? [...selections, built.selection]
           : selections.map((selection, index) => (index === replaceIndex ? built.selection : selection))
       const groupIds = new Set(proposed.flatMap((pick, index) => (attachmentHost(proposed, index) === hostIndex ? [pick.entryId] : [])))
-      if (attachmentErrors(proposed, loaded.index, proposedSelections, keywords).some((error) => groupIds.has(error.entryId))) return []
+      if (
+        attachmentErrors(proposed, loaded.index, proposedSelections, keywords, data.detachmentIds).some((error) =>
+          groupIds.has(error.entryId),
+        )
+      )
+        return []
       return [
         {
           entryId: candidate.entryId,
@@ -256,7 +261,13 @@ export function rosterCombatant(
           )
           if (
             !built ||
-            attachmentErrors([candidate, { ...selectedPick, attachedTo: 0 }], loaded.index, [built.selection, selections[0]]).length
+            attachmentErrors(
+              [candidate, { ...selectedPick, attachedTo: 0 }],
+              loaded.index,
+              [built.selection, selections[0]],
+              [],
+              data.detachmentIds,
+            ).length
           )
             return []
           return [{ ...candidate, factionSlug: member.route?.catalogueId, name: member.name, kind: 'bodyguard' as const }]
@@ -280,7 +291,7 @@ export function rosterCombatant(
     attachmentReplacements,
     attachmentErrors: [
       ...projectionErrors,
-      ...attachmentErrors(data.picks, loaded.index, selections, keywords).filter((error) =>
+      ...attachmentErrors(data.picks, loaded.index, selections, keywords, data.detachmentIds).filter((error) =>
         members.some((index) => data.picks[index]?.entryId === error.entryId),
       ),
     ],

@@ -2,8 +2,10 @@ import { remember } from '../core/collections'
 import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core/roster'
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
+import { steppedSizes } from '../core/vsDataBuild'
 import { priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { inBook } from './vsDataPoints'
 
 const definitionsOf = new WeakMap<LoadedCatalogue, VsDataDefinitions | null>()
 
@@ -11,9 +13,9 @@ const definitionsOf = new WeakMap<LoadedCatalogue, VsDataDefinitions | null>()
 export const vsDefinitionsOf = (loaded: LoadedCatalogue): VsDataDefinitions | null =>
   remember(definitionsOf, loaded, () => (loaded.vsRoster ? vsDataDefinitions(loaded.vsRoster.construction) : null))
 
-/** The VS Data unit a datasheet entry is, where VS Data defines it in the current rules version and checks it. */
-export function vsUnitIdOf(loaded: LoadedCatalogue, entryId: string): string | undefined {
-  const id = loaded.vsRoster?.units[entryId]
+/** The VS Data unit a datasheet entry is in a list of `catalogueId`, where VS Data defines it in the current rules version and checks it. */
+export function vsUnitIdOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): string | undefined {
+  const id = inBook(loaded.vsRoster?.units, catalogueId, entryId)
   const definitions = vsDefinitionsOf(loaded)
   return id && definitions?.get('unit', id) && !definitions.unavailable.has(id) && definitions.modelsOf(id).length ? id : undefined
 }
@@ -37,7 +39,7 @@ export function buildPick(
   list: { catalogueId: string; detachmentIds: readonly string[] },
   context: ChoiceOptions,
 ): BuiltUnit | null {
-  const unit = pick.vs && vsUnitIdOf(loaded, pick.entryId)
+  const unit = pick.vs && vsUnitIdOf(loaded, list.catalogueId, pick.entryId)
   const definitions = unit ? vsDefinitionsOf(loaded) : null
   if (pick.vs && definitions && unit) {
     const { faction, detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
@@ -65,12 +67,27 @@ export function buildPick(
       toggles: vsUnitToggles(definitions, built.vs.unit, roster).map((toggle) => (required ? { ...toggle, required } : toggle)),
     }
   }
-  return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
-    ...context,
-    spreads: pick.spreads,
-    toggles: pick.toggles,
-    floor: pick.floor,
-  })
+  const build = (models: number | undefined) =>
+    buildUnit(pick.entryId, loaded.index, models, pick.choices, {
+      ...context,
+      spreads: pick.spreads,
+      toggles: pick.toggles,
+      floor: pick.floor,
+    })
+  const plain = build(pick.models)
+  // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
+  const sizes = vsSizesOf(loaded, list.catalogueId, pick.entryId)
+  if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
+  const wanted = plain.size.models
+  const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
+  const built = nearest === wanted ? plain : (build(nearest) ?? plain)
+  return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
+}
+
+/** The sizes VS Data steps a datasheet's unit between, where it fields some but not all between its smallest and largest. */
+function vsSizesOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): number[] | undefined {
+  const unit = vsUnitIdOf(loaded, catalogueId, entryId)
+  return unit ? steppedSizes(vsDefinitionsOf(loaded)!.get('unit', unit)!.data.sizes) : undefined
 }
 
 /** The list as VS Data's roster reads it, its VS picks fielded by their own selections and every other unit by its ID. */
@@ -86,7 +103,7 @@ function vsRosterOf(
   const at = new Map<number, number>()
   const read: VsRoster['units'] = []
   units.forEach((unit, position) => {
-    const id = unit.vs?.unit.unit ?? loaded.vsRoster?.units[unit.entryId]
+    const id = unit.vs?.unit.unit ?? inBook(loaded.vsRoster?.units, list.catalogueId, unit.entryId)
     if (!id) return
     at.set(position, read.length)
     read.push(unit.vs?.unit ?? { unit: id })

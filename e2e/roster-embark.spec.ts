@@ -2,7 +2,7 @@ import { expect, type Page, test } from './test'
 import {
   addUnit,
   chooseBattlefield,
-  createRoster,
+  seededRoster,
   setupStep,
   signUp,
   uniqueName,
@@ -19,7 +19,7 @@ const SQUAD = 'Intercessor Squad'
 test('the deployment checklist identifies two Land Raiders by their passengers', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await signUp(page, uniqueName('Land Raider passengers'))
-  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
+  const roster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force' })
   for (const name of ['Land Raider', 'Land Raider', SQUAD, 'Terminator Squad']) await addUnit(page, name)
   await closePicker(page)
   for (const [unit, number] of [
@@ -63,7 +63,7 @@ async function cards(page: Page) {
 test('custom names distinguish embarked squads and attached units on a phone', async ({ browser }) => {
   const page = await (await browser.newContext({ viewport: PHONE })).newPage()
   await signUp(page, uniqueName('Named passengers'))
-  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Named Marines' })
+  const roster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Named Marines' })
   for (const name of [SQUAD, SQUAD, 'Rhino', 'Captain']) await addUnit(page, name)
   const { squad, rhino } = await cards(page)
 
@@ -120,7 +120,7 @@ test('a unit embarked in the builder starts in its transport at battle setup', a
   test.setTimeout(240_000)
   const page = await (await browser.newContext(desktopContext)).newPage()
   await signUp(page, uniqueName('Embark'))
-  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Mounted Marines' })
+  const roster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Mounted Marines' })
   for (const name of [SQUAD, 'Rhino']) await addUnit(page, name)
 
   const { squad, rhino } = await cards(page)
@@ -155,7 +155,7 @@ test('an attached unit is joined and embarked from its outline, not its cards', 
   test.setTimeout(240_000)
   const page = await (await browser.newContext(desktopContext)).newPage()
   await signUp(page, uniqueName('Outlined'))
-  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Outlined Marines' })
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Outlined Marines' })
   for (const name of [SQUAD, 'Rhino', 'Captain', 'Ancient']) await addUnit(page, name)
   const { rhino } = await cards(page)
   await attach(page, 'Captain', SQUAD)

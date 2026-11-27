@@ -2,7 +2,7 @@ import { expect, type Locator, type Page, test } from './test'
 import {
   attachRoster,
   createBattle,
-  createRoster,
+  seededRoster,
   signUp,
   startBattle,
   uniqueName,
@@ -45,7 +45,7 @@ test(`repeated units keep their own custom names and private notes from the buil
   test.setTimeout(240_000)
   const owner = await (await browser.newContext(desktopContext)).newPage()
   await signUp(owner, uniqueName('Notes'))
-  const roster = await createRoster(owner, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Noted Plague' })
+  const roster = await seededRoster(owner, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Noted Plague' })
   await addSquads(owner, 2)
   const cards = owner.locator(`[data-unit="${SQUAD}"]`)
   await annotate(owner, cards.nth(0), 'Custom name', 'Rot Alpha')
@@ -120,7 +120,7 @@ test(`the battle army window names units by their custom name and shows notes on
   test.setTimeout(180_000)
   const page = await (await browser.newContext(desktopContext)).newPage()
   await signUp(page, uniqueName('Army notes'))
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Army Plague' })
+  const roster = await seededRoster(page, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Army Plague' })
   await addSquads(page, 1)
   await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Custom name', 'Rot Alpha')
   await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Note', ALPHA_NOTE)

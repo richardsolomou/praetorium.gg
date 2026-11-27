@@ -1,7 +1,7 @@
 import { expect, test } from './test'
 import {
   befriend,
-  createRoster,
+  seededRoster,
   practiceBattle,
   setupBattle,
   signUp,
@@ -22,15 +22,15 @@ test("a signed-in player's battles page lists their own, their friends' or every
   const guest = await guestContext.newPage()
   // A battle is listed once every army is in; until then it is its players' draft.
   await signUp(guest, uniqueName('Watched guest'))
-  const guestRoster = await createRoster(guest, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watched guest list' })
+  const guestRoster = await seededRoster(guest, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Watched guest list' })
   await signUp(host, uniqueName('Watched host'))
-  const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watched host list' })
+  const hostRoster = await seededRoster(host, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Watched host list' })
   const watchedPath = new URL(await setupBattle(host, guest, { hostRoster, guestRoster })).pathname
   const watched = `[href="${watchedPath}"]`
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await signUp(page, uniqueName('Battle reader'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reader list' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Reader list' })
   const own = `[href="${new URL(await practiceBattle(page, roster)).pathname}"]`
   const sections = () => page.locator('main [data-battle-shelf], main [data-friends-empty]').evaluateAll((nodes) => nodes.length)
   const views = page.getByRole('navigation', { name: 'Battles' })

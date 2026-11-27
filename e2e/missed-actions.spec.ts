@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './test'
 import {
   advance,
-  createRoster,
+  seededRoster,
   rewind,
   signUp,
   startBattle,
@@ -38,7 +38,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   await page.setViewportSize(desktopContext.viewport)
   const name = uniqueName('Missed')
   await signUp(page, name)
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Missed action roster' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Missed action roster' })
   await practiceBattle(page, roster)
   await startBattle(page)
 

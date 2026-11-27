@@ -4,7 +4,7 @@ import {
   attachRoster,
   chooseTracking,
   createBattle,
-  createRoster,
+  seededRoster,
   expectNoPageOverflow,
   newBattle,
   playTurn,
@@ -43,7 +43,7 @@ test('a battle that seated a guest before every seat needed an account still ope
   await page.setViewportSize({ width: 1440, height: 900 })
   const host = uniqueName('Guest host')
   await signUp(page, host)
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host army' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Host army' })
   // Configured as New battle configures any guided duel, then seated with a guest the way earlier releases stored one.
   const operator = await productOperator()
   const template = (await operator.battleByToken(lastPathSegment(await createBattle(page, { practice: true }))))!

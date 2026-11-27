@@ -118,17 +118,18 @@ export function vsBuiltUnit(definitions: VsDataDefinitions, unitId: string, pick
   const held = new Map([...carried(definitions, picked)].filter(([id]) => !bundled(definitions, id)))
   const sizes = [...(unit?.data.sizes ?? [])].toSorted((left, right) => left - right)
   const total = [...counts.values()].reduce((sum, n) => sum + n, 0)
+  const options = steppedSizes(sizes)
   return {
     unit: picked,
-    size: {
-      min: sizes[0] ?? total,
-      max: sizes.at(-1) ?? total,
-      models: total,
-      // A unit fielding every size between its smallest and largest steps by one model; any other steps between its sizes.
-      ...(sizes.length > 1 && sizes.at(-1)! - sizes[0]! + 1 !== sizes.length ? { options: sizes } : {}),
-    },
+    size: { min: sizes[0] ?? total, max: sizes.at(-1) ?? total, models: total, ...(options ? { options } : {}) },
     carriers,
     models: vsModelKinds(definitions, picked),
     wargear: named(held),
   }
+}
+
+/** The sizes a unit steps between, or none where it fields every size from its smallest to its largest. */
+export function steppedSizes(sizes: readonly number[]): number[] | undefined {
+  const sorted = sizes.toSorted((left, right) => left - right)
+  return sorted.length > 1 && sorted.at(-1)! - sorted[0]! + 1 !== sorted.length ? sorted : undefined
 }

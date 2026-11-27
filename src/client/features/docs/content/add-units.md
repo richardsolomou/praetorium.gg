@@ -1,6 +1,6 @@
 Press **+** on a unit's row to add it. To read the datasheet first, choose the unit's name, which lists every weapon it can take, then **Add to list**. On smaller screens, open the picker with **Add units**.
 
-The picker shows every datasheet your faction and detachments allow, with allied units in a collapsed section at the end. Each row shows the price and how many you hold, such as **2/3 in roster**. A trophy marks units that at least a quarter of your faction's [top-four tournament lists](/rosters?view=tournament-lists) take. These are lists from tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters. The trophy is bronze from a quarter of the lists, silver from half and gold from three quarters. Press it to see how many. A datasheet's page lists the ones that take it.
+The picker shows every datasheet your faction and detachments allow, as the official app does, with allied units, the ones the app files under another faction, in a collapsed section at the end. Each row shows the price and how many you hold, such as **2/3 in roster**. A trophy marks units that at least a quarter of your faction's [top-four tournament lists](/rosters?view=tournament-lists) take. These are lists from tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters. The trophy is bronze from a quarter of the lists, silver from half and gold from three quarters. Press it to see how many. A datasheet's page lists the ones that take it.
 
 ## Find a unit
 
