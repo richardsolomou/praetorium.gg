@@ -3,8 +3,10 @@ import { combatCarriers } from '../core/combatLoadout'
 import { toBase64 } from '../core/base64'
 import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
 import { evaluate, type Selection } from '../core/evaluate'
-import type { BuiltUnit, RosterPick } from '../core/roster'
-import { isUnitCompositionChoice, type UnitChoice } from '../core/unitChoices'
+import type { BuiltUnit, RosterPick, VsPick } from '../core/roster'
+import { isUnitCompositionChoice, type UnitChoice, VS_ALLEGIANCE, VS_MODELS, vsWithSpread } from '../core/unitChoices'
+import type { VsDataDefinitions } from '../core/vsDataConstruction'
+import { vsUnitProblems } from '../core/vsDataUnit'
 import { datasheetViewsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
@@ -13,6 +15,7 @@ import { attachedUnit } from '../core/attachedUnits'
 import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import type { LoadedRules } from './rules'
 import { nextTask } from './nextTask'
+import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 
 type LoadoutRequest = {
   catalogueId: string
@@ -25,8 +28,16 @@ type LoadoutRequest = {
 
 /** Enhancements and detachment upgrades are army decisions, not a unit's weapon choice. */
 const ARMY_CHOICE = /enhancement|upgrade/i
+// A VS pick's model counts set its size, which a loadout keeps, and its allegiance is no option of its wargear.
 const weaponChoices = (choices: UnitChoice[]) =>
-  choices.filter((choice) => choice.options.length && !isUnitCompositionChoice(choice) && !ARMY_CHOICE.test(choice.name))
+  choices.filter(
+    (choice) =>
+      choice.options.length &&
+      !isUnitCompositionChoice(choice) &&
+      !ARMY_CHOICE.test(choice.name) &&
+      choice.key !== VS_MODELS &&
+      choice.key !== VS_ALLEGIANCE,
+  )
 /**
  * Wargear taken from an optional group that offers only it at no cost, such as a free icon: the group starts empty, so
  * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles.
@@ -201,7 +212,22 @@ export async function* combatLoadoutCandidates(
       },
     ).errors.map((error) => `${error.entryId}:${error.message}`)
   const known = new Set(errors(units))
-  const legal = (built: BuiltUnit[]) => errors(built).every((error) => known.has(error))
+  // A VS pick's wargear is VS Data's to check; what its requested loadout already breaks does not rule a candidate out.
+  const definitions = vsDefinitionsOf(loaded)
+  const vsUnits = picks.map((pick) => (pick.vs && definitions ? vsUnitIdOf(loaded, data.catalogueId, pick.entryId) : undefined))
+  const vsProblems = (unit: BuiltUnit) =>
+    unit.vs && definitions ? vsUnitProblems(definitions, unit.vs.unit).map((problem) => problem.message) : []
+  const knownVs = units.map((unit) => new Set(vsProblems(unit)))
+  const legal = (built: BuiltUnit[]) =>
+    errors(built).every((error) => known.has(error)) &&
+    built.every((unit, at) => vsProblems(unit).every((problem) => knownVs[at]!.has(problem)))
+  const editsOf = function* (at: number, resolved: RosterPick, built: BuiltUnit) {
+    const unit = vsUnits[at]
+    for (const edit of choiceEdits(built.choices, units[at]!.size.models))
+      yield resolved.vs && unit && definitions
+        ? withVsEdit(definitions, unit, { ...resolved, vs: resolved.vs }, edit)
+        : withCatalogueEdit(resolved, edit, units[at]!.size.models)
+  }
   const estimated = units.reduce((states, unit) => states * loadoutStates(unit.choices), 1)
   const local = estimated > EXHAUSTIVE_STATES || data.walk !== undefined
   const start = data.walk ? walked(data.walk) : { picks, units }
@@ -218,7 +244,8 @@ export async function* combatLoadoutCandidates(
       selections: context.selections.map((selection, at) => replaced.get(at)?.selection ?? selection),
       unitSelections: context.unitSelections.map((unit) => {
         const member = replaced.get(unit.selectionIndex)
-        return member ? { ...unit, models: member.size.models } : unit
+        // A VS pick fights with what VS Data fields for this candidate, not what the requested loadout carried.
+        return member ? { ...unit, models: member.size.models, ...(member.vs ? { carriers: member.vs.carriers } : {}) } : unit
       }),
     }
   }
@@ -251,7 +278,8 @@ export async function* combatLoadoutCandidates(
   }
   const enqueue = async (members: RosterPick[], built: BuiltUnit[], depth: number) => {
     if (built.some((unit, index) => unit.size.models !== units[index]!.size.models)) return
-    const key = await digest(JSON.stringify(built.map((unit) => withoutEmptyEntries(unit.selection))))
+    // A VS pick's catalogue tree stays at its default loadout, so its state is also what VS Data fields.
+    const key = await digest(JSON.stringify(built.map((unit) => [withoutEmptyEntries(unit.selection), unit.vs?.unit ?? null])))
     if (seen.has(key)) return
     if (queue.length - head >= SEARCH_LIMITS.queued) throw incomplete()
     retain(key)
@@ -335,7 +363,7 @@ export async function* combatLoadoutCandidates(
     }
     for (let at = 0; at < indexes.length; at++) {
       // Illegal intermediate selections can connect legal combinations with shared limits.
-      for (const candidate of loadoutEdits(current.resolved[at]!, current.units[at]!.choices, units[at]!.size.models)) {
+      for (const candidate of editsOf(at, current.resolved[at]!, current.units[at]!)) {
         if (signal.aborted) return
         const members = current.resolved.map((pick, index) => (index === at ? candidate : pick))
         const key = requestKey(members)
@@ -368,9 +396,7 @@ export async function* combatLoadoutCandidates(
     const random = () => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648
     let here = { picks, units }
     for (let move = 0; move < steps || (move < steps * 3 && !legal(here.units)); move++) {
-      const edits = indexes.flatMap((_, at) =>
-        [...loadoutEdits(here.picks[at]!, here.units[at]!.choices, units[at]!.size.models)].map((candidate) => ({ at, candidate })),
-      )
+      const edits = indexes.flatMap((_, at) => [...editsOf(at, here.picks[at]!, here.units[at]!)].map((candidate) => ({ at, candidate })))
       if (!edits.length) break
       const { at, candidate } = edits[Math.floor(random() * edits.length)]!
       const built = build(candidate)
@@ -441,21 +467,19 @@ export function withoutEmptyEntries(selection: Selection): Selection {
 }
 
 function loadoutRequestKey(pick: RosterPick) {
-  return canonicalJson({ choices: pick.choices ?? {}, spreads: pick.spreads ?? {} })
+  return canonicalJson({ choices: pick.choices ?? {}, spreads: pick.spreads ?? {}, vs: pick.vs ?? null })
 }
 
-function* loadoutEdits(resolved: RosterPick, availableChoices: UnitChoice[], models: number): Generator<RosterPick> {
+/** One choice moved to new counts by an option's id: a single-pick choice to one option, or none for an empty optional one. */
+type ChoiceEdit = { choice: UnitChoice; counts: Record<string, number> }
+
+/** Each single step from a unit's current weapon choices, as what each changed choice then holds. */
+function* choiceEdits(availableChoices: UnitChoice[], models: number): Generator<ChoiceEdit> {
   for (const choice of weaponChoices(availableChoices)) {
     if (choice.room <= 1) {
       for (const id of [...choice.options.map((option) => option.id), ...(choice.optional ? [''] : [])]) {
         if (id === choice.chosen) continue
-        const choices = { ...resolved.choices }
-        if (id) choices[choice.key] = id
-        else delete choices[choice.key]
-        const spreads = Object.fromEntries(
-          Object.entries(resolved.spreads ?? {}).filter(([key]) => key !== choice.key && !key.startsWith(`${choice.key}/`)),
-        )
-        yield { ...resolved, choices, spreads }
+        yield { choice, counts: Object.fromEntries(choice.options.map((option) => [option.id, option.id === id ? 1 : 0])) }
       }
     } else {
       const counts = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
@@ -466,30 +490,46 @@ function* loadoutEdits(resolved: RosterPick, availableChoices: UnitChoice[], mod
       const full =
         used <= (choice.least ?? 0) &&
         !availableChoices.some((other) => other.key.startsWith(`${choice.key}/`) || choice.key.startsWith(`${other.key}/`))
-      const replace = (spreadCounts: Record<string, number>): RosterPick => ({
-        ...resolved,
-        models,
-        spreads: { ...resolved.spreads, [choice.key]: spreadCounts },
-      })
       if (choice.uniform) {
         const count = hasModels ? used : Math.min(choice.room, used || models)
         for (const option of choice.options) {
           if (option.count === count || option.max < count) continue
-          yield replace(Object.fromEntries(choice.options.map((entry) => [entry.id, entry === option ? count : 0])))
+          yield { choice, counts: Object.fromEntries(choice.options.map((entry) => [entry.id, entry === option ? count : 0])) }
         }
       } else {
         for (const option of choice.options) {
           if (option.count < option.max) {
-            if ((!hasModels || choice.optional) && used < choice.room) yield replace({ ...counts, [option.id]: option.count + 1 })
+            if ((!hasModels || choice.optional) && used < choice.room)
+              yield { choice, counts: { ...counts, [option.id]: option.count + 1 } }
             for (const donor of choice.options) {
               if (donor === option || donor.count <= (donor.mutableMin ? 0 : donor.min)) continue
-              yield replace({ ...counts, [option.id]: option.count + 1, [donor.id]: donor.count - 1 })
+              yield { choice, counts: { ...counts, [option.id]: option.count + 1, [donor.id]: donor.count - 1 } }
             }
           }
           if ((!hasModels || choice.optional) && option.count > (option.mutableMin ? 0 : option.min) && !full)
-            yield replace({ ...counts, [option.id]: option.count - 1 })
+            yield { choice, counts: { ...counts, [option.id]: option.count - 1 } }
         }
       }
     }
   }
+}
+
+/** A catalogue pick with one choice edited: a single pick as its chosen option, any other as its spread. */
+function withCatalogueEdit(resolved: RosterPick, { choice, counts }: ChoiceEdit, models: number): RosterPick {
+  if (choice.room > 1) return { ...resolved, models, spreads: { ...resolved.spreads, [choice.key]: counts } }
+  const id = Object.keys(counts).find((option) => counts[option]! > 0)
+  const choices = { ...resolved.choices }
+  if (id) choices[choice.key] = id
+  else delete choices[choice.key]
+  const spreads = Object.fromEntries(
+    Object.entries(resolved.spreads ?? {}).filter(([key]) => key !== choice.key && !key.startsWith(`${choice.key}/`)),
+  )
+  return { ...resolved, choices, spreads }
+}
+
+/** A VS pick with one of its VS Data options set to new counts, as the builder sets it (`vsWithSpread`). */
+function withVsEdit(definitions: VsDataDefinitions, unit: string, resolved: RosterPick & { vs: VsPick }, { choice, counts }: ChoiceEdit) {
+  const current = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
+  const { unit: _unit, size: _size, ...vs } = vsWithSpread(definitions, { unit, ...resolved.vs }, choice.key, current, counts)
+  return { ...resolved, vs: { ...resolved.vs, ...vs } }
 }

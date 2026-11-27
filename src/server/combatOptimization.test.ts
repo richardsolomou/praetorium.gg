@@ -5,6 +5,7 @@ import { applyOptimizedLoadout, loadoutChanges, optimizeLoadout, type LoadoutCan
 import { bookOf, points } from './catalogue.fixtures'
 import { combatLoadoutCandidates, loadoutStates, withoutEmptyEntries } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 function unit(id: string, name: string, kind?: 'Leader' | 'Support'): SelectionEntry {
   return {
@@ -342,4 +343,60 @@ it('keys a trimmed request’s loadout as the same state as one requested exactl
     count: 1,
     selections: [{ id: 'model', count: 5, selections: [weapon('bolter', 5)] }],
   })
+})
+
+const vsRecord = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+// The squad as VS Data fields it: its one model carries the weak weapon, and an option swaps it for the strong one.
+const vsBook = {
+  ...book,
+  vsRoster: vsRosterData(
+    {
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'test' },
+      unavailable: [],
+      points: [],
+      definitions: {
+        faction: { host: vsRecord('Host', {}) },
+        detachment: { 'host.guard': vsRecord('Guard', { faction: 'host' }) },
+        unit: { 'host.squad': vsRecord('Squad', { faction: 'host', keywords: [], sizes: [1] }) },
+        model: { 'host.squad.model': vsRecord('Squad', { unit: 'host.squad', min: 1, max: 1, wargear: { 'host.squad.weak': 1 } }) },
+        'roster-option': {
+          'host.squad.weapon': vsRecord('Weapon', {
+            unit: 'host.squad',
+            carrier: 'host.squad.model',
+            per: 'carrier',
+            choose: { min: 0, max: 1 },
+            replaces: { 'host.squad.weak': 1 },
+            choices: ['host.squad.strong'],
+          }),
+        },
+        wargear: { 'host.squad.weak': vsRecord('Squad weak', {}), 'host.squad.strong': vsRecord('Squad strong', {}) },
+      },
+    },
+    { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad' }, enhancements: {} },
+    null,
+    () => 'Squad',
+  ),
+}
+const vsRequest = { catalogueId: 'cat', detachmentIds: [], pickIndex: 0, picks: [{ entryId: 'squad', vs: { models: {}, options: {} } }] }
+
+it('searches a VS pick’s own options, not its catalogue choices', async () => {
+  const found = []
+  for await (const batch of combatLoadoutCandidates(vsBook, vsRequest, new AbortController().signal)) found.push(...batch.candidates)
+  expect(found.map((candidate) => JSON.stringify(candidate.members[0]!.pick.vs?.options)).toSorted()).toEqual([
+    '{"host.squad.weapon":{"host.squad.strong":1}}',
+    '{}',
+  ])
+})
+
+it('keeps the VS Data loadout an optimised VS pick holds', () => {
+  const best = { ...vsRequest.picks[0]!, vs: { models: {}, options: { 'host.squad.weapon': { 'host.squad.strong': 1 } } } }
+  expect(applyOptimizedLoadout(vsRequest.picks, [{ pickIndex: 0, pick: best }])[0]!.vs).toEqual(best.vs)
+})
+
+it('fights each VS candidate with what VS Data fields for it', async () => {
+  const found = []
+  for await (const batch of combatLoadoutCandidates(vsBook, vsRequest, new AbortController().signal)) found.push(...batch.candidates)
+  const strong = found.find((candidate) => candidate.members[0]!.pick.vs?.options['host.squad.weapon'])
+  expect(strong?.members[0]!.carriers.flatMap((carrier) => carrier.weapons.map((weapon) => weapon.name))).toEqual(['Squad strong'])
 })
