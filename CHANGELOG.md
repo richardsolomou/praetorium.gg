@@ -13,7 +13,7 @@
 - 3465014: [rosters] Marneus Calgar can lead Terminator Squads, Terminator Assault Squads, both Eradicator Squads, Vanguard Veteran Squads and Victrix Honour Guard, and a Captain on Bike can lead Ravenwing Black Knights, as the official app allows.
 - 3465014: [rosters] In Pactbound Zealots, a Character can only join a unit that has the same Mark of Chaos, as the official app says.
 - 3465014: [battles] Units can now embark in a Corvus Blackstar and in Legends transports whose capacity Praetorium couldn't read before, such as the Terrax-pattern Termite, Razorback and Stormraven Gunship.
-- 3465014: [battles] A Black Templars Repulsor or Repulsor Executioner can no longer carry Jump Pack models, as the official app says.
+- 3465014: [battles] A Space Marines Repulsor or Repulsor Executioner that a saved Black Templars list still holds no longer carries Jump Pack models, as the official app says; the Black Templars' own Repulsor still seats them at 2 spaces.
 
 ## 0.280.1 (2026-11-27)
 
