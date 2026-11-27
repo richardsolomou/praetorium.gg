@@ -58,6 +58,21 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
     expect(hasWarlordToggle(priced({ entryId: captain, vs })[0]!.toggles)).toBe(true)
   })
 
+  it('keeps the keyword naming its datasheet', () => {
+    expect(priced({ entryId: terminators, vs: heavyFlamer })[0]!.keywords).toContain('Terminator Squad')
+  })
+
+  it('names an Enhancement of a Detachment the list does not take', () => {
+    const vs = { models: {}, options: {}, enhancement: 'space-marines.assault-brethren.imperiums-sword' }
+    const other = loaded.detachments.get(list.catalogueId)!.options.find((option) => option.name !== 'Assault Brethren')!
+    const units = calculateRosterPrice(
+      { ...list, detachmentIds: [other.id], disposition: null, limit: 2000, units: [{ entryId: captain, vs }] },
+      loaded,
+      rules,
+    )!.units
+    expect(units[0]!.enhancements).toEqual(['Imperium’s Sword'])
+  })
+
   it('builds from the catalogue where VS Data does not field the datasheet', () => {
     const vs = { models: { nothing: 3 }, options: {} }
     expect(priced({ entryId: legends, vs })[0]!.size.models).toBe(priced({ entryId: legends })[0]!.size.models)

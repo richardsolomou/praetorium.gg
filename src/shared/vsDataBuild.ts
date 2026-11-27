@@ -37,8 +37,8 @@ export function buildPick(
   list: { catalogueId: string; detachmentIds: readonly string[] },
   context: ChoiceOptions,
 ): BuiltUnit | null {
-  const definitions = vsDefinitionsOf(loaded)
   const unit = pick.vs && vsUnitIdOf(loaded, pick.entryId)
+  const definitions = unit ? vsDefinitionsOf(loaded) : null
   if (pick.vs && definitions && unit) {
     const { detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
     const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).find(
@@ -94,8 +94,8 @@ export function vsPickPrices(
   list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
   units: readonly { entryId: string; vs?: BuiltUnit['vs'] }[],
 ): Map<number, number> {
-  const definitions = vsDefinitionsOf(loaded)
-  if (!definitions || !units.some((unit) => unit.vs)) return new Map()
+  const definitions = units.some((unit) => unit.vs) ? vsDefinitionsOf(loaded) : null
+  if (!definitions) return new Map()
   const { roster, at } = vsRosterOf(loaded, definitions, list, units)
   const price = priceVsRoster(definitions, roster)
   return new Map(

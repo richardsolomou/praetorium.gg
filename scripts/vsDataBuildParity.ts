@@ -15,7 +15,7 @@ import type { RosterPick, VsPick } from '../src/core/roster'
 import { buildUnit } from '../src/core/roster'
 import type { Counts } from '../src/core/vsDataConstruction'
 import { modelBounds, type VsRosterUnit } from '../src/core/vsDataRoster'
-import { vsFirstFielding, vsUnitProblems, vsWithChoice } from '../src/core/vsDataUnit'
+import { vsFirstFielding, vsResized, vsUnitProblems, vsUnitSize, vsWithChoice } from '../src/core/vsDataUnit'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { vsDefinitionsOf, vsUnitIdOf } from '../src/shared/vsDataBuild'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
@@ -190,7 +190,15 @@ for (const [entryId, entry] of Object.entries(map).slice(0, values.limit ? Numbe
       continue
     }
     const bsdata = priced(list, pick)
-    const vs = priced(list, { entryId, vs: vsPick([...parentSelections, choice.options].reduce(taking, start)) })
+    // A model the BSData pick gains beyond every size VS Data fields would take an ordinary model's place in a real pick.
+    if (bsdata && !unit.data.sizes.includes(bsdata.size.models)) {
+      count('mapped choice: BSData pick past VS Data sizes')
+      continue
+    }
+    // The map reads a pick from VS Data's unit at the pick's size, so a choice that brings a model is read at the size it makes.
+    const sized =
+      bsdata && bsdata.size.models !== vsUnitSize(definitions, start) ? vsResized(definitions, start, bsdata.size.models) : start
+    const vs = priced(list, { entryId, vs: vsPick([...parentSelections, choice.options].reduce(taking, sized)) })
     if (!bsdata || !vs) {
       count('mapped choice: unbuilt')
       continue

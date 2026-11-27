@@ -32,7 +32,7 @@ import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } fr
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
-import { buildPick, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -283,6 +283,28 @@ function adjustUnitPoints(
 const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltUnit['vs'] }[]) => {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
   return data.units.map((pick, key) => ({ entryId: pick.entryId, vs: byKey.get(key)?.vs }))
+}
+
+/**
+ * A VS pick's Enhancement as the list shows it, where the catalogue's tree holds none: one of a Detachment the list does
+ * not take still costs its points, so it is named, and VS Data's checker refuses it.
+ */
+function withVsEnhancement(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>, specials: ReturnType<typeof selectedSpecials>) {
+  const enhancement = vs.unit.enhancement ? vsDefinitionsOf(loaded)?.get('enhancement', vs.unit.enhancement) : undefined
+  if (!enhancement || specials.enhancements.length || specials.upgrades.length) return specials
+  return enhancement.data.type === 'upgrade'
+    ? { ...specials, upgrades: [enhancement.name] }
+    : { ...specials, enhancements: [enhancement.name] }
+}
+
+/**
+ * A VS pick's keywords, with the catalogue's keyword naming its own datasheet where VS Data gives none, as rules and
+ * attachments still name units by it until VS Data settles whether the app prints them.
+ */
+function vsKeywordsWithName(unit: { name: string }, vs: string[] | null, catalogue: string[]) {
+  if (!vs) return catalogue
+  const named = catalogue.filter((keyword) => routeSlug(keyword) === routeSlug(unit.name))
+  return [...vs, ...named.filter((keyword) => !vs.some((held) => routeSlug(held) === routeSlug(keyword)))]
 }
 
 function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
@@ -687,10 +709,15 @@ function calculateRoster(
   const pickedSelections = data.units.map((_, key) => pickedByKey.get(key)?.selection)
   const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
   const specialsByKey = new Map(
-    picked.map((unit) => [
-      unit.key,
-      selectedSpecials(unit.choices, enhancementNames.size ? wargearOf(unit.selection, loaded.index) : [], upgradeNames, enhancementNames),
-    ]),
+    picked.map((unit) => {
+      const specials = selectedSpecials(
+        unit.choices,
+        enhancementNames.size ? wargearOf(unit.selection, loaded.index) : [],
+        upgradeNames,
+        enhancementNames,
+      )
+      return [unit.key, unit.vs ? withVsEnhancement(loaded, unit.vs, specials) : specials] as const
+    }),
   )
   // Core rules: no unit, attached units included, has more than one enhancement, and an upgrade is one.
   const enhancementsPerUnitErrors = [...attachedByHost].flatMap(([host, keys]) => {
@@ -880,7 +907,9 @@ function calculateRoster(
       const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
-      const unitKeywords = (unit.vs && vsPickKeywords(loaded, data, vsUnits, unit.key)) || keywordNamesOf(unit)
+      const unitKeywords = unit.vs
+        ? vsKeywordsWithName(unit, vsPickKeywords(loaded, data, vsUnits, unit.key), keywordNamesOf(unit))
+        : keywordNamesOf(unit)
       const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const companion = pickedByKey.get(key)
