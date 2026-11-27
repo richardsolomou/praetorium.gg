@@ -145,16 +145,21 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
     }),
   )
 
+async function readDatasheet(data: z.output<typeof datasheetSchema>) {
+  const loaded = await app().catalogueFor(data.catalogueId)
+  if (!loaded) return null
+  const context = rosterDatasheetContext(loaded, data)
+  return rosterDatasheet(loaded, data, context, data.everyWeapon, await app().rulesFor(data.catalogueId))
+}
+
 export const datasheet = createServerFn({ method: 'GET' })
   .validator(datasheetSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const loaded = await app().catalogueFor(data.catalogueId)
-      if (!loaded) return null
-      const context = rosterDatasheetContext(loaded, data)
-      return rosterDatasheet(loaded, data, context, data.everyWeapon, await app().rulesFor(data.catalogueId))
-    }),
-  )
+  .handler(({ data }) => rpc(() => readDatasheet(data)))
+
+/** A roster's picks can be too large for a query string. */
+export const rosterUnitDatasheet = createServerFn({ method: 'POST' })
+  .validator(datasheetSchema)
+  .handler(({ data }) => mutationRpc(() => readDatasheet(data)))
 
 /**
  * The chosen and offered weapon views of a unit from one expansion of its roster. POST because a complete roster is too
