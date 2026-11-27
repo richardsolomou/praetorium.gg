@@ -7,14 +7,7 @@ import { type UnavailableSelection, withoutUnavailableSelections } from '../../.
 import { isUnitCompositionChoice, VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE } from '../../../../core/unitChoices'
 import type { VsDataDefinitions } from '../../../../core/vsDataConstruction'
 import type { VsRosterUnit } from '../../../../core/vsDataRoster'
-import {
-  vsResized,
-  vsUnitDefinitions,
-  vsUnitProblems,
-  vsUnitSize,
-  type VsUnitRecords,
-  vsWithChoice,
-} from '../../../../core/vsDataUnit'
+import { vsResized, vsUnitDefinitions, vsUnitProblems, vsUnitSize, type VsUnitRecords, vsWithChoice } from '../../../../core/vsDataUnit'
 import { type KeyedPick, positionedAnnotatedPicks, positionedPicks } from '../rosterPicks'
 import { pressedCounts, type SpreadUpdate } from './loadoutModel'
 
