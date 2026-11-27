@@ -21,6 +21,11 @@ export default defineConfig({
     forceRerunTriggers: [
       ...configDefaults.forceRerunTriggers,
       ...[
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+        'mise.toml',
+        'tsconfig.json',
+        'vitest.integration.config.ts',
         'catalogue.json',
         'catalogue/**',
         'spacetimedb/**',

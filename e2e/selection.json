@@ -45,6 +45,7 @@
       "account-seats.spec.ts",
       "account.spec.ts",
       "native-auth.spec.ts",
+      "object-storage.spec.ts",
       "parity.spec.ts",
       "public-support.spec.ts",
       "publication-retention.spec.ts",
@@ -103,7 +104,14 @@
     "legal": ["discovery.spec.ts", "parity.spec.ts", "publication-retention.spec.ts"],
     "notifications": ["notifications.spec.ts", "reminders.spec.ts"],
     "onboarding": [],
-    "profile": ["account.spec.ts", "admin.spec.ts", "home-activity.spec.ts", "parity.spec.ts", "played-armies.spec.ts"],
+    "profile": [
+      "account.spec.ts",
+      "admin.spec.ts",
+      "home-activity.spec.ts",
+      "object-storage.spec.ts",
+      "parity.spec.ts",
+      "played-armies.spec.ts"
+    ],
     "reference": [
       "custodes-codex.spec.ts",
       "datasheet-keywords.spec.ts",

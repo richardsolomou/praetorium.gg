@@ -7,6 +7,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import path from 'node:path'
 import { testFile } from './lib/compilerSources.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { changedFiles } from './lib/git.ts'
@@ -16,7 +17,7 @@ import { stepOutput } from './lib/stepOutput.ts'
 /** Dependencies, the toolchain and CI itself, which every lane reads. */
 const everything = [
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|mise\.toml|tsconfig\.json)$/,
-  /^\.github\/(?:workflows\/ci(?:-[a-z]+)?\.yml|actions\/)/,
+  /^\.github\/(?:workflows\/ci(?:-[a-z0-9-]+)?\.yml|actions\/)/,
 ]
 const catalogueData = /^catalogue(?:\.json|\/)/
 // The browser stack reads these by path or through tools other than the bundler: route files, styles, the database module, migrations, bundled skills.
@@ -50,6 +51,9 @@ const lanes = {
       'scripts/catalogueRefresh.ts',
       'scripts/compileCatalogueRuntime.ts',
       'scripts/browserTestBuild.ts',
+      // Playwright's web server starts localDev.ts, which starts nodeServer.ts as its own process.
+      'scripts/localDev.ts',
+      'scripts/nodeServer.ts',
       'scripts/e2eShard.ts',
     ],
     inputs: browserInputs,
@@ -94,7 +98,8 @@ export function browserSpecs(
     if (everything.some((pattern) => pattern.test(file))) return 'all'
     const spec = /^e2e\/([^/]+\.spec\.ts)(?:-snapshots\/|$)/.exec(file)?.[1]
     if (spec) {
-      specs.add(spec)
+      // Playwright refuses to list a deleted spec or a docs screenshot spec, which only `DOCS_SCREENSHOTS` runs.
+      if (!spec.startsWith('docs-screenshots.') && fs.existsSync(path.join(import.meta.dirname, '../e2e', spec))) specs.add(spec)
     } else if (featureOf(file)) {
       const features = featuresReaching(file, closures)
       if (features === 'all') return 'all'

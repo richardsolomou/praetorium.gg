@@ -39,6 +39,8 @@ it.each([
   'tsconfig.json',
   '.github/workflows/ci.yml',
   '.github/workflows/ci-coverage.yml',
+  '.github/workflows/ci-e2e.yml',
+  '.github/workflows/ci-browser-build.yml',
   '.github/actions/catalogue-sync/action.yml',
 ])('runs the coverage lane for %s, which it reads outside its imports', (file) => {
   expect(laneNeeded('coverage', [file], reached)).toBe(true)
@@ -66,6 +68,14 @@ it('runs every browser spec for a browser-test helper', () => {
 
 it('runs only a changed spec', () => {
   expect(browserSpecs(['e2e/saved.spec.ts'], closures, selection)).toEqual(['saved.spec.ts'])
+})
+
+it('runs no browser specs for a deleted spec', () => {
+  expect(browserSpecs(['e2e/retired.spec.ts'], closures, selection)).toEqual([])
+})
+
+it('runs no browser specs for a docs screenshot spec, which CI never lists', () => {
+  expect(browserSpecs(['e2e/docs-screenshots.readme.spec.ts'], closures, selection)).toEqual([])
 })
 
 it('runs the spec whose screenshot baseline changed', () => {
@@ -116,4 +126,12 @@ it.each(fs.readdirSync(path.join(repository, 'src/client/features')))('lists the
 
 it.each([...new Set(listed)])('lists %s, which exists', (spec) => {
   expect(fs.existsSync(path.join(repository, 'e2e', spec))).toBe(true)
+})
+
+const specs = fs
+  .readdirSync(path.join(repository, 'e2e'))
+  .filter((file) => file.endsWith('.spec.ts') && !file.startsWith('docs-screenshots.'))
+
+it.each(specs)('lists %s for at least one change in e2e/selection.json', (spec) => {
+  expect(listed).toContain(spec)
 })

@@ -32,6 +32,8 @@ export async function importClosures(directory: string, entries: readonly string
       {
         // `routeTree.gen` exists only once the router plugin has run, and imports only the route files it lists.
         name: 'generated-modules',
+        // Before Vite's resolver, so a route tree a local build left behind is ignored as CI's checkout has none.
+        enforce: 'pre',
         resolveId: (source) => (source.endsWith('.gen') ? '\0generated' : undefined),
         load: (id) => (id === '\0generated' ? '' : undefined),
       },
