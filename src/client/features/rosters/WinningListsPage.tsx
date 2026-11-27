@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Download, ExternalLink, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { facetMatches, facetText, periodBounds, withinPeriod } from '../../../core/listFilter'
@@ -20,6 +20,8 @@ import { errorMessage } from '../../queryClient'
 import { facetsOf, periodSearch } from '../../searchParams'
 import { countLabel, placingLabel } from '../../text'
 import { useClientValue } from '../../useClientValue'
+import { useWindowRows } from '../../components/useVirtualRows'
+import { cn } from '@/lib/utils'
 import { useAccountPrompt } from './AccountPrompt'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
@@ -27,15 +29,7 @@ import { factionFamilies } from './factionFamilies'
 import { peekGuestDraft } from './guestDraft'
 import { useNewRoster } from './newRoster'
 import { RosterImport } from './RosterImport'
-import {
-  ROSTER_ROW,
-  ROSTER_ROW_FOOT,
-  ROSTER_ROW_LINK,
-  ROSTER_ROWS,
-  RosterSummary,
-  rosterTitle,
-  type RosterSummaryFaction,
-} from './RosterSummary'
+import { ROSTER_ROW, ROSTER_ROW_FOOT, ROSTER_ROW_LINK, RosterSummary, rosterTitle, type RosterSummaryFaction } from './RosterSummary'
 import { SectionHeading } from '../../components/SectionHeading'
 import { RosterViews } from './RosterViews'
 import { TopFourSources } from './TopFourSources'
@@ -269,19 +263,13 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
                     Showing the lists checked so far. More appear as the rest are checked against today’s data.
                   </p>
                 ) : null}
-                <div className={ROSTER_ROWS}>
-                  {shown.map(({ list, faction }) => (
-                    <WinningListCard
-                      key={list.id}
-                      list={list}
-                      faction={faction}
-                      dispositionName={references?.dispositions.find((entry) => entry.id === list.disposition)?.name}
-                      opening={open.isPending && open.variables?.id === list.id}
-                      disabled={open.isPending}
-                      onImport={another ?? (() => open.mutate(list))}
-                    />
-                  ))}
-                </div>
+                <WinningListRows
+                  shown={shown}
+                  dispositionName={(id) => references?.dispositions.find((entry) => entry.id === id)?.name}
+                  openingId={open.isPending ? open.variables?.id : undefined}
+                  disabled={open.isPending}
+                  onImport={(list) => (another ? another() : open.mutate(list))}
+                />
               </>
             ) : active ? (
               <NoFilterMatches>No top-four lists match these filters</NoFilterMatches>
@@ -298,6 +286,56 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
       </PageContent>
       {account.prompt}
     </main>
+  )
+}
+
+/** Each check adds lists to a page of many hundred heavy cards, so only those near the viewport are drawn. */
+function WinningListRows({
+  shown,
+  dispositionName,
+  openingId,
+  disabled,
+  onImport,
+}: {
+  shown: { list: WinningList; faction?: RosterSummaryFaction }[]
+  dispositionName: (id: string) => string | undefined
+  openingId?: string
+  disabled: boolean
+  onImport: (list: WinningList) => void
+}) {
+  const container = useRef<HTMLDivElement>(null)
+  const { items, totalSize, virtualizer } = useWindowRows({
+    list: container,
+    count: shown.length,
+    estimateSize: () => 136,
+    getItemKey: (index) => shown[index]!.list.id,
+    initialRect: { width: 1024, height: 900 },
+    overscan: 6,
+  })
+  return (
+    <div ref={container} className="relative w-full border-y border-edge" style={{ height: totalSize }}>
+      {items.map((item) => {
+        const { list, faction } = shown[item.index]!
+        return (
+          <div
+            key={item.key}
+            data-index={item.index}
+            ref={virtualizer.measureElement}
+            className={cn('absolute top-0 left-0 w-full border-edge', item.index && 'border-t')}
+            style={{ transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)` }}
+          >
+            <WinningListCard
+              list={list}
+              faction={faction}
+              dispositionName={list.disposition ? dispositionName(list.disposition) : undefined}
+              opening={openingId === list.id}
+              disabled={disabled}
+              onImport={() => onImport(list)}
+            />
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

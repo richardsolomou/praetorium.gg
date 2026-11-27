@@ -86,3 +86,44 @@ it('does not publish a revision when the source heads have not changed', async (
 
   expect(await refreshLiveCatalogue(directory, async () => null)).toBe(false)
 })
+
+const part = (index: number) => `reference-${index.toString(16).padStart(64, '0')}.bin`
+function preparedWithParts(directory: string, id: string, parts: string[], written = parts) {
+  prepared(directory, id)
+  fs.mkdirSync(path.join(directory, 'public/assets'), { recursive: true })
+  for (const name of written) fs.writeFileSync(path.join(directory, 'public/assets', name), name)
+  const manifest = { reference: { parts: Object.fromEntries(parts.map((name) => [name, `/catalogue-assets/root/${name}`])) } }
+  fs.writeFileSync(path.join(directory, 'public/offline-reference-version.json'), JSON.stringify(manifest))
+  return id
+}
+
+it('keeps every part a live manifest names, however many there are', async () => {
+  const directory = root()
+  const parts = Array.from({ length: 200 }, (_, index) => part(index))
+  await refreshLiveCatalogue(directory, async (staging) => preparedWithParts(staging, first, parts))
+
+  expect(parts.filter((name) => !fs.existsSync(path.join(directory, 'assets', name)))).toEqual([])
+})
+
+it('removes parts no retained revision names', async () => {
+  const directory = root()
+  await refreshLiveCatalogue(directory, async (staging) => preparedWithParts(staging, first, [part(1)], [part(1), part(2)]))
+
+  expect(fs.existsSync(path.join(directory, 'assets', part(2)))).toBe(false)
+})
+
+it('refreshes from a downloaded revision that has no browser downloads', async () => {
+  const directory = root()
+  fs.mkdirSync(path.join(directory, first, 'catalogue'), { recursive: true })
+  fs.writeFileSync(path.join(directory, 'current.json'), JSON.stringify({ id: first }))
+  await refreshLiveCatalogue(directory, async (staging) => preparedWithParts(staging, second, [part(1)]))
+
+  expect(liveCatalogueRevision(directory)?.id).toBe(second)
+})
+
+it('refuses a revision whose manifest names a part it did not write', async () => {
+  const directory = root()
+  await expect(refreshLiveCatalogue(directory, async (staging) => preparedWithParts(staging, first, [part(1)], []))).rejects.toThrow(
+    'Incomplete catalogue',
+  )
+})

@@ -9,6 +9,7 @@ import { UnitPicker } from '../../components/UnitPicker'
 import { factionFor } from '../../factions'
 import { factionIndexQuery } from '../../queries'
 import { NOTHING_LISTED, type RosterGroup, type RosterOption, useRosterGroups } from './RosterPicker'
+import { PICKER_POPUP } from './CombatControls'
 import { useRosterSearch } from './rosterSearch'
 import { LevelLink, RosterUnits } from './SideUnitPicker'
 import type { CombatRoster } from './useCombatant'
@@ -91,6 +92,7 @@ export function MatchupSidePicker({
     const shared = {
       key: JSON.stringify(shown),
       ariaLabel,
+      popupClassName: PICKER_POPUP,
       loading,
       defaultOpen: level !== null,
       placeholder: value[0] ? labelOf(value[0]) : 'Choose units or rosters',
