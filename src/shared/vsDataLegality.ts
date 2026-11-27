@@ -87,12 +87,14 @@ export function vsDataErrors(
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
+    // A unit fielded by VS Data IDs is VS Data's wholly: its datasheet is one VS Data defines exactly.
+    const vsUnit = unit.vs && data.units[unit.entryId]
+    if (unit.vs && vsUnit) {
+      if (unit.vs.enhancement) taken.add(unit.vs.enhancement)
+      return [{ unit, read: { unit: vsUnit, ...unit.vs }, offersAllegiance: true }]
+    }
     const id = vsDataChecks(data, list.catalogueId, unit)
     if (!id) return []
-    if (unit.vs) {
-      if (unit.vs.enhancement) taken.add(unit.vs.enhancement)
-      return [{ unit, read: { unit: id, ...unit.vs }, offersAllegiance: true }]
-    }
     // A unit whose size the player cannot change is fielded as the catalogue models it, which can count a model VS Data
     // folds into another, so only a size the player chose is checked.
     const size = unit.size.max > unit.size.min ? unit.size.models : (definitions.get('unit', id)?.data.sizes[0] ?? unit.size.models)
