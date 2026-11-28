@@ -49,9 +49,58 @@ export function buildPick(
   list: { catalogueId: string; detachmentIds: readonly string[] },
   context: ChoiceOptions,
 ): BuiltUnit | null {
+  const own = builtVsPick(loaded, pick, list, context)
+  if (own !== undefined) return own
+  // One this version no longer holds is read in the rules version it was saved in, where that version still holds it.
+  const saved = pick.vs && pick.rulesVersion ? savedVersionOf(loaded, pick.rulesVersion) : null
+  const kept = saved ? builtVsPick(saved, pick, list, context) : undefined
+  if (kept?.vs) return { ...kept, vs: { ...kept.vs, rulesVersion: pick.rulesVersion! } }
+  const build = (models: number | undefined) =>
+    buildUnit(pick.entryId, loaded.index, models, pick.choices, {
+      ...context,
+      spreads: pick.spreads,
+      toggles: pick.toggles,
+      floor: pick.floor,
+    })
+  const plain = build(pick.models)
+  // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
+  const sizes = vsSizesOf(loaded, list.catalogueId, pick.entryId)
+  if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
+  const wanted = plain.size.models
+  const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
+  const built = nearest === wanted ? plain : (build(nearest) ?? plain)
+  return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
+}
+
+const savedVersions = new WeakMap<LoadedCatalogue, Map<string, LoadedCatalogue>>()
+
+/**
+ * The catalogue as it reads VS Data in another rules version: its own catalogue tree, with that version's roster
+ * definitions and points (`vsRosterIn`); none where the host gives no such lookup or holds no release for it.
+ */
+export function savedVersionOf(loaded: LoadedCatalogue, rulesVersion: string): LoadedCatalogue | null {
+  const versions = savedVersions.get(loaded) ?? new Map<string, LoadedCatalogue>()
+  savedVersions.set(loaded, versions)
+  // A version the host has not loaded yet, as a device reading its part, is asked again next time.
+  if (!versions.has(rulesVersion)) {
+    const vsRoster = loaded.vsRosterIn?.(rulesVersion)
+    if (vsRoster) versions.set(rulesVersion, { ...loaded, vsRoster })
+  }
+  return versions.get(rulesVersion) ?? null
+}
+
+/**
+ * A VS pick built by `loaded`'s VS Data beside the catalogue's tree of it (`buildVsUnit`); null where the tree cannot be
+ * built, and undefined where this VS Data does not hold the pick, as a pick moved from another rules version or datasheet.
+ */
+function builtVsPick(
+  loaded: LoadedCatalogue,
+  pick: RosterPick,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  context: ChoiceOptions,
+): BuiltUnit | null | undefined {
   const unit = pick.vs && vsUnitIdOf(loaded, list.catalogueId, pick.entryId)
   const definitions = unit ? vsDefinitionsOf(loaded) : null
-  // A pick moved from another rules version or datasheet keeps its `vs` only where this version still holds it.
   const vs = pick.vs && definitions && unit ? vsPickIn(definitions, unit, pick.vs) : undefined
   if (vs && definitions && unit) {
     const { faction, detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
@@ -82,21 +131,7 @@ export function buildPick(
       toggles: vsUnitToggles(definitions, built.vs.unit, roster).map((toggle) => (required ? { ...toggle, required } : toggle)),
     }
   }
-  const build = (models: number | undefined) =>
-    buildUnit(pick.entryId, loaded.index, models, pick.choices, {
-      ...context,
-      spreads: pick.spreads,
-      toggles: pick.toggles,
-      floor: pick.floor,
-    })
-  const plain = build(pick.models)
-  // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
-  const sizes = vsSizesOf(loaded, list.catalogueId, pick.entryId)
-  if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
-  const wanted = plain.size.models
-  const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
-  const built = nearest === wanted ? plain : (build(nearest) ?? plain)
-  return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
+  return undefined
 }
 
 /** The sizes VS Data steps a datasheet's unit between, where it fields some but not all between its smallest and largest. */
@@ -132,6 +167,25 @@ function vsRosterOf(
  * whole list as the field manual counts them. A pick VS Data leaves any part of unpriced has no price here.
  */
 export function vsPickPrices(
+  loaded: LoadedCatalogue,
+  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  units: readonly { entryId: string; vs?: BuiltUnit['vs'] }[],
+): Map<number, number> {
+  // A pick read in its saved rules version is priced there, among that version's picks; here it counts as its datasheet.
+  const prices = pricesIn(
+    loaded,
+    list,
+    units.map((unit) => (unit.vs?.rulesVersion ? { entryId: unit.entryId } : unit)),
+  )
+  for (const rulesVersion of new Set(units.flatMap((unit) => unit.vs?.rulesVersion ?? []))) {
+    const saved = savedVersionOf(loaded, rulesVersion)
+    const own = units.map((unit) => (unit.vs?.rulesVersion === rulesVersion ? unit : { entryId: '' }))
+    if (saved) for (const [position, points] of pricesIn(saved, list, own)) prices.set(position, points)
+  }
+  return prices
+}
+
+function pricesIn(
   loaded: LoadedCatalogue,
   list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
   units: readonly { entryId: string; vs?: BuiltUnit['vs'] }[],

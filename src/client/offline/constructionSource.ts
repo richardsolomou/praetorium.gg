@@ -27,7 +27,11 @@ import { constructionReads, type ConstructionReadData, type ConstructionReadName
 
 const sharedSources = new WeakMap<OfflineConstructionBase | OfflineConstructionSource, OfflineConstructionSource>()
 
-export function buildConstruction(saved: OfflineConstructionSource) {
+/**
+ * A rules version's construction data built from its source. The current rules', given the whole download, also read a
+ * pick saved in an earlier rules version by that version's part, once it is loaded (`loadConstructionData`).
+ */
+export function buildConstruction(saved: OfflineConstructionSource, data?: OfflineConstructionData) {
   const files = saved.edition ? editionCatalogueFiles(saved.files, saved.edition) : saved.files
   const datacards = unpackRuntimeData<LoadedCatalogue['datacards']>(saved.datacards)
   const definitionFacts = saved.definitionFacts
@@ -51,8 +55,26 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
     ...(vsProfiles ? { vsProfiles } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
+    ...(data && !saved.edition ? { vsRosterIn: (rulesVersion: string) => savedVersionRoster(data, rulesVersion) } : {}),
   }
   return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }
+}
+
+const savedRosters = new WeakMap<object, LoadedCatalogue['vsRoster'] | null>()
+
+/**
+ * An earlier rules version's roster definitions and points from its part, where the download has loaded it: only the
+ * part's roster data is restored, as a pick read there needs nothing else of it.
+ */
+function savedVersionRoster(data: OfflineConstructionData, rulesVersion: string) {
+  const part = data.editions?.find((candidate) => candidate.edition?.id === rulesVersion)
+  if (!part || 'base' in part || !part.vsRoster || !data.vsRoster) return null
+  if (!savedRosters.has(part)) {
+    const budget = { remaining: MAX_OFFLINE_BYTES - jsonByteLength(part) }
+    const restored = data.shared ? restoreRuntimeData(part.vsRoster, data.vsRoster, budget) : part.vsRoster
+    savedRosters.set(part, unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(restored))
+  }
+  return savedRosters.get(part) ?? null
 }
 
 /** The construction source for a catalogue's rules version, restored from shared data once per selection. */

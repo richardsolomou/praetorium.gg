@@ -16,6 +16,8 @@ export type VsBuiltUnit = {
   carriers: CombatCarrier[]
   models: ModelKind[]
   wargear: { name: string; count: number }[]
+  /** The earlier rules version whose VS Data the unit is read in, where its list's own no longer holds the pick. */
+  rulesVersion?: string
 }
 
 type Line = { model: string; models: number; each: Map<string, number>; extra: Map<string, number> }

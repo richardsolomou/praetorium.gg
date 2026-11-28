@@ -36,7 +36,7 @@ import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
-import { battleSizesOf, buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { battleSizesOf, buildPick, savedVersionOf, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -60,6 +60,7 @@ import {
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
 import {
+  type CheckedUnit,
   vsDataChecks,
   vsDataEnhancementOptions,
   vsDataEnhancementsRefused,
@@ -325,6 +326,38 @@ function unitPointsOf(
   return { points, adjustment }
 }
 
+/** Each pick read in its saved rules version, said once: the list's own checks read it by its datasheet alone. */
+function savedVersionNotes(loaded: LoadedCatalogue, picked: readonly { name: string; vs?: BuiltUnit['vs'] }[]) {
+  const current = loaded.vsRoster?.construction.rulesVersion.update
+  return picked.flatMap((unit) => {
+    const rulesVersion = unit.vs?.rulesVersion
+    const saved = rulesVersion ? savedVersionOf(loaded, rulesVersion)?.vsRoster?.construction.rulesVersion.update : undefined
+    return saved && current
+      ? [
+          `${unit.name} is kept as saved under ${saved}, since ${current} no longer has its loadout. Remove it and add it again to field it under ${current}.`,
+        ]
+      : []
+  })
+}
+
+/** What is wrong with a pick read in its saved rules version, by that version's VS Data: its own models and wargear. */
+function savedVersionErrors(
+  loaded: LoadedCatalogue,
+  data: PriceInput,
+  picked: readonly { key: number; vs?: BuiltUnit['vs'] }[],
+  checkedUnits: readonly CheckedUnit[],
+) {
+  const versions = new Set(picked.flatMap((unit) => unit.vs?.rulesVersion ?? []))
+  return [...versions].flatMap((rulesVersion) => {
+    const kept = new Set(picked.flatMap((unit) => (unit.vs?.rulesVersion === rulesVersion ? [unit.key] : [])))
+    const units = checkedUnits.flatMap((unit) => {
+      const vs = kept.has(unit.key) ? picked.find((candidate) => candidate.key === unit.key)?.vs?.unit : undefined
+      return vs ? [{ ...unit, vs }] : []
+    })
+    return vsPickErrors(savedVersionOf(loaded, rulesVersion)?.vsRoster, data, units)
+  })
+}
+
 /** Each saved pick's datasheet and, for a VS pick, the unit VS Data built, by its place in the list. */
 const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltUnit['vs'] }[]) => {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
@@ -335,9 +368,13 @@ const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltU
  * A VS pick's Enhancement as the list shows it, where the catalogue's tree holds none: one of a Detachment the list does
  * not take still costs its points, so it is named, and VS Data's checker refuses it.
  */
+/** The VS Data a VS pick reads: its saved rules version's where it is read there, else the list's. */
+const vsDefinitionsIn = (loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>) =>
+  vsDefinitionsOf((vs.rulesVersion && savedVersionOf(loaded, vs.rulesVersion)) || loaded)
+
 /** A VS pick's Enhancement or Upgrade, as VS Data names the one it takes. */
 function vsSpecials(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>): ReturnType<typeof selectedSpecials> {
-  const enhancement = vs.unit.enhancement ? vsDefinitionsOf(loaded)?.get('enhancement', vs.unit.enhancement) : undefined
+  const enhancement = vs.unit.enhancement ? vsDefinitionsIn(loaded, vs)?.get('enhancement', vs.unit.enhancement) : undefined
   const names = enhancement ? [enhancement.name] : []
   return {
     enhancements: enhancement?.data.type === 'upgrade' ? [] : names,
@@ -729,7 +766,7 @@ function calculateRoster(
   const unheld = vsDataUnheld(
     loaded.vsRoster,
     data,
-    picked.map((unit) => ({ ...unit, vs: unit.vs?.unit })),
+    picked.map((unit) => ({ ...unit, vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined })),
   )
   // A VS pick's tree leaves the catalogue's evaluation once nothing there could count it: VS Data places the list, prices
   // the pick and holds it by its own limits, and the list holds no catalogue pick. It stays in `selections`, which unit
@@ -751,7 +788,12 @@ function calculateRoster(
   const { points: unitPoints, adjustment } = unitPointsOf(loaded, data, picked, vsPrices, selectionPoints)
   const points = whole.points + adjustment
   // VS Data's ally points limits count what each unit costs the list.
-  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: unitPoints.get(unit.key) ?? 0 }))
+  // A pick read in its saved rules version is checked there on its own, and by its datasheet in the list's.
+  const checkedUnits = picked.map((unit) => ({
+    ...unit,
+    vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined,
+    points: unitPoints.get(unit.key) ?? 0,
+  }))
   const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
   const vsData = vsChecked?.errors ?? null
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
@@ -919,6 +961,7 @@ function calculateRoster(
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLocks,
     ...(vsData === null ? vsPickErrors(loaded.vsRoster, data, checkedUnits) : []),
+    ...savedVersionErrors(loaded, data, picked, checkedUnits),
     ...pointCaps,
     ...enhancementsPerUnitErrors,
     // King of the Colosseum's own Enhancement count stands for this one.
@@ -1023,6 +1066,7 @@ function calculateRoster(
     unhandled: [
       ...whole.unhandled,
       ...pointCapResult.unhandled.filter((note) => !whole.unhandled.includes(note)),
+      ...savedVersionNotes(loaded, picked),
       ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
     ],
     selections,
@@ -1061,9 +1105,12 @@ function calculateRoster(
           !(deployment.prebattleRules as readonly string[]).includes(pick.ability),
       )
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
-      const vsDefinitions = unit.vs ? vsDefinitionsOf(loaded) : null
+      const vsDefinitions = unit.vs ? vsDefinitionsIn(loaded, unit.vs) : null
       // An Enhancement VS Data's checker would refuse the unit is not offered, though one already taken stays to be undone.
-      const refused = vsData === null ? new Set<string>() : vsDataEnhancementsRefused(loaded.vsRoster, data, { ...unit, vs: unit.vs?.unit })
+      const refused =
+        vsData === null
+          ? new Set<string>()
+          : vsDataEnhancementsRefused(loaded.vsRoster, data, { ...unit, vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined })
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           // A VS pick's options are VS Data's, priced by it, a bundle naming what it holds.

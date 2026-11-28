@@ -27,6 +27,7 @@ import { vsPointsIn, vsProfilesIn, vsRosterDefinitionsIn } from './vsDataPoints'
 import { baseSizesByEntry } from '../shared/vsDataBaseSizes'
 import { readSharedJson } from './sharedJson'
 import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
+import type { VsRosterData } from '../shared/vsDataLegality'
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
@@ -183,7 +184,15 @@ export function* loadCatalogueSteps(
     mfm: yield* loadMfmSteps(directory),
     ...(vsPoints ? { vsPoints } : {}),
     ...(vsProfiles ? { vsProfiles } : {}),
+    // The current rules read a pick saved in an earlier rules version there, by that version's own release.
+    ...(edition ? {} : { vsRosterIn: savedVersionsIn(snapshotDirectory, loaded.index) }),
   }
+}
+
+/** Each rules version's roster definitions and points from the snapshot's releases, read once when first asked for. */
+function savedVersionsIn(directory: string, index: LoadedCatalogue['index']) {
+  const read = new Map<string, VsRosterData | null>()
+  return (rulesVersion: string) => remember(read, rulesVersion, () => vsRosterDefinitionsIn(directory, index, rulesVersion))
 }
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */

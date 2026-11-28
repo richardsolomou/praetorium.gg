@@ -1916,3 +1916,69 @@ describe('a datasheet VS Data prices', () => {
     expect(price({ arms: 'lance' })).toBe(90)
   })
 })
+
+describe('a pick saved in an earlier rules version its list no longer holds', () => {
+  const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+  /** One rules version's VS Data, its squad fielding `model` at `points`. */
+  const version = (update: string, model: string, points: number) =>
+    vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update },
+        unavailable: [],
+        points: [
+          {
+            id: 'test',
+            factions: [
+              {
+                id: 'host',
+                detachments: [],
+                units: [{ id: 'host.squad', name: 'Squad', tiers: [{ copies: { from: 1 }, costs: [{ models: 1, points }] }] }],
+              },
+            ],
+          },
+        ],
+        definitions: {
+          faction: { host: record('Host', {}) },
+          unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }) },
+          model: { [`host.squad.${model}`]: record(model, { unit: 'host.squad', min: 1, max: 1, wargear: {} }) },
+        },
+      },
+      { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad' }, enhancements: {} },
+      null,
+      (id) => (id === 'squad' ? 'Squad' : undefined),
+    )
+  const legacy = version('MFM 1.4', 'veteran', 90)
+  const loaded = {
+    ...bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: pointsCost(100) }] }),
+    vsRoster: version('MFM 1.6', 'trooper', 80),
+    vsRosterIn: (rulesVersion: string) => (rulesVersion === 'legacy' ? legacy : null),
+  }
+  const price = (veterans: number) =>
+    calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 2000,
+        units: [{ entryId: 'squad', vs: { models: { 'host.squad.veteran': veterans }, options: {} }, rulesVersion: 'legacy' }],
+      },
+      loaded,
+      rulesWithout,
+    )
+
+  it('costs what its saved rules version charges', () => {
+    expect(price(1)?.points).toBe(90)
+  })
+
+  it('says the unit is kept as saved, and how to field it under the current rules', () => {
+    expect(price(1)?.unhandled).toContain(
+      'Squad is kept as saved under MFM 1.4, since MFM 1.6 no longer has its loadout. Remove it and add it again to field it under MFM 1.6.',
+    )
+  })
+
+  it('is checked by its saved rules version', () => {
+    expect(price(2)?.errors.some((error) => error.entryId === 'squad')).toBe(true)
+  })
+})
