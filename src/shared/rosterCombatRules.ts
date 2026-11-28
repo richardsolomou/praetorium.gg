@@ -94,8 +94,8 @@ function vsFielding(
   catalogueId: string,
   entryId: string,
   sheet: Datasheet | null,
-  carriers: readonly CombatCarrier[] | undefined,
-  catalogue: () => readonly CombatCarrier[],
+  carriers: CombatCarrier[] | undefined,
+  catalogue: () => CombatCarrier[],
 ) {
   if (!sheet || !carriers) return { sheet, carriers }
   const weapons = (datasheetIn(loaded, catalogueId, entryId)?.profiles ?? []).filter(isWeaponProfile)
