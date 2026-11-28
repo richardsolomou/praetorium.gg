@@ -10,9 +10,10 @@ import { joinKey } from '../core/text'
 import { cardName, DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
 import { withoutUpgrade } from './mfm'
-import { withoutFactionPrefix } from '../core/name'
+import { isNonMatchedPlayName, withoutFactionPrefix } from '../core/name'
 import type { EnhancementEligibility } from '../contracts/factions'
 import { enhancementAdmits, unitKeywords } from '../core/vsDataRoster'
+import type { Definition } from '../core/vsDataConstruction'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 
 /** The names, as route slugs, of the unit upgrades a faction's detachments offer. */
@@ -150,34 +151,36 @@ export function describeDatasheetAbilitiesWithContributions(
 
 /**
  * Whether the datasheet may take a Detachment's Enhancement: as the Enhancement's rule facts admit some model of the
- * datasheet's VS Data unit under that Detachment, with or without an allegiance the unit may take there, carrying any
- * wargear it needs. A datasheet VS Data does not define is read from its Game Datacards card's wording instead.
+ * datasheet's VS Data unit under that Detachment, with or without an allegiance the unit may take there (and carry the
+ * wargear it needs), carrying any wargear the Enhancement needs. A datasheet VS Data does not define is read from its
+ * Game Datacards card's wording instead, and so, beside VS Data's reading, is a Warhammer Legends or Crucible one,
+ * which no app build prints to check VS Data's copy against.
  */
 function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: NonNullable<ReturnType<typeof datasheetIn>>) {
   const definitions = vsDefinitionsOf(loaded)
   const unitId = vsUnitIdOf(loaded, catalogueId, sheet.id)
   const unit = unitId ? definitions?.get('unit', unitId) : undefined
-  if (!definitions || !unit) return cardEligibility(sheet)
+  const card = cardEligibility(sheet)
+  if (!definitions || !unit) return card
+  const copied = isNonMatchedPlayName(sheet.name)
   const faction = loaded.vsRoster?.books[catalogueId.slice(catalogueId.indexOf('~') + 1)] ?? unit.data.faction
   const carried = [
     ...definitions.modelsOf(unit.id).flatMap((model) => Object.keys(model.data.wargear)),
     ...Object.keys(unit.data.wargear ?? {}),
     ...definitions.optionsOf(unit.id).flatMap((option) => option.data.choices),
   ]
-  const reachable = new Set(
-    [...carried, ...carried.flatMap((id) => Object.keys(definitions.get('wargear', id)?.data.includes ?? {}))].map((id) =>
-      (definitions.get('wargear', id)?.name ?? id).toLowerCase(),
-    ),
-  )
-  return ({ vsDataId }: { vsDataId?: string }) => {
-    const enhancement = vsDataId ? definitions.get('enhancement', vsDataId) : undefined
-    if (!enhancement) return false
+  const reachable = new Set([...carried, ...carried.flatMap((id) => Object.keys(definitions.get('wargear', id)?.data.includes ?? {}))])
+  const reachableNames = new Set([...reachable].map((id) => (definitions.get('wargear', id)?.name ?? id).toLowerCase()))
+  const admits = (enhancement: Definition<'enhancement'>) => {
     const { detachment } = enhancement.data
     const roster = { faction, detachments: [detachment], units: [] }
     const offered = (unit.data.allegiances ?? []).filter((offer) => !offer.detachment || offer.detachment === detachment)
+    const allegiances = offered.flatMap((offer) =>
+      offer.choices.filter((choice) => !offer.requires?.[choice] || reachable.has(offer.requires[choice]!)),
+    )
     return (
-      (enhancement.data.eligibility.requiredWargear ?? []).every((name) => reachable.has(name.toLowerCase())) &&
-      [undefined, ...offered.flatMap((offer) => offer.choices)].some((allegiance) =>
+      (enhancement.data.eligibility.requiredWargear ?? []).every((name) => reachableNames.has(name.toLowerCase())) &&
+      [undefined, ...allegiances].some((allegiance) =>
         enhancementAdmits(
           definitions,
           enhancement,
@@ -186,6 +189,10 @@ function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: 
         ),
       )
     )
+  }
+  return (enhancement: { vsDataId?: string; eligibility: EnhancementEligibility | null }) => {
+    const record = enhancement.vsDataId ? definitions.get('enhancement', enhancement.vsDataId) : undefined
+    return Boolean(record && admits(record)) || (copied && card(enhancement))
   }
 }
 
