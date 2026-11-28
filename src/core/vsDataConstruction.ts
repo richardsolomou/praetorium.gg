@@ -24,7 +24,8 @@ export type VsDataConstruction = z.infer<typeof vsDataConstructionSchema>
 /** How many of each wargear ID. */
 export type Counts = Record<string, number>
 /** Holds for a roster of `faction`, with `detachment`, whose units name `warlord`; `allegiance` only for the unit that took it. */
-export type When = { faction?: string; detachment?: string; warlord?: string; allegiance?: string }
+/** `allegiance` and `wargear` hold only in a unit's conditional keywords, for a unit that took that allegiance or carries that wargear. */
+export type When = { faction?: string; detachment?: string; warlord?: string; allegiance?: string; wargear?: string }
 type RosterBounds = { min?: number; max?: number }
 export type UnitLimit = RosterBounds & { keywords: string[]; detachments?: (RosterBounds & { detachment: string })[] }
 export type AllyLimit = { keywords: string[]; battleSize: string; max: number; free?: { keywords: string[]; per: string[] }[] }
@@ -80,7 +81,8 @@ export type OptionGroup = {
 export type UnitData = {
   faction: string
   keywords: string[]
-  conditionalKeywords?: { keywords: string[]; when: When }[]
+  /** Keywords the unit holds where `when` holds, in place of those of its own `keywords` named in `replaces`. */
+  conditionalKeywords?: { keywords: string[]; replaces?: string[]; when: When }[]
   sizes: number[]
   compositions?: Record<string, Bounds>[]
   modelGroups?: (ModelCountBounds & { models: string[] })[]

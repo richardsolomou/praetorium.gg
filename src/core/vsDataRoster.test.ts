@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from './vsDataConstruction'
-import { checkVsRoster, priceVsRoster, type VsRoster } from './vsDataRoster'
+import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster } from './vsDataRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const construction: VsDataConstruction = {
@@ -24,6 +24,12 @@ const construction: VsDataConstruction = {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
       'host.captain': record('Captain', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.hero': record('Hero', { faction: 'host', keywords: ['CHARACTER', 'EPIC HERO', 'INFANTRY'], sizes: [1] }),
+      'host.rider': record('Rider', {
+        faction: 'host',
+        keywords: ['INFANTRY', 'CHARACTER'],
+        sizes: [1],
+        conditionalKeywords: [{ keywords: ['MOUNTED'], replaces: ['INFANTRY'], when: { wargear: 'host.rider.bike' } }],
+      }),
       'host.oracle': record('Oracle', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
@@ -39,6 +45,7 @@ const construction: VsDataConstruction = {
       }),
       'host.captain.captain': record('Captain', { unit: 'host.captain', min: 1, max: 1, wargear: { 'host.captain.shield': 1 } }),
       'host.hero.hero': record('Hero', { unit: 'host.hero', min: 1, max: 1, wargear: {} }),
+      'host.rider.rider': record('Rider', { unit: 'host.rider', min: 1, max: 1, wargear: {} }),
       'host.oracle.oracle': record('Oracle', { unit: 'host.oracle', min: 1, max: 1, wargear: {}, warlord: false }),
       'host.agent.agent': record('Agent', { unit: 'host.agent', min: 1, max: 1, wargear: {} }),
       'host.envoy.envoy': record('Envoy', { unit: 'host.envoy', min: 1, max: 1, wargear: {} }),
@@ -47,6 +54,7 @@ const construction: VsDataConstruction = {
       'titan.engine.engine': record('Engine', { unit: 'titan.engine', min: 1, max: 1, wargear: {} }),
     },
     'roster-option': {
+      'host.rider.mount': record('Mount', { unit: 'host.rider', choose: { min: 0, max: 1 }, choices: ['host.rider.bike'] }),
       'host.walker.cannons': record('Cannons', {
         unit: 'host.walker',
         carrier: 'host.walker.walker',
@@ -58,6 +66,7 @@ const construction: VsDataConstruction = {
     },
     wargear: {
       'host.walker.claw': record('Claw', {}),
+      'host.rider.bike': record('Bike', {}),
       'host.walker.cannon': record('Cannon', {}),
       'host.walker.lance': record('Lance', {}),
       'host.walker.two-lances': record('2 Lance', { includes: { 'host.walker.lance': 2 } }),
@@ -188,6 +197,23 @@ describe('priceVsRoster', () => {
 
   it('prices a unit in another faction’s army at the row for other armies', () => {
     expect(priceVsRoster(definitions, roster([{ unit: 'host.agent' }], 'other', [])).points).toBe(50)
+  })
+})
+
+describe('keywordsOf', () => {
+  const mounted = { unit: 'host.rider', models: { 'host.rider.rider': 1 }, options: { 'host.rider.mount': { 'host.rider.bike': 1 } } }
+
+  it('gives a unit the keywords its wargear brings', () => {
+    expect(keywordsOf(definitions, roster([mounted]), mounted)).toContain('MOUNTED')
+  })
+
+  it('takes away the keywords that wargear replaces', () => {
+    expect(keywordsOf(definitions, roster([mounted]), mounted)).not.toContain('INFANTRY')
+  })
+
+  it('gives a unit read by its size alone no keyword by wargear', () => {
+    const sized = { unit: 'host.rider', size: 1 }
+    expect(keywordsOf(definitions, roster([sized]), sized)).toEqual(['INFANTRY', 'CHARACTER'])
   })
 })
 

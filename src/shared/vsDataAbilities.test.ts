@@ -60,6 +60,21 @@ it('reads words several units print alike as its own unit’s record', () =>
     ]),
   ).toBe(grinder))
 
+it('reads an ability VS Data shares with its unit that its printed text names', () =>
+  expect(
+    datasheetAbilitySummary(
+      {
+        ...units,
+        units: {
+          'raider-entry': { id: 'space-marines.land-raider', sizes: [], models: [], options: [], shared: ['shared.land-raider.damaged'] },
+        },
+      },
+      'raider-entry',
+      undefined,
+      [{ id: 'ability:shared.land-raider.damaged', summary: warptime }],
+    ),
+  ).toBe(warptime))
+
 it('finds a unit’s own record of a name, as its Transport', () =>
   expect(abilitySummaryIn(units, 'grinder-entry', 'Transport')).toBe(units.abilities['chaos-daemons.soul-grinder.transport']))
 
