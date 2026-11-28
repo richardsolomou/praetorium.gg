@@ -195,6 +195,19 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     why: 'the card gives these Wulfen a death totem and no shield wargear: their 4+ invulnerable save is on the datasheet',
   },
   {
+    check: 'wargear',
+    units: /^black-templars\.emperors-champion$/,
+    detail:
+      /^only BSData offers (master-of-arms|epitome-of-piety|instrument-of-the-emperor|adaptable-executioner|inspirational-fighter|front-line-crusader)$/,
+    why: 'no app build prints the Anointed Emperor’s Champion’s vows: the card gives a black sword and bolt pistol',
+  },
+  {
+    check: 'keywords',
+    units: /^black-templars\.emperors-champion$/,
+    detail: /.*/,
+    why: 'the Emperor’s Champion’s own BSData entry prints VS Data’s keywords; only its Anointed copy differs',
+  },
+  {
     check: 'sizes',
     units:
       /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
