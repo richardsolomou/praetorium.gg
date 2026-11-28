@@ -1,4 +1,3 @@
-import { normalized } from './importMismatch'
 import type { VsDataNames } from './vsData'
 
 /**
@@ -10,7 +9,7 @@ export type ImportNames = {
   datasheets: ReadonlyMap<string, readonly string[]>
   /** The spellings of each model and piece of wargear a datasheet holds, keyed as `datasheets`. */
   pieces: ReadonlyMap<string, readonly (readonly string[])[]>
-  /** Each Detachment's names from VS Data, by any of its English names normalized, BSData's included. */
+  /** Each Detachment's names from VS Data, by stored ID, with BSData's names of every stored ID standing for that Detachment. */
   detachments: ReadonlyMap<string, readonly string[]>
   /** The names BSData gave each datasheet, by stored entry ID. */
   datasheetNames: ReadonlyMap<string, readonly string[]>
@@ -85,10 +84,9 @@ export function importNamesOf(
   const detachments = new Map<string, readonly string[]>()
   const detachmentEntries = storedBy(legacy.detachments, rulesVersion)
   for (const [detachment, spelled] of Object.entries(names?.detachments ?? {})) {
-    const bsdata = (detachmentEntries.get(detachment) ?? []).flatMap((id) => legacy.detachmentNames.get(id) ?? [])
-    const group = [...new Set([...spelled, ...bsdata])]
-    for (const key of new Set([spelled[0]!, ...bsdata].map(normalized)))
-      detachments.set(key, [...new Set([...(detachments.get(key) ?? []), ...group])])
+    const stored = detachmentEntries.get(detachment) ?? []
+    const group = [...new Set([...spelled, ...stored.flatMap((id) => legacy.detachmentNames.get(id) ?? [])])]
+    for (const id of stored) detachments.set(id, group)
   }
   return { datasheets, pieces, detachments, datasheetNames: legacy.datasheetNames, detachmentNames: legacy.detachmentNames }
 }

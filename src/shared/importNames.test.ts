@@ -1,8 +1,7 @@
 import { expect, it } from 'vitest'
 import { importNamesOf } from './importNames'
-import { normalized } from './importMismatch'
 
-it('reads a Detachment BSData spells otherwise by its VS Data names, through the stored ID the frozen map joins', () => {
+it('gives a stored Detachment ID the VS Data names of the Detachment the frozen map joins it to', () => {
   const names = importNamesOf(
     {
       factions: [],
@@ -19,5 +18,5 @@ it('reads a Detachment BSData spells otherwise by its VS Data names, through the
       detachmentNames: new Map([['01b8-fa17-620e-8e79', ['Needgaârd Oathband']]]),
     },
   )
-  expect(names.detachments.get(normalized('Needgaârd Oathband'))).toContain('Needgaard-Eidbund')
+  expect(names.detachments.get('01b8-fa17-620e-8e79')).toContain('Needgaard-Eidbund')
 })

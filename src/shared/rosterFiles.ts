@@ -475,11 +475,12 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       : unit.name
   // A datasheet answers to every name BSData gave it, which New Recruit prints, as frozen; the official app's names are read
   // through VS Data below.
-  const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) => {
-    const definition = loaded.index.definitions.get(id)
-    const own = storedNames(appNames.datasheetNames, loaded, id) ?? (definition ? [nameOf(definition, loaded.index.definitions)] : [])
-    return own.map((name) => ({ id, name: normalized(name) }))
-  })
+  const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) =>
+    frozenNames(appNames.datasheetNames, loaded, id, () => {
+      const definition = loaded.index.definitions.get(id)
+      return definition ? [nameOf(definition, loaded.index.definitions)] : []
+    }).map((name) => ({ id, name: normalized(name) })),
+  )
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
   // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
   // A list can also name it after its faction, as 40k.app's "Chaos Warhound Titan" is a Chaos army's "Warhound Titan".
@@ -789,6 +790,13 @@ function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?:
   }
 }
 
+/**
+ * The names BSData gave a stored ID, as frozen. Rules carrying none, as a download from an earlier release or a list read
+ * without rules, read the catalogue's own name instead.
+ */
+const frozenNames = (frozen: ImportNames['datasheetNames'], loaded: LoadedCatalogue, id: string, own: () => readonly string[]) =>
+  frozen.size ? (storedNames(frozen, loaded, id) ?? []) : own()
+
 function detachmentsNamed<T extends { id: string; name: string }>(
   combined: string,
   options: readonly T[],
@@ -796,20 +804,26 @@ function detachmentsNamed<T extends { id: string; name: string }>(
   appNames: ImportNames,
   loaded: LoadedCatalogue,
 ): T[] {
+  const english = new Map(options.map((option) => [option, frozenNames(appNames.detachmentNames, loaded, option.id, () => [option.name])]))
+  // A Detachment answers to the names BSData gave its stored ID, as frozen, and to VS Data's names of the Detachment that ID stands for.
   const names = new Map(
     options.map((option) => [
       option,
       [
         ...new Set(
-          (storedNames(appNames.detachmentNames, loaded, option.id) ?? [option.name])
-            .flatMap(detachmentNameVariants)
-            .flatMap((name) => [...translationsOf(name, translations), ...(appNames.detachments.get(normalized(name)) ?? [])])
-            .map(normalized),
+          [
+            ...english
+              .get(option)!
+              .flatMap(detachmentNameVariants)
+              .flatMap((name) => translationsOf(name, translations)),
+            ...(appNames.detachments.get(option.id) ?? []),
+          ].map(normalized),
         ),
       ],
     ]),
   )
-  const candidates = options.toSorted((left, right) => normalized(right.name).length - normalized(left.name).length)
+  const longest = (option: T) => Math.max(0, ...english.get(option)!.map((name) => normalized(name).length))
+  const candidates = options.toSorted((left, right) => longest(right) - longest(left))
   const visit = (remaining: string, available: readonly T[]): T[] | null => {
     for (const candidate of available) {
       for (const name of names.get(candidate)!) {
