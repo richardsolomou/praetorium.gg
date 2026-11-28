@@ -44,6 +44,7 @@ async function serve(request: IncomingMessage, response: ServerResponse, url: st
     if (typeof value === 'string') headers.set(header, value)
   }
   try {
+    // The limit bounds the whole transfer, body included, which a chunk of a few megabytes finishes well within.
     const object = await bucket.fetch(url, { method: request.method, headers, signal: AbortSignal.timeout(10_000) })
     if (object.status === 404) {
       await object.body?.cancel()
