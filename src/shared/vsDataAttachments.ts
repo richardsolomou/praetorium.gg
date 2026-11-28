@@ -8,8 +8,8 @@ const ROLE = { leads: 'leader', supports: 'support' } as const
 
 /**
  * Joiners whose VS Data hosts are known wrong or still unsettled, which keep the catalogue's hosts VS Data does not name:
- * the Regimental Attachés' join and the Crisis Commander's misprinted host until vs-data-tools#144 releases, and the
- * Deathwatch leaders while which units their Legends hosts map to is open.
+ * the Regimental Attachés' join and the Crisis Commander's misprinted host until richardsolomou/vs-data#ISSUE releases,
+ * and the Deathwatch leaders until richardsolomou/vs-data#ISSUE settles their hosts.
  */
 const CATALOGUE_HOSTS = new Set([
   'astra-militarum.regimental-attaches',
@@ -19,11 +19,6 @@ const CATALOGUE_HOSTS = new Set([
   'imperial-agents.inquisitor-eisenhorn',
   'imperial-agents.inquisitor-in-terminator-armour',
 ])
-
-/** Hosts whose joiners a rules version's VS Data release predates, which keep the catalogue's reading there. */
-const STALE_HOSTS: Readonly<Record<string, readonly string[]>> = {
-  'legacy-marine-old': ['space-marines.sternguard-veteran-squad', 'space-marines.terminator-squad'],
-}
 
 /**
  * Who each datasheet may join in one rules version, from VS Data's attachment records, by the BSData entry IDs saved
@@ -89,9 +84,11 @@ export function vsAttachmentsIndex(
     const targets = [...new Set(hosts.flatMap(namesOf))]
     // A condition no list can meet here is left out, and its hosts with it, so the catalogue's reading of them stands.
     const conditional = (data.conditional ?? []).flatMap((entry) => {
-      // A host taken by its keywords brings the bodyguards that stand in for it, as named hosts do.
-      const stoodIn = [...(entry.units ?? []), ...(entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords) : [])]
-      const entryHosts = [...(entry.units ?? []), ...instead(stoodIn, entry.role)]
+      // A host taken by its keywords is named too, as the catalogue may not give it those keywords, and brings the
+      // bodyguards that stand in for it, as named hosts do.
+      const holders = entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords).filter((unit) => unit !== data.unit) : []
+      const stoodIn = [...(entry.units ?? []), ...holders]
+      const entryHosts = [...stoodIn, ...instead(stoodIn, entry.role)]
       const read = condition({ ...entry, ...(entryHosts.length ? { units: entryHosts } : {}) }, namesOf, entriesOf, detachmentsOf)
       return read.requires?.some((group) => !group.length) ? [] : [read]
     })
@@ -135,12 +132,10 @@ export function vsAttachmentHosts(
   edition: string | null,
   nameOf: (entryId: string) => string | undefined,
 ): string[] {
-  const stale = new Set(STALE_HOSTS[edition ?? ''] ?? [])
-  const entries = [...datasheetUnits(units, edition)]
-  // Hosts are named, so a stale host stays the catalogue's whichever datasheet of its name a list holds.
-  const staleNames = new Set(entries.flatMap(([entryId, unit]) => (stale.has(unit) ? (nameOf(entryId) ?? []) : [])))
-  const names = entries.flatMap(([entryId, unit]) => (fielded(definitions, unit) ? (nameOf(entryId) ?? []) : []))
-  return [...new Set(names)].filter((name) => !staleNames.has(name)).sort()
+  const names = [...datasheetUnits(units, edition)].flatMap(([entryId, unit]) =>
+    fielded(definitions, unit) ? (nameOf(entryId) ?? []) : [],
+  )
+  return [...new Set(names)].sort()
 }
 
 /** What each transport carries in one rules version, from VS Data's records; one whose capacity has no printed shape stays with its printed rule. */
