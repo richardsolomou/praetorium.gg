@@ -27,15 +27,13 @@ it('offers the dispositions of every selected detachment once', () => {
 })
 
 const shieldHosts = [
-  { id: 'aquilan', name: 'Aquilan Shield', exclusiveWith: [{ id: 'chosen', limit: 'Unique: Shield Host' }] },
-  { id: 'chosen', name: 'Emperor’s Chosen', exclusiveWith: [{ id: 'aquilan', limit: 'Unique: Shield Host' }] },
+  { id: 'aquilan', name: 'Aquilan Shield', exclusiveWith: [{ id: 'chosen', limit: 'Shield Host' }] },
+  { id: 'chosen', name: 'Emperor’s Chosen', exclusiveWith: [{ id: 'aquilan', limit: 'Shield Host' }] },
   { id: 'lions', name: 'Lions of the Emperor', exclusiveWith: [] },
 ]
 
 it('explains why a detachment sharing a one-per-army limit with a chosen one is unavailable', () => {
-  expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe(
-    "Can't be taken with Aquilan Shield: only one Unique: Shield Host detachment",
-  )
+  expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe("Can't be taken with Aquilan Shield: only one Shield Host detachment")
 })
 
 it('offers a detachment that shares no limit with the chosen ones', () => {
