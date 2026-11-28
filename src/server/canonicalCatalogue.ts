@@ -15,7 +15,8 @@ import type {
   CanonicalSourceName,
 } from '../contracts/catalogue'
 import type { RuleDocument } from '../contracts/rules'
-import { datasheetIn } from '../shared/catalogue'
+import { datasheetIn, vsCompositionOf } from '../shared/catalogue'
+import { hasTextTokens } from '../core/sourceText'
 import { catalogueDirectory, loadCatalogue } from './catalogueIndex'
 import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { isOfferedDatasheet } from '../shared/catalogueUnit'
@@ -34,7 +35,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor, vsDataPriced } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 49 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 50 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -402,7 +403,9 @@ export function* canonicalCatalogueSteps(
       // no source prints, until VS Data or a decision covers them (#2009).
       const vsDataBaseSize = described.baseSize
       const baseSize = vsDataBaseSize || profileBaseSize(described.profiles)
-      const cardsComposition = described.composition
+      // Count lines VS Data fields; a card's lines are its own words, published only as tokens, so they say nothing here.
+      const vsComposition = vsCompositionOf(loaded, faction.id, entryId)
+      const cardsComposition = vsComposition ? [] : described.composition.filter((line) => !hasTextTokens(line))
       const cardsCosts = described.costs
       const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
       // Most Legends units have no field manual or card price, so the catalogue's own price for the smallest unit stands in.
@@ -464,7 +467,7 @@ export function* canonicalCatalogueSteps(
         points,
         profiles: structureDatasheetProfiles(described.profiles),
         baseSize,
-        composition: cardsComposition,
+        composition: vsComposition ?? cardsComposition,
         costs: sourceCosts,
         provenance: {
           definitions: { revision: revisions.definitions ?? loaded.index.revision, entryId },
@@ -481,7 +484,7 @@ export function* canonicalCatalogueSteps(
             keywords: sourceOrUnresolved('definitions'),
             profiles: sourceOrUnresolved('definitions'),
             abilities: resolution(abilitySources, abilitySources.length > 1 ? 'merged' : 'single-source'),
-            composition: sourceOrUnresolved(cardsComposition.length ? 'datacards' : null),
+            composition: sourceOrUnresolved(vsComposition?.length ? 'summaries' : cardsComposition.length ? 'datacards' : null),
             loadout: sourceOrUnresolved(joined && described.loadout ? 'datacards' : null),
             wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : 'definitions', !joined?.details.wargear.length),
             baseSize: sourceOrUnresolved(vsDataBaseSize ? 'summaries' : baseSize ? 'definitions' : null),
