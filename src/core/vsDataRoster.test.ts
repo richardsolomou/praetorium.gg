@@ -14,6 +14,12 @@ const construction: VsDataConstruction = {
       chapter: record('Chapter', { parent: 'host', excludedDetachments: ['host.guard'] }),
       titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
       band: record('Band', { unitLimits: [{ keywords: ['CHARACTER'], max: 1 }] }),
+      enclave: record('Enclave', {
+        unitLimits: [
+          { keywords: ['HERO', 'HERO ON FOOT'], anyOf: [['HERO'], ['HERO ON FOOT']], max: 1 },
+          { keywords: ['COMMANDER', 'SAGE'], anyOf: [['COMMANDER'], ['SAGE']], exclusive: true },
+        ],
+      }),
       court: record('Court', {
         allies: [
           {
@@ -31,6 +37,11 @@ const construction: VsDataConstruction = {
     },
     unit: {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
+      'enclave.hero': record('Hero', { faction: 'enclave', keywords: ['HERO'], sizes: [1] }),
+      'enclave.hero-on-foot': record('Hero on Foot', { faction: 'enclave', keywords: ['HERO ON FOOT'], sizes: [1] }),
+      'enclave.commander': record('Commander', { faction: 'enclave', keywords: ['COMMANDER'], sizes: [1] }),
+      'enclave.sage': record('Sage', { faction: 'enclave', keywords: ['SAGE'], sizes: [1] }),
+      'enclave.sage-commander': record('Sage Commander', { faction: 'enclave', keywords: ['COMMANDER', 'SAGE'], sizes: [1] }),
       'host.captain': record('Captain', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.hero': record('Hero', { faction: 'host', keywords: ['CHARACTER', 'EPIC HERO', 'INFANTRY'], sizes: [1] }),
       'host.rider': record('Rider', {
@@ -265,6 +276,28 @@ describe('checkVsRoster', () => {
 
   it('frees an allied CHARACTER for each unit whose model holds the keyword the allowance names', () => {
     expect(courtCodes([{ unit: 'band.boss' }, { unit: 'band.boss' }, { unit: 'court.crew' }])).not.toContain('ally-limit')
+  })
+
+  const enclave = (...units: string[]) =>
+    checkVsRoster(
+      definitions,
+      roster(
+        units.map((unit) => ({ unit })),
+        'enclave',
+        [],
+      ),
+    ).filter((problem) => problem.code === 'unit-limit')
+
+  it('counts a unit holding any one alternative of a limit towards it', () => {
+    expect(enclave('enclave.hero', 'enclave.hero-on-foot')).toHaveLength(1)
+  })
+
+  it('refuses units of two alternatives of an exclusive limit', () => {
+    expect(enclave('enclave.commander', 'enclave.sage')).toHaveLength(1)
+  })
+
+  it('accepts units that all fit one alternative of an exclusive limit, one fitting two', () => {
+    expect(enclave('enclave.commander', 'enclave.sage-commander', 'enclave.commander')).toEqual([])
   })
 
   it('counts a unit a Character model leads towards a CHARACTER limit', () => {

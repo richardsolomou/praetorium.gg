@@ -27,7 +27,16 @@ export type Counts = Record<string, number>
 /** `allegiance` and `wargear` hold only in a unit's conditional keywords, for a unit that took that allegiance or carries that wargear. */
 export type When = { faction?: string; detachment?: string; warlord?: string; allegiance?: string; wargear?: string }
 type RosterBounds = { min?: number; max?: number }
-export type UnitLimit = RosterBounds & { keywords: string[]; detachments?: (RosterBounds & { detachment: string })[] }
+/**
+ * A faction's limit on the units holding `keywords`. With `anyOf`, a unit counts when it holds every keyword of any one
+ * alternative (`keywords` is then their union), and with `exclusive`, the units counted must all fit one alternative.
+ */
+export type UnitLimit = RosterBounds & {
+  keywords: string[]
+  anyOf?: string[][]
+  exclusive?: true
+  detachments?: (RosterBounds & { detachment: string })[]
+}
 export type AllyLimit = { keywords: string[]; battleSize: string; max: number; free?: { keywords: string[]; per: string[] }[] }
 export type Ally = {
   units: string[]

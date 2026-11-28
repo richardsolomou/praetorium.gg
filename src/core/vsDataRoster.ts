@@ -436,7 +436,10 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   let enhancementCount = 0
   const unitLimits = (faction?.unitLimits ?? []).map((limit) => {
     const row = limit.detachments?.find((d) => detachmentIds.includes(d.detachment)) ?? limit
-    return { keywords: limit.keywords, min: row.min, max: row.max, count: 0 }
+    const alternatives = limit.anyOf ?? [limit.keywords]
+    const named = alternatives.map((set) => set.join(' ')).join(' or ')
+    // The alternatives every unit counted so far fits, for an exclusive limit; null until one is counted.
+    return { alternatives, named, exclusive: limit.exclusive, min: row.min, max: row.max, count: 0, common: null as number[] | null }
   })
   const warlords = roster.units.filter((unit) => unit.warlord !== undefined).length
   roster.units.forEach((picked, at) => {
@@ -466,10 +469,14 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       size?.duplicates
     if (copies.get(unit.id) === (limit ?? Infinity) + 1) add('roster-limit', `${unit.name} is limited to ${limit} per roster`)
     for (const shared of unitLimits) {
-      if (!holdsAll(counted, shared.keywords)) continue
+      const fits = shared.alternatives.flatMap((set, i) => (holdsAll(counted, set) ? [i] : []))
+      if (!fits.length) continue
       shared.count++
-      if (shared.count === (shared.max ?? Infinity) + 1)
-        add('unit-limit', `a roster holds at most ${shared.max} ${shared.keywords.join(' ')} units`)
+      if (shared.count === (shared.max ?? Infinity) + 1) add('unit-limit', `a roster holds at most ${shared.max} ${shared.named} units`)
+      if (!shared.exclusive) continue
+      const shareable = shared.common === null || shared.common.length > 0
+      shared.common = shared.common?.filter((i) => fits.includes(i)) ?? fits
+      if (shareable && !shared.common.length) add('unit-limit', `a roster holds units of only one of ${shared.named}`)
     }
 
     const models = definitions.modelsOf(unit.id)
@@ -534,7 +541,7 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   })
   for (const shared of unitLimits)
     if (shared.count < (shared.min ?? 0))
-      rosterProblem('unit-limit', `a roster holds at least ${shared.min} ${shared.keywords.join(' ')} units, has ${shared.count}`)
+      rosterProblem('unit-limit', `a roster holds at least ${shared.min} ${shared.named} units, has ${shared.count}`)
   allies.forEach((ally, at) => {
     const units = members[at]!
     const allyPoints = units.reduce((sum, i) => sum + (price.units[i]?.points ?? 0), 0)
