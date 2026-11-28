@@ -1,5 +1,5 @@
 import { uniqueBy } from './collections'
-import { combatTextKey, normalizeCombatText, unshouted } from './combatRuleCompiler'
+import { combatTextKey, unshouted } from './combatRuleCompiler'
 import {
   type ActiveCombatRule,
   adjustedCharacteristic,
@@ -28,23 +28,17 @@ export type BattleChoice = {
 }
 
 /**
- * What another of a unit's rules allows a choice it is in, named by the plural its options go by, as Orders: a higher
- * limit, as some officers give, more options on top of it, as Warrior Elite gives, or an option that comes with any other.
+ * What one of a unit's rules allows a choice it is in, named by the plural its options go by, as Orders: a higher limit,
+ * as some officers give, more options on top of it, as Warrior Elite gives, or an option that comes with any other.
  */
-export type BattleChoiceAllowance = {
-  options: string
-  /** The rules it widens, by name, where they were matched without their words; otherwise those whose text names its options. */
-  rules?: string[]
-} & ({ limit: number } | { extra: number } | { also: string })
+type Allowance = { options: string } & ({ limit: number } | { extra: number } | { also: string })
 /** An allowance as one text states it, `leading` where it holds only while the unit leads another. */
-export type StatedAllowance = BattleChoiceAllowance & { leading?: true }
-
-/** Whether a rule's words name the options an allowance widens, as "Orders". */
-export const namesAllowedOptions = (allowance: BattleChoiceAllowance, words: string) =>
-  new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(words))
+export type StatedAllowance = Allowance & { leading?: true }
+/** An allowance with the rules it widens, by name: those whose facts say they offer its options. */
+export type BattleChoiceAllowance = Allowance & { rules: string[] }
 
 /** The allowances these texts state for the unit's choices; a leader's only while `attached`. */
-export const allowancesWhile = (stated: readonly StatedAllowance[], attached: boolean): BattleChoiceAllowance[] =>
+export const allowancesWhile = (stated: readonly StatedAllowance[], attached: boolean): Allowance[] =>
   stated.flatMap(({ leading, ...allowance }) => (leading && !attached ? [] : [allowance]))
 
 type Effect = ActiveCombatRule['effects'][number]
@@ -86,9 +80,7 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
       return labels.length > 1 ? [{ ...activator, labels }] : []
     })
     const always = together.find((activator) => activator.always)
-    const allowed = allowances.filter((allowance) =>
-      allowance.rules ? allowance.rules.includes(rule.name) : namesAllowedOptions(allowance, rule.description),
-    )
+    const allowed = allowances.filter((allowance) => allowance.rules.includes(rule.name))
     const limit =
       Math.max(1, ...allowed.flatMap((allowance) => ('limit' in allowance ? [allowance.limit] : []))) +
       allowed.reduce((sum, allowance) => sum + ('extra' in allowance ? allowance.extra : 0), 0)

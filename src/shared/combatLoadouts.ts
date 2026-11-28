@@ -16,6 +16,7 @@ import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import type { LoadedRules } from './rules'
 import { nextTask } from './nextTask'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
+import { vsCarriersFiring } from './vsCarrierProfiles'
 
 type LoadoutRequest = {
   catalogueId: string
@@ -92,8 +93,11 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
           (error) => `${error.entryId}:${error.message}`,
         )
   const known = new Set(errors(base))
+  const weapons = (datasheetViewsIn(loaded, data.catalogueId, pick.entryId, context).available?.profiles ?? []).filter(isWeaponProfile)
+  const catalogueCarriers = (built: BuiltUnit) =>
+    combatCarriers(built.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
   const carriersOf = (built: BuiltUnit) =>
-    built.vs?.carriers ?? combatCarriers(built.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
+    built.vs ? vsCarriersFiring(built.vs.carriers, weapons, catalogueCarriers(base)) : catalogueCarriers(built)
   const carriers = carriersOf(base)
   const models = pick.models ?? base.size.models
   const option = (group: string, entry: string, step: LoadoutOption['step'], candidate: RosterPick | null): LoadoutOption[] => {
@@ -146,7 +150,7 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
   }
   return {
     carriers,
-    weapons: (datasheetViewsIn(loaded, data.catalogueId, pick.entryId, context).available?.profiles ?? []).filter(isWeaponProfile),
+    weapons,
     choices: choices.flatMap((choice): LoadoutOption[][] => {
       if (governs(choice)) return []
       if (!isSpread(choice))

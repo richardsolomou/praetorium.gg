@@ -2,7 +2,6 @@ import { cachedIn } from '../core/collections'
 import { attachmentPartyOf } from '../core/attach'
 import type { Selection } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
-import { routeSlug } from '../core/slug'
 import type { PickerUnit, UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn } from './catalogue'
 import { detachmentUnitFacts, seedUnitSummaries, type UnitListOptions, unitSummaries, unitsIn } from './cataloguePicker'
@@ -35,12 +34,6 @@ function pickerSearchFields(loaded: LoadedCatalogue, catalogueId: string, entryI
   return fields && granted ? { ...fields, keywords: [...new Set([...fields.keywords, ...granted])] } : fields
 }
 
-function pickerRestrictions(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string) {
-  const book = loaded.factions.find((entry) => entry.id === catalogueId)
-  const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : ''
-  return rules?.factionRestrictions.get(routeSlug(displayName))
-}
-
 export function pickerUnitsFor(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
@@ -51,64 +44,51 @@ export function pickerUnitsFor(
   detachmentIds: readonly string[] = [],
 ): PickerUnit[] {
   const names = rules?.factionNames
-  const restrictions = pickerRestrictions(loaded, rules, catalogueId)
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds).selections
-  return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules, detachmentIds, nonMatchedPlay: true }).map(
-    (unit) => ({
-      ...unit,
-      ...pickerAttachments(loaded, catalogueId, unit.id),
-      alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
-      search: pickerSearchFields(loaded, catalogueId, unit.id, detachments),
-    }),
-  )
+  return unitsIn(loaded, catalogueId, query, { battleSize, waivedRules, detachmentIds, nonMatchedPlay: true }).map((unit) => ({
+    ...unit,
+    ...pickerAttachments(loaded, catalogueId, unit.id),
+    alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
+    search: pickerSearchFields(loaded, catalogueId, unit.id, detachments),
+  }))
 }
 
 /** The lists a faction's reference list and unpriced picker read. */
-const constructionLists = (loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string) =>
-  ({
-    cards: { factionCards: true, nonMatchedPlay: true },
-    picker: { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true },
-  }) satisfies Record<string, UnitListOptions>
+const constructionLists = {
+  cards: { factionCards: true, nonMatchedPlay: true },
+  picker: { nonMatchedPlay: true },
+} satisfies Record<string, UnitListOptions>
 
-export type ConstructionSummaries = Record<keyof ReturnType<typeof constructionLists>, UnitSummary[]>
+export type ConstructionSummaries = Record<keyof typeof constructionLists, UnitSummary[]>
 
 /** What `pickerConstruction` prices for a book, for a compiled runtime to carry. */
-export function constructionSummaries(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): ConstructionSummaries {
-  const { cards, picker } = constructionLists(loaded, rules, catalogueId)
+export function constructionSummaries(loaded: LoadedCatalogue, catalogueId: string): ConstructionSummaries {
+  const { cards, picker } = constructionLists
   return { cards: unitSummaries(loaded, catalogueId, cards).get(), picker: unitSummaries(loaded, catalogueId, picker).get() }
 }
 
 /** Supplies what `constructionSummaries` returned for the same snapshot, so `pickerConstruction` need not price them again. */
-export function seedConstructionSummaries(
-  loaded: LoadedCatalogue,
-  rules: LoadedRules | null,
-  catalogueId: string,
-  summaries: ConstructionSummaries,
-) {
-  const { cards, picker } = constructionLists(loaded, rules, catalogueId)
+export function seedConstructionSummaries(loaded: LoadedCatalogue, catalogueId: string, summaries: ConstructionSummaries) {
+  const { cards, picker } = constructionLists
   seedUnitSummaries(loaded, catalogueId, cards, summaries.cards)
   seedUnitSummaries(loaded, catalogueId, picker, summaries.picker)
 }
 
 /** Prepares what a faction's unpriced picker and reference list read, a datasheet per step. */
-export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): Steps<void> {
-  yield* stepThrough(unitSummaries(loaded, catalogueId, constructionLists(loaded, rules, catalogueId).cards))
-  yield* pickerSteps(loaded, rules, catalogueId)
+export function* pickerConstruction(loaded: LoadedCatalogue, catalogueId: string): Steps<void> {
+  yield* stepThrough(unitSummaries(loaded, catalogueId, constructionLists.cards))
+  yield* pickerSteps(loaded, catalogueId)
 }
 
 /** Builds everything `pickerUnitsFor` reads for one roster's picker, a datasheet per step. */
 export function* pickerSteps(
   loaded: LoadedCatalogue,
-  rules: LoadedRules | null,
   catalogueId: string,
   battleSize?: number,
   waivedRules: readonly string[] = [],
   detachmentIds: readonly string[] = [],
 ): Steps<void> {
-  const restrictions = pickerRestrictions(loaded, rules, catalogueId)
-  const units = yield* stepThrough(
-    unitSummaries(loaded, catalogueId, { restrictions, battleSize, waivedRules, detachmentIds, nonMatchedPlay: true }),
-  )
+  const units = yield* stepThrough(unitSummaries(loaded, catalogueId, { battleSize, waivedRules, detachmentIds, nonMatchedPlay: true }))
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds).selections
   for (const unit of units) {
     pickerAttachments(loaded, catalogueId, unit.id)
@@ -118,10 +98,8 @@ export function* pickerSteps(
 }
 
 /** The books whose picker lists a datasheet, which are the rosters a reference page can add it to. */
-export function booksOffering(loaded: LoadedCatalogue, rules: LoadedRules | null, entryId: string, catalogueIds: readonly string[]) {
+export function booksOffering(loaded: LoadedCatalogue, entryId: string, catalogueIds: readonly string[]) {
   return catalogueIds.filter((catalogueId) =>
-    unitsIn(loaded, catalogueId, '', { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true }).some(
-      (unit) => unit.id === entryId,
-    ),
+    unitsIn(loaded, catalogueId, '', { nonMatchedPlay: true }).some((unit) => unit.id === entryId),
   )
 }

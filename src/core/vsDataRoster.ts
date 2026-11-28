@@ -120,6 +120,16 @@ export function keywordsOf(definitions: VsDataDefinitions, roster: VsRoster, pic
   return unitKeywords(unit.data, roster, picked.allegiance, sizeOnly ? undefined : carried(definitions, picked))
 }
 
+/**
+ * A picked unit's keywords with those of each model it fields, as a unit has all its models' keywords: what limits and
+ * allies count it by. The Warlord and Enhancement checks read one model's keywords at a time instead.
+ */
+export function countedKeywordsOf(definitions: VsDataDefinitions, roster: VsRoster, picked: VsRosterUnit): string[] {
+  const counts = modelCounts(definitions, picked)
+  const fielded = definitions.modelsOf(picked.unit).flatMap((model) => ((counts.get(model.id) ?? 0) > 0 ? (model.data.keywords ?? []) : []))
+  return [...new Set([...keywordsOf(definitions, roster, picked), ...fielded])]
+}
+
 const holdsAll = (keywords: readonly string[], wanted: readonly string[]) => wanted.every((keyword) => keywords.includes(keyword))
 const upper = (keywords: readonly string[]) => keywords.map((keyword) => keyword.toUpperCase())
 
@@ -217,6 +227,7 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
         ? costRowFor(rows, {
             detachments: roster.detachments.map((id) => definitions.get('detachment', id)?.name ?? id),
             armies: armiesOf(definitions, roster.faction),
+            mix: Object.fromEntries(counts),
             models: definitions
               .modelsOf(unit.id)
               .map((model) => `${counts.get(model.id) ?? 0} ${model.name}`)
@@ -433,7 +444,8 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
     if (!current('unit', picked.unit, at)) return
     const unit = definitions.get('unit', picked.unit)!
     const keywords = keywordsOf(definitions, roster, picked)
-    keywordsAt[at] = keywords
+    const counted = countedKeywordsOf(definitions, roster, picked)
+    keywordsAt[at] = counted
     const entry = entryOf(unit.id)
     const offered = allies.filter((ally) => ally.units.includes(unit.id))
     if (entry >= 0) members[entry]!.push(at)
@@ -454,7 +466,7 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       size?.duplicates
     if (copies.get(unit.id) === (limit ?? Infinity) + 1) add('roster-limit', `${unit.name} is limited to ${limit} per roster`)
     for (const shared of unitLimits) {
-      if (!holdsAll(keywords, shared.keywords)) continue
+      if (!holdsAll(counted, shared.keywords)) continue
       shared.count++
       if (shared.count === (shared.max ?? Infinity) + 1)
         add('unit-limit', `a roster holds at most ${shared.max} ${shared.keywords.join(' ')} units`)

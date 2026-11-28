@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyedPick } from '../rosterPicks'
-import { pickEditor, requestedUnit, settledWarlord, unitLimitMessage } from './usePicks'
+import { draftModels, pickEditor, requestedUnit, settledWarlord, unitLimitMessage } from './usePicks'
 import { definitions } from '../../../../core/vsUnit.fixtures'
 import { vsFirstFielding, vsUnitRecords } from '../../../../core/vsDataUnit'
 
@@ -600,6 +600,15 @@ describe('a VS Data pick', () => {
     const { edit, picks } = vsEditor()
     edit.resize(0, (models) => models + 1)
     expect(picks()[0]?.vs?.models['host.squad.trooper']).toBe(9)
+  })
+
+  it('fields the size its VS Data holds, not the catalogue size saved beside it', () => {
+    const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'host', models: 5, vs: squad }], {
+      catalogueId: 'host',
+      units: [unit],
+    })
+    edit.resize(0, (models) => models + 1)
+    expect(draftModels(picks()[0]!, unit)).toBe(10)
   })
 
   it('refuses a press its caps do not allow', () => {

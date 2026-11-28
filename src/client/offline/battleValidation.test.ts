@@ -89,7 +89,6 @@ function prepare(cost: number, copies = 1, alerts?: AbilityReminder[]) {
       factionKeys: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
       missions: new Map(),
       deployments: [],
     },

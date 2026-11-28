@@ -1,4 +1,3 @@
-import { routeSlug } from '../core/slug'
 import { isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
 import { factionIndexFor } from './factionReferences'
@@ -9,10 +8,7 @@ export function combatUnitsFor(loaded: LoadedCatalogue, rules: LoadedRules | nul
   const { factions } = factionIndexFor(loaded, rules, catalogueIds)
   const shelves = factions.map((book) => ({
     book,
-    units: unitsIn(loaded, book.id, '', {
-      restrictions: rules?.factionRestrictions.get(routeSlug(book.displayName)),
-      nonMatchedPlay: true,
-    }),
+    units: unitsIn(loaded, book.id, '', { nonMatchedPlay: true }),
   }))
   return shelves.map(({ book, units }) => ({
     catalogueId: book.id,

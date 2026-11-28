@@ -12,11 +12,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
-import { legacyOptionsSchema } from '../src/core/legacyIds'
+import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
+import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
 import type { RosterPick } from '../src/core/roster'
 import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
-import { carried, type VsRosterUnit } from '../src/core/vsDataRoster'
+import { carried, modelCounts, type VsRosterUnit } from '../src/core/vsDataRoster'
 import { vsFirstFielding, vsResized, vsUnitOptions } from '../src/core/vsDataUnit'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { unitIdsIn } from '../src/shared/cataloguePicker'
@@ -46,6 +47,7 @@ const definitions = vsDataDefinitions(
 )
 const { catalogue: loaded, rules } = loadSnapshot(directory)
 const ids = legacyIds()
+const allegianceOf = legacyIdsSchema.parse(rawUnits).allegiances ?? {}
 const exact = new Map(
   Object.entries(legacyOptionsSchema.parse(rawOptions).units).flatMap(([entryId, entry]) =>
     entry.unmatched.length || !definitions.get('unit', entry.unit) ? [] : [[entryId, entry.unit] as const],
@@ -63,7 +65,13 @@ const priceOf = (catalogueId: string, pick: RosterPick, detachmentIds: string[] 
     ?.units[0]
 const price = (catalogueId: string, entryId: string, detachmentIds: string[], models?: number) =>
   priceOf(catalogueId, { entryId, ...(models ? { models } : {}) }, detachmentIds)
-const keywordsOf = (unit: Priced | undefined) => (unit?.keywords ?? []).map(same).toSorted().join()
+/**
+ * BSData categories its own checks read that no datasheet prints, which VS Data carries as allies, a Detachment's
+ * conditional keyword (Shadow Legion) and allegiances (Undivided) instead: they say nothing about the datasheet a player sees.
+ */
+const legalityCategory = (keyword: string) => keyword.startsWith('allies') || ['shadowlegion', 'undivided'].includes(keyword)
+const keywordsOf = (unit: Priced | undefined) =>
+  [...new Set((unit?.keywords ?? []).map(same).filter((keyword) => !legalityCategory(keyword)))].toSorted().join()
 
 /** Differences where VS Data follows the app, which leave a datasheet VS-native. */
 const LISTED_SIZES = 'sizes the field manual lists'
@@ -84,7 +92,8 @@ function distance(one: string, other: string) {
 
 /**
  * Differences settled against the rules version's app build, where VS Data's reading stands: a check, the datasheets by
- * name (any book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded.
+ * name (any book's) or VS Data unit ID (one book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded
+ * (the K1 and K2 settlements of the VS Data gaps).
  */
 const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
   {
@@ -106,6 +115,41 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
       /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: only BSData talismanofburningblood only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
     why: 'VS Data follows the app: the Standard needs ANCIENT, Shadow Legion admits no Daemon Prince, Pactbound psykers bear no Khorne mark, Cabal of Chaos follows the allegiance taken, and these Detachment upgrades take non-Characters',
   },
+  {
+    check: 'wargear counts',
+    units:
+      /^(Chaos Predator.*|Forgefiend|Maulerfiend|Hell Blade|Foetid Bloat-Drone|Plagueburst Crawler|Venerable Dreadnought|Baal Predator|Stormfang Gunship|Contemptor-Achillus Dreadnought|Corvus Blackstar|Stormraven Gunship|Leman Russ.*|Macharius.*|Malcador.*|Rogal Dorn.*|Arkurian Stormhammer|Dominus Armoured Siege Bombard|Gorgon Heavy Transport|Stormblade|Valkyrie|Valkyrie Sky Talon|Vendetta Gunship|Vulture Gunship|Acastus Knight Porphyrion|Astraeus|Crimson Hunter|Razorwing Jetfighter|Voidraven Bomber|Monolith|Seraptek Heavy Construct|Tesseract Ark|AX-1-0 Tiger Shark|Devilfish|Hammerhead Gunship|Sky Ray Gunship|Tiger Shark|Tx42 Piranha|Cerberus|Falchion|Mastodon|Typhon|Sicaran|Mortifiers|Lifta Wagon)$/,
+    detail: /.*/,
+    why: 'the app prints a multi-weapon choice, as "2 heavy bolters", that the BSData reach counts as one selection',
+  },
+  {
+    check: 'sizes',
+    units:
+      /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
+    detail: /.*/,
+    why: 'VS Data takes the unit composition the app or the PDF prints',
+  },
+  {
+    check: 'wargear',
+    units:
+      /^(Captain in Gravis Armour|Azrael|Commissar Graves|Hemlock Wraithfighter|Hornet|Karandras|Death Jester|Shadowseer|Solitaire|Troupe Master|Macharius Omega|Commander Shadowsun|Soul Grinder|Canis Rex|The Twin Lance|Daemonifuge|Lady Malys|Goliath Truck|Hybrid Metamorphs|Tesseract Vault|Dimachaeron)$/,
+    detail: /.*/,
+    why: 'the app prints this wargear one-sided, or spells it as VS Data does',
+  },
+  {
+    check: 'allegiance',
+    units: /^Soul Grinder$/,
+    detail: /.*/,
+    why: 'the app prints one Soul Grinder datasheet per god, each with its own allegiance',
+  },
+  {
+    check: 'simulator',
+    units:
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn)$/,
+    // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
+    detail: /^(?!.*\bnone\b)/,
+    why: 'VS Data starts these on the default loadout the app (build 995) prints, so their damage differs from BSData default',
+  },
 ]
 const RULED_SUFFIX = ' (ruled for VS Data)'
 
@@ -113,7 +157,7 @@ const differences = new Map<string, Map<string, string[]>>()
 /** Each check's differences, by VS Data unit ID; one a ruling settles is filed apart. */
 const differ = (check: string, unit: string, detail: string) => {
   const name = definitions.get('unit', unit)?.name ?? unit
-  const ruled = RULED.some((row) => row.check === check && row.units.test(name) && row.detail.test(detail))
+  const ruled = RULED.some((row) => row.check === check && (row.units.test(name) || row.units.test(unit)) && row.detail.test(detail))
   const filed = ruled ? `${check}${RULED_SUFFIX}` : check
   const byUnit = differences.get(filed) ?? new Map<string, string[]>()
   differences.set(filed, byUnit)
@@ -256,9 +300,21 @@ for (const [entryId, catalogueId] of listing) {
 
     // VS Data's options grant no keywords yet, so a datasheet whose BSData keywords follow its wargear keeps BSData.
     count('keywords')
-    const { unit: _unit, ...firstPick } = vsFirstPick(definitions, unitId)
+    // A catalogue datasheet that stands for one of a VS Data unit's allegiances, as one Soul Grinder datasheet per god does,
+    // is compared with the VS pick taking that allegiance.
+    const sworn = allegianceOf[entryId]
+    const { unit: _unit, ...firstPick } = { ...vsFirstPick(definitions, unitId), ...(sworn ? { allegiance: sworn } : {}) }
+    // A unit has all its models' keywords, so one VS Data prints on a fielded model and BSData leaves off the unit agrees.
+    const counts = modelCounts(definitions, { unit: unitId, ...firstPick })
+    const fromModels = new Set(
+      definitions.modelsOf(unitId).flatMap((model) => ((counts.get(model.id) ?? 0) > 0 ? (model.data.keywords ?? []).map(same) : [])),
+    )
+    const bsKeywords = keywordsOf(plain)
     const vsKeywords = keywordsOf(priceOf(faction.id, { entryId, vs: { models: {}, options: {}, ...firstPick } }))
-    if (vsKeywords !== keywordsOf(plain)) differ('keywords', unitId, `BSData ${keywordsOf(plain)}, VS Data ${vsKeywords}`)
+      .split(',')
+      .filter((keyword) => !fromModels.has(keyword) || bsKeywords.split(',').includes(keyword))
+      .join()
+    if (vsKeywords !== bsKeywords) differ('keywords', unitId, `BSData ${bsKeywords}, VS Data ${vsKeywords}`)
     // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree at the default loadout, so a
     // datasheet whose wargear changes them stays BSData's until that tree follows VS Data's selections.
     count('datasheet')
