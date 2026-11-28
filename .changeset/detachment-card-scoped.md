@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[simulator] Prey on the Weak, Debt to the Soul Forge and Superior Craftsmanship now apply in the simulator only to the units they name, with their effects calculated.
+[simulator] Prey on the Weak and Debt to the Soul Forge now calculate their effects in the simulator, and they and Superior Craftsmanship appear only on the units they name.
