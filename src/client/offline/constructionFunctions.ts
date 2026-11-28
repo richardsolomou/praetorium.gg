@@ -96,7 +96,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
     const faction = await savedFaction(exchange.catalogueId, factions)
     return constructionRead(
       'importExchange',
-      { exchange, factionName: faction?.name ?? null },
+      { exchange, factionName: faction ? (savedBookNames(faction).at(-1) ?? null) : null },
       (signal) => server.importRoster({ ...args, signal }),
       faction?.id,
       args.signal,
@@ -109,14 +109,18 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   const candidates = statedId
     ? [await savedFaction(statedId, factions)].filter((found) => found !== undefined)
     : factions.filter((found) => found.isDefault)
-  const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate, new Map(translations))) : null
+  const faction = stated
+    ? candidates.find((candidate) =>
+        matchesImportFaction(stated, { ...candidate, bookNames: savedBookNames(candidate) }, new Map(translations)),
+      )
+    : null
   return constructionRead(
     'importFile',
     {
       file: args.data,
       matched: Boolean(faction),
       statedMissing: Boolean(statedId && !faction),
-      factionNames: factions.map((candidate) => candidate.name),
+      factionNames: factions.flatMap((candidate) => savedBookNames(candidate).slice(-1)),
       translations,
     },
     (signal) => server.importRoster({ ...args, signal }),
@@ -125,8 +129,11 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   )
 }
 
+/** A saved faction's frozen book names; a download from an earlier release has only its catalogue name. */
+const savedBookNames = (faction: { name: string; bookNames?: readonly string[] }) => faction.bookNames ?? [faction.name]
+
 /** Exact root IDs are absent from the faction index, so a book read for a roster answers first. */
-async function savedFaction(id: string, factions: { id: string; name: string }[]) {
+async function savedFaction(id: string, factions: { id: string; name: string; bookNames?: readonly string[] }[]) {
   return (await loadFaction(id)) ?? factions.find((candidate) => candidate.id === id)
 }
 
