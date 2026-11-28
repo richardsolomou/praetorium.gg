@@ -146,10 +146,10 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
   {
     check: 'simulator',
     units:
-      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn)$/,
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers)$/,
     // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
     detail: /^(?!.*\bnone\b)/,
-    why: 'VS Data starts these on the default loadout the app (build 995) prints, so their damage differs from BSData default',
+    why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
   },
 ]
 const RULED_SUFFIX = ' (ruled for VS Data)'
@@ -344,8 +344,11 @@ for (const [entryId, catalogueId] of listing) {
           .filter((option) => option.count === 0 && option.max > 0)
           .map((option) => catalogueOption(choice.key, option.id, option.name)),
       )
+    // A catalogue option that is one of the unit's allegiances, as a Mark of Chaos is, gives its keywords through VS Data's
+    // allegiance, not its wargear.
+    const sworn = (option: string) => [...allegianceNames].some((name) => same(option) === name || same(option).endsWith(name))
     const granting = optionPicks.flatMap(({ name: option, pick }) =>
-      keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option],
+      sworn(option) || keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option],
     )
     if (granting.length) differ('keywords', unitId, `BSData keywords change with ${granting.join(', ')}`)
     const wargearChanges = optionPicks.some(({ pick }) => sheetOf(pick) !== plainSheet)
