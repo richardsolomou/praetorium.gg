@@ -80,5 +80,5 @@ export function gwTextGroup(group: UnitGroup): GwTextRoster['units'][number]['gr
 }
 
 /** The rules version and ruleset an export was written against, which an import resolves the list with. */
-export const gwTextVersionLines = (edition: Pick<CatalogueEdition, 'name' | 'status'> | undefined, catalogueId: string) =>
-  (edition ? `\nCodex: ${editionLabel(edition)}` : '') + `\nRuleset: ${catalogueId}\n`
+export const gwTextVersionLines = (edition: Pick<CatalogueEdition, 'name' | 'status'> | undefined, ruleset: string) =>
+  (edition ? `\nCodex: ${editionLabel(edition)}` : '') + `\nRuleset: ${ruleset}\n`

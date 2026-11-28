@@ -40,6 +40,7 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
+import { legacyImportIds } from '../../src/server/legacyNames'
 import { readVsDataRelease, vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
 import { spellingGroups } from '../../src/shared/importNames'
 import { completeSteps } from '../../src/shared/steps'
@@ -178,14 +179,19 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.
     if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
   }
-  // Pasted army text in another language is read on the device too, so the names it may state travel with the download;
-  // translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
+  // Pasted army text in another language is read on the device too, so the names it may state travel with the download:
+  // every name BSData gave an entry of the current rules version, frozen, which New Recruit's translations are keyed by,
+  // and the catalogue's for one added since. Translated descriptions stay behind, as do entries BSData names with a
+  // notice of several sentences, and an earlier rules version's names, which would take the part past its size limit.
   const stateable = new Set([
+    ...[legacyImportIds.datasheetNames, legacyImportIds.detachmentNames, legacyImportIds.entryNames]
+      .flatMap((frozen) => [...frozen].flatMap(([key, names]) => (key.includes('~') ? [] : names)))
+      .filter((name) => !/[.!?]\s/.test(name)),
     ...[...catalogue.index.definitions.values()].flatMap((definition) =>
       definition.name && !/[.!?]\s/.test(definition.name) ? [definition.name] : [],
     ),
-    ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
     ...[...catalogue.detachments.values()].flatMap((detachments) => detachments.options.map((option) => option.name)),
+    ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
     ...(rules.dispositions?.values() ?? []),
     // The official app's names are all names, but its English can differ from the catalogue's, as "Imperium’s Sword".
     ...spellingGroups(readVsDataRelease(directory)?.names).flat(),
@@ -244,7 +250,14 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...(selectedCatalogue.vsPoints ? { vsPoints: packRuntimeData(selectedCatalogue.vsPoints) } : {}),
     ...(selectedCatalogue.vsRoster ? { vsRoster: packRuntimeData(selectedCatalogue.vsRoster) } : {}),
     ...(selectedCatalogue.vsProfiles ? { vsProfiles: packRuntimeData(selectedCatalogue.vsProfiles) } : {}),
-    rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
+    // A device names entries from the catalogue it downloads, since the frozen entry names would take the rules part past
+    // its size limit; each reader falls back to the catalogue's name for an entry they lack.
+    rules: packRuntimeData({
+      ...selectedRules,
+      ...(selectedRules.importNames ? { importNames: { ...selectedRules.importNames, entryNames: new Map() } } : {}),
+      terrainLayouts: [],
+      terrainTemplates: [],
+    }),
   })
   const write = async (kind: 'reference' | 'construction', value: unknown, limit?: number) => {
     const part = encodeOfflinePart(value, limit)

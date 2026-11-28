@@ -15,6 +15,8 @@ export type ImportNames = {
   datasheetNames: ReadonlyMap<string, readonly string[]>
   /** The names BSData gave each Detachment, by stored ID. */
   detachmentNames: ReadonlyMap<string, readonly string[]>
+  /** The names BSData gave every other entry a list can name, as a model, a piece of wargear or an Enhancement, by its ID. */
+  entryNames: ReadonlyMap<string, readonly string[]>
   /** The names BSData gave each book, which New Recruit prints as a list's faction, by stored ID. */
   bookNames: ReadonlyMap<string, readonly string[]>
 }
@@ -25,6 +27,7 @@ export const NO_IMPORT_NAMES: ImportNames = {
   detachments: new Map(),
   datasheetNames: new Map(),
   detachmentNames: new Map(),
+  entryNames: new Map(),
   bookNames: new Map(),
 }
 
@@ -68,6 +71,7 @@ export type LegacyImportIds = {
   detachments: Readonly<Record<string, string>>
   datasheetNames: ReadonlyMap<string, readonly string[]>
   detachmentNames: ReadonlyMap<string, readonly string[]>
+  entryNames: ReadonlyMap<string, readonly string[]>
   bookNames: ReadonlyMap<string, readonly string[]>
 }
 
@@ -116,6 +120,7 @@ export function importNamesOf(
     detachments,
     datasheetNames: legacy.datasheetNames,
     detachmentNames: legacy.detachmentNames,
+    entryNames: legacy.entryNames,
     bookNames: legacy.bookNames,
   }
 }

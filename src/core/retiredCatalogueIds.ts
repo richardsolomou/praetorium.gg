@@ -63,10 +63,21 @@ export const currentCatalogueId = (id: string) =>
 export const currentCatalogueFamilyId = (id: string) => currentCatalogueId(editionFamilyId(id))
 
 /**
- * Picks moved to the rules version of `catalogueId`. A pick's `vs` moves with it: whoever reads the list checks it
- * against that version's VS Data (`vsPickIn`), and a pick it no longer holds reads as its catalogue choices.
+ * Picks moved to the rules version of `catalogueId` from the list of `from`. A pick's `vs` moves with it: whoever reads
+ * the list checks it against that version's VS Data (`vsPickIn`), and a pick it no longer holds reads as its catalogue
+ * choices. One moved from a retained rules version keeps that version as its `rulesVersion`, which its new list's book
+ * ID no longer says.
  */
-export function picksForRulesVersion<T extends RosterPick>(picks: readonly T[], catalogueId: string): T[] {
+export function picksForRulesVersion<T extends RosterPick>(picks: readonly T[], catalogueId: string, from?: string): T[] {
+  const saved = from ? catalogueEditionId(from) : null
+  const stamped =
+    saved && saved !== catalogueEditionId(catalogueId)
+      ? picks.map((pick) => ((pick.vs ?? pick.translatedVs) && !pick.rulesVersion ? { ...pick, rulesVersion: saved } : pick))
+      : picks
+  return movedPicks(stamped, catalogueId)
+}
+
+function movedPicks<T extends RosterPick>(picks: readonly T[], catalogueId: string): T[] {
   if (retainedFor(catalogueId)) return picksForCatalogueEdition(picks, catalogueId)
   const current = picks.map((pick) => ({
     ...pick,

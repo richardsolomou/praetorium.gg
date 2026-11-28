@@ -18,7 +18,7 @@ import type { RosterPick } from '../src/core/roster'
 import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { carried, modelCounts, type VsRosterUnit } from '../src/core/vsDataRoster'
-import { vsFirstFielding, vsResized, vsUnitOptions } from '../src/core/vsDataUnit'
+import { vsFirstFielding, vsResized, vsUnitOptions, vsWithChoice } from '../src/core/vsDataUnit'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { unitIdsIn } from '../src/shared/cataloguePicker'
 import { rosterDetachments } from '../src/shared/rosterDetachments'
@@ -32,6 +32,7 @@ import { legacyIds } from './lib/vsDataRosters'
 import { same } from '../src/shared/vsDataModelNames'
 import { leaves, vsSpelling } from '../src/shared/wargearSpellings'
 import { inBook } from '../src/shared/vsDataPoints'
+import { vsShellIn } from '../src/shared/vsDataShell'
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -145,10 +146,10 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
   {
     check: 'simulator',
     units:
-      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn)$/,
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers)$/,
     // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
     detail: /^(?!.*\bnone\b)/,
-    why: 'VS Data starts these on the default loadout the app (build 995) prints, so their damage differs from BSData default',
+    why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
   },
 ]
 const RULED_SUFFIX = ' (ruled for VS Data)'
@@ -302,8 +303,7 @@ for (const [entryId, catalogueId] of listing) {
     count('keywords')
     // A catalogue datasheet that stands for one of a VS Data unit's allegiances, as one Soul Grinder datasheet per god does,
     // is compared with the VS pick taking that allegiance.
-    const sworn = allegianceOf[entryId]
-    const { unit: _unit, ...firstPick } = { ...vsFirstPick(definitions, unitId), ...(sworn ? { allegiance: sworn } : {}) }
+    const { unit: _unit, ...firstPick } = vsFirstPick(definitions, unitId, {}, allegianceOf[entryId])
     // A unit has all its models' keywords, so one VS Data prints on a fielded model and BSData leaves off the unit agrees.
     const counts = modelCounts(definitions, { unit: unitId, ...firstPick })
     const fromModels = new Set(
@@ -315,8 +315,10 @@ for (const [entryId, catalogueId] of listing) {
       .filter((keyword) => !fromModels.has(keyword) || bsKeywords.split(',').includes(keyword))
       .join()
     if (vsKeywords !== bsKeywords) differ('keywords', unitId, `BSData ${bsKeywords}, VS Data ${vsKeywords}`)
-    // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree at the default loadout, so a
-    // datasheet whose wargear changes them stays BSData's until that tree follows VS Data's selections.
+    // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree, which follows the pick's VS
+    // Data choices through the options map (`vsShellSpreads`). Each choice's datasheet is compared with the catalogue
+    // option the map files it under, and a datasheet whose wargear changes it through a choice the map can't place stays
+    // BSData's.
     count('datasheet')
     const sheetOf = (pick: RosterPick) => {
       const sheet = rosterCombatant(loaded, rules, { catalogueId: faction.id, detachmentIds: [], picks: [pick], pickIndex: 0 })?.selected
@@ -327,25 +329,87 @@ for (const [entryId, catalogueId] of listing) {
       return JSON.stringify([characteristics.toSorted(), sheet.abilities.map((ability) => ability.name).toSorted()])
     }
     const plainSheet = sheetOf({ entryId })
+    const choiceAt = new Map(plain.choices.map((choice) => [choice.key, choice]))
+    const catalogueOption = (key: string, optionId: string, name: string) => ({
+      name,
+      pick:
+        (choiceAt.get(key)?.room ?? 1) > 1
+          ? ({ entryId, spreads: { [key]: { [optionId]: 1 } } } satisfies RosterPick)
+          : ({ entryId, choices: { [key]: optionId } } satisfies RosterPick),
+    })
     const optionPicks = plain.choices
       .filter((choice) => !special(choice))
       .flatMap((choice) =>
         choice.options
           .filter((option) => option.count === 0 && option.max > 0)
-          .map((option) => ({
-            name: option.name,
-            pick:
-              choice.room > 1
-                ? ({ entryId, spreads: { [choice.key]: { [option.id]: 1 } } } satisfies RosterPick)
-                : ({ entryId, choices: { [choice.key]: option.id } } satisfies RosterPick),
-          })),
+          .map((option) => catalogueOption(choice.key, option.id, option.name)),
       )
+    // A catalogue option that is one of the unit's allegiances, as a Mark of Chaos is, gives its keywords through VS Data's
+    // allegiance, not its wargear.
+    const sworn = (option: string) => [...allegianceNames].some((name) => same(option) === name || same(option).endsWith(name))
     const granting = optionPicks.flatMap(({ name: option, pick }) =>
-      keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option],
+      sworn(option) || keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option],
     )
     if (granting.length) differ('keywords', unitId, `BSData keywords change with ${granting.join(', ')}`)
-    const changing = optionPicks.flatMap(({ name: option, pick }) => (sheetOf(pick) === plainSheet ? [] : [option]))
-    if (changing.length) differ('datasheet', unitId, `characteristics or abilities change with ${changing.join(', ')}`)
+    const wargearChanges = optionPicks.some(({ pick }) => sheetOf(pick) !== plainSheet)
+    const shell = vsShellIn(loaded.vsRoster, entryId)
+    const vsPickOf = (unit: VsRosterUnit): RosterPick => ({
+      entryId,
+      vs: { ...firstPick, models: unit.models ?? {}, options: unit.options ?? {} },
+    })
+    const changing: string[] = []
+    if (sheetOf(vsPickOf(first)) !== plainSheet) changing.push('the default loadout')
+    for (const option of vsUnitOptions(definitions, first))
+      for (const choice of option.choices) {
+        const name = definitions.get('wargear', choice.id)?.name ?? choice.id
+        const mapped = shell?.[option.id]?.[choice.id]?.[0]
+        if (!mapped) {
+          if (wargearChanges) changing.push(`${name}, which no catalogue option stands for`)
+          continue
+        }
+        const taken = vsWithChoice(definitions, first, option.id, { [choice.id]: 1 })
+        if (taken && sheetOf(vsPickOf(taken)) !== sheetOf(catalogueOption(...mapped, name).pick)) changing.push(name)
+      }
+    // Choices taken together, or one at its most, can crowd each other out of the catalogue tree, where a group holds fewer
+    // than VS Data allows, so each must keep the abilities it gives alone.
+    const abilitiesIn = (unit: VsRosterUnit) => {
+      const sheet = sheetOf(vsPickOf(unit))
+      return sheet === 'none' ? [] : (JSON.parse(sheet) as [string[], string[]])[1]
+    }
+    const unarmed = abilitiesIn(first)
+    const takes = vsUnitOptions(definitions, first).flatMap((option) =>
+      option.choices.map((choice) => {
+        const once = vsWithChoice(definitions, first, option.id, { [choice.id]: 1 })
+        return {
+          option: option.id,
+          choice: choice.id,
+          most: choice.most,
+          once,
+          gives: abilitiesIn(once).filter((ability) => !unarmed.includes(ability)),
+        }
+      }),
+    )
+    const lost = (unit: VsRosterUnit, gives: readonly string[]) => {
+      const kept = abilitiesIn(unit)
+      return gives.filter((ability) => !kept.includes(ability))
+    }
+    for (const take of takes) {
+      const name = definitions.get('wargear', take.choice)?.name ?? take.choice
+      const missing = take.most > 1 ? lost(vsWithChoice(definitions, first, take.option, { [take.choice]: take.most }), take.gives) : []
+      if (missing.length) changing.push(`${name} at ${take.most}, which loses ${missing.join(', ')}`)
+    }
+    takes.forEach((one, at) =>
+      takes.slice(at + 1).forEach((other) => {
+        // Two choices of one option are taken together in it, as a Tankbusta squad's pulsa rokkit beside a busta rokkit launcha.
+        const both =
+          one.option === other.option
+            ? vsWithChoice(definitions, first, one.option, { [one.choice]: 1, [other.choice]: 1 })
+            : vsWithChoice(definitions, one.once, other.option, { [other.choice]: 1 })
+        const missing = lost(both, [...one.gives, ...other.gives])
+        if (missing.length) changing.push(`${one.choice} with ${other.choice}, which loses ${missing.join(', ')}`)
+      }),
+    )
+    if (changing.length) differ('datasheet', unitId, `characteristics or abilities differ with ${changing.join(', ')}`)
 
     // The simulator fields a VS pick by VS Data's carriers, so each weapon has to find its profile as the catalogue's does.
     count('simulator')
@@ -383,8 +447,13 @@ for (const [entryId, catalogueId] of listing) {
     for (const detachment of detachments) {
       const bsdataId = detachmentOf(faction.id, detachment.id)
       const context = { roster: { faction: book, detachments: [detachment.id] } }
-      const choices = vsUnitChoices(definitions, vsFirstPick(definitions, unitId, context), context)
-      const vsEnhancements = choices
+      const picked = vsFirstPick(definitions, unitId, context)
+      const choices = vsUnitChoices(definitions, picked, context)
+      // A unit that must take an allegiance starts unsworn, so its Enhancements are measured as it holds the first one, as
+      // BSData's default offers them.
+      const required = choices.find((choice) => choice.key === VS_ALLEGIANCE && !choice.optional)?.options[0]?.id
+      const measured = required ? vsUnitChoices(definitions, { ...picked, allegiance: required }, context) : choices
+      const vsEnhancements = measured
         .filter((choice) => choice.key === VS_ENHANCEMENT || choice.key === VS_UPGRADE)
         .flatMap((choice) => choice.options.map((option) => enhancementName(option.name)))
       const allegiances = choices.find((choice) => choice.key === VS_ALLEGIANCE)?.options.map((option) => same(option.name)) ?? []

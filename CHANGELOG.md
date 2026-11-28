@@ -1,5 +1,62 @@
 # praetorium
 
+## 0.280.29 (2026-11-28)
+
+### Patch Changes
+
+- 3bd5b4b: [app] The collection CSV names datasheets as the official app does, and an import reads either spelling.
+- 3bd5b4b: [rosters] Exported army text names the faction, units, detachments, enhancements and wargear as the official app does.
+- 3bd5b4b: [rosters] Imports read wargear the official app spells its own way, such as an Indomitor Kill Team's "Bolt pistol*", and read an app export in the app's spellings first.
+- 3bd5b4b: [rosters] Termagants exported from the official app with "Termagant spinefists" import at the size and points the list prints, rather than as a larger squad with fleshborers.
+- 34943e2: [rosters] On MFM 1.4 of 2 September 2026 and MFM 1.5 of 2 October 2026, the Space Marines chapter books marked (11e) show how many of each unit a list can take, with their Epic Heroes at one.
+- 34943e2: [rosters] On earlier rules versions the unit picker also limits allied Agents of the Imperium by kind, as many Characters, Retinue units and Requisitioned units as that version's battle size allows.
+- 34943e2: [rosters] On earlier rules versions allied Chaos Daemons in a Chaos Space Marines or Chaos Knights army can be added again, limited only by their points.
+- 34943e2: [rosters] On MFM 1.5 and the October 2026 Space Marines codex versions, Kayvaan Shrike can be taken up to three times, as those versions' app gave him.
+- 34943e2: [rosters] On earlier rules versions Chaplain Kastiel and Judiciar Xacharus are limited to one per army.
+- 34943e2: [rosters] Earlier rules versions also limit Titans to three of each, The Silent King to one, Yvraine, the Visarch and the Yncarne to lists with Devoted of Ynnead, every unit to two copies at Incursion, and on MFM 1.4 Victrix Honour Guard to one.
+- 3bd5b4b: [rosters] The Tournament lists tab names each unit as the official app does.
+
+## 0.280.28 (2026-11-28)
+
+### Patch Changes
+
+- 2b93664: [app] Pages opened just after an update no longer wait minutes to finish loading.
+
+## 0.280.27 (2026-11-28)
+
+### Patch Changes
+
+- 8c4f9fa: [rosters] A Crucible Daemonic Charioteer, Hyperscientist or Martial Agent can join the units VS Data lists for it.
+
+## 0.280.26 (2026-11-28)
+
+### Patch Changes
+
+- 2092004: [rosters] A Falcon now starts with a scatter laser, as the app does.
+- e3fb97c: [rosters] A unit that must choose a god no longer starts sworn to Khorne: a god's own Soul Grinder starts with its weapon, and the others ask for their god.
+- 2092004: [rosters] A Kroot Lone-spear now starts with a Kroot long gun, as the app does.
+- 2092004: [rosters] A Kroot War Shaper now starts with a dart-bow and tri-blade, as the app does.
+- 2092004: [rosters] 98 more datasheets, among them Tomb Blades, Aggressor Squads, the Heretic Astartes Daemon Prince and the Soul Grinder, are now built as the official app prints them, and a datasheet whose wargear changes its characteristics or abilities now shows the ones its chosen wargear gives.
+
+## 0.280.25 (2026-11-28)
+
+### Patch Changes
+
+- 338e411: [rosters] A Deathwatch list is no longer offered the Legends and Crucible Agents of the Imperium copies of its kill teams, which its Agents allies leave out.
+- 2626b99: [rosters] Wolf Guard Headtakers show their Storm Shield's rule summary.
+- 147f75c: [rosters] When an imported list names a datasheet its army doesn't have, the warning names the army that has it in more cases, including datasheets spelled as the official app spells them.
+- 196c7ab: [rosters] The unit picker limits allied Agents of the Imperium by kind, as many Characters, Retinue units and Requisitioned units as the battle size allows, and says which Inquisitor or Voidfarers Character lets you add more Inquisitorial Agents or Voidsmen-at-Arms.
+- 196c7ab: [rosters] Allied Chaos Daemons in a Chaos Space Marines or Chaos Knights army can be added again, limited only by their points.
+- 196c7ab: [rosters] A unit that becomes Battleline in a Detachment, such as Outrider Squads in Darkflight Pursuit or Gretchin in Runt Swarm, can be taken six times there.
+- 196c7ab: [rosters] Ghosts of the Webway and Serpent's Brood lists can take up to three Death Jesters, Shadowseers and Troupe Masters.
+- 196c7ab: [rosters] At Incursion every unit is limited to two copies, Crucible characters and squads such as Paladins included.
+- 196c7ab: [rosters] Legends Epic Heroes such as Chaplain Kastiel are limited to one per army.
+- 196c7ab: [rosters] The Silent King is limited to one per army.
+- 196c7ab: [rosters] Titan armies can hold up to three of each Titan, like any other unit at that battle size.
+- 196c7ab: [rosters] Victrix Honour Guard are limited to one unit per army, as their Chapter Ancient and Chapter Champion are Epic Heroes.
+- 196c7ab: [rosters] Yvraine, the Visarch and the Yncarne join an Aeldari army only with the Devoted of Ynnead Detachment.
+- 76d71da: [rosters] Wulfen with Storm Shields no longer show another unit's Storm Shield rule; their 4+ invulnerable save is on their profile.
+
 ## 0.280.24 (2026-11-28)
 
 ### Patch Changes
