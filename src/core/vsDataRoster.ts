@@ -399,9 +399,15 @@ export function vsUnitAllowance(
   if (own !== undefined) found.push({ limit: own, unlockedBy: null })
   for (const shared of faction?.unitLimits ?? []) {
     const { max } = shared.detachments?.find((row) => roster.detachments.includes(row.detachment)) ?? shared
-    if (max === undefined || !holdsAll(keywords, shared.keywords)) continue
-    const counted = othersKeywords.filter((held) => holdsAll(held, shared.keywords)).length
-    found.push({ limit: Math.max(0, max - counted), unlockedBy: null })
+    const alternatives = shared.anyOf ?? [shared.keywords]
+    const fitting = (held: readonly string[]) => alternatives.flatMap((set, at) => (holdsAll(held, set) ? [at] : []))
+    const mine = fitting(keywords)
+    if (!mine.length) continue
+    const counted = othersKeywords.map(fitting).filter((fits) => fits.length)
+    // Units the roster holds of another alternative of an exclusive limit leave this unit none.
+    if (shared.exclusive && !counted.reduce((common, fits) => common.filter((at) => fits.includes(at)), mine).length)
+      found.push({ limit: 0, unlockedBy: null })
+    if (max !== undefined) found.push({ limit: Math.max(0, max - counted.length), unlockedBy: null })
   }
   const allies = faction?.allies ?? []
   const entryOf = (id: string) =>

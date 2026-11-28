@@ -424,6 +424,14 @@ describe('checkVsRoster', () => {
 })
 
 describe('vsUnitAllowance', () => {
+  it('counts a unit of another alternative against a limit naming alternatives', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'enclave.hero' }], 'enclave', []), 'enclave.hero-on-foot').limit).toBe(0)
+  })
+
+  it('allows no unit of an exclusive limit’s other alternative once one is held', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'enclave.commander' }], 'enclave', []), 'enclave.sage').limit).toBe(0)
+  })
+
   it('allows another allied CHARACTER for each unit holding the keyword its allowance names', () => {
     expect(vsUnitAllowance(definitions, roster([{ unit: 'court.crew' }], 'court', []), 'band.boss').limit).toBe(2)
   })
