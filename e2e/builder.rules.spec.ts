@@ -173,7 +173,7 @@ test('weapon swaps keep fixed profiles stable while saving', async ({ page }) =>
     if (width === 390) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.locator('[data-unit="Tomb Blades"]').getByRole('button', { name: 'Tomb Blades', exact: true }).click()
     // The close combat weapon every Tomb Blade keeps is the fixed profile a swap must not disturb.
-    await expect(loadout.getByRole('listitem', { name: 'Close combat weapon', exact: true })).toContainText('Close combat weapon 3')
+    await expect(loadout.getByRole('listitem', { name: 'Close combat weapon', exact: true })).toContainText(/^Close combat weapon\s*3/)
     const initialProfiles = await loadout
       .locator('li')
       .evaluateAll((items) => items.map((item) => item.textContent ?? '').filter((text) => text.startsWith('Close combat weapon')))
