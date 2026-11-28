@@ -30,9 +30,22 @@ function vsDataOwner(units: Pick<VsDataUnits, 'factions'> | null, subject: strin
 const ownerOf = (units: UnitsOf<unknown> | null, subject: string) =>
   subject.startsWith('@') ? vsDataOwner(units, subject) : units?.units[subject]?.id
 
-/** The ability a BSData rule or profile is on `subject`: its own entry there where a profile several carry differs, else VS Data's alias. */
-const aliased = <T>(units: UnitsOf<T>, subject: string, id: string | undefined) =>
-  id ? units.abilities[units.aliases[`${subject}/${id}`] ?? units.aliases[id] ?? ''] : undefined
+/**
+ * The ability a BSData rule or profile is on `subject`: its own entry there where a profile several carry differs, else
+ * VS Data's alias, or its owner's own record of that rule where the alias names another's, as a chaos book's Titan reads
+ * its Chaos Titan's Titanic Fire Support where the shared profile's alias names the Imperial Titan's.
+ */
+function aliased<T>(units: UnitsOf<T>, subject: string, id: string | undefined) {
+  if (!id) return undefined
+  const frozen = units.aliases[`${subject}/${id}`]
+  if (frozen !== undefined) return units.abilities[frozen]
+  const shared = units.aliases[id]
+  if (!shared) return undefined
+  const owner = ownerOf(units, subject)
+  const own =
+    owner && !shared.startsWith(`${owner}.`) ? units.abilities[`${owner}.${shared.slice(shared.lastIndexOf('.') + 1)}`] : undefined
+  return own ?? units.abilities[shared]
+}
 
 /**
  * An ability's summary for the datasheet entry (or `@` and the VS Data owner) it is printed on: the record its BSData id

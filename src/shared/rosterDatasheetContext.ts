@@ -66,6 +66,11 @@ export function rosterDatasheetContext(
   const attached = attachedUnit(data.picks, data.pickIndex)
   return {
     ...roster,
+    vsAtSelection: Object.fromEntries(
+      roster.unitSelections.flatMap((unit) =>
+        roster.vsUnits[unit.pickIndex] ? [[unit.selectionIndex, roster.vsUnits[unit.pickIndex]!.unit]] : [],
+      ),
+    ),
     unitSelectionIndex: selected.selectionIndex,
     companions: roster.unitSelections.flatMap((unit) => (attached.includes(unit.pickIndex) ? [unit.selectionIndex] : [])),
   }
