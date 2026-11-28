@@ -69,9 +69,29 @@ export const withoutUpgrade = (name: string) => name.replace(UPGRADE_MARK, '')
 /** Sources disagree on which printed qualifiers an enhancement's name carries, so names are joined without them. */
 export const enhancementKey = (name: string) => joinKey(name.replace(/\s*\((?:aura|upgrade|upgarde|one per army|psychic)\)/gi, ''))
 
-export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof mfmDetachment>>, name: string) {
+type FieldManualDetachment = z.infer<typeof detachmentSchema>
+type DetachmentPrices = {
+  enhancements?: readonly { name: string; points: number }[]
+  /** The field manual's Detachment of that name, which prices an Enhancement VS Data's leaves out. */
+  fieldManual?: FieldManualDetachment
+}
+
+/** A Detachment's price for the Enhancement `name`, or null where none or several of its own name it. */
+function ownEnhancementPoints(detachment: DetachmentPrices, name: string) {
   const matched = detachment.enhancements?.filter((enhancement) => enhancementKey(enhancement.name) === enhancementKey(name)) ?? []
   return matched.length === 1 ? matched[0]!.points : null
+}
+
+/** Whether a Detachment prices the Enhancement `name` from the field manual, for one VS Data's Detachment leaves out. */
+export const fieldManualPricesEnhancement = (detachment: DetachmentPrices, name: string) =>
+  Boolean(detachment.fieldManual) &&
+  !detachment.enhancements?.some((enhancement) => enhancementKey(enhancement.name) === enhancementKey(name)) &&
+  ownEnhancementPoints(detachment.fieldManual!, name) !== null
+
+export function mfmEnhancementPoints(detachment: DetachmentPrices, name: string) {
+  return fieldManualPricesEnhancement(detachment, name)
+    ? ownEnhancementPoints(detachment.fieldManual!, name)
+    : ownEnhancementPoints(detachment, name)
 }
 export function mfmWargearPoints(unit: MfmUnit | null, name: string) {
   const keys = new Set(normalizedNameVariants(name).map(joinKey))
@@ -94,11 +114,15 @@ export function mfmWargearOptionPoints(
   const item = grantedWargear(name)
   return item ? mfmWargearPoints(unit, item) : null
 }
-/** A Detachment's points and Enhancement prices: VS Data's for a Detachment it records, else the field manual's by name. */
+/**
+ * A Detachment's points and Enhancement prices: VS Data's for a Detachment it records, with the field manual's beside
+ * them for an Enhancement VS Data's leaves out, else the field manual's by name.
+ */
 export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, name: string) {
   const option = loaded.detachments.get(catalogueId)?.options.filter((candidate) => candidate.name === name)
   const vsData = option?.length === 1 ? vsMfmDetachment(loaded.vsPoints, option[0]!.id) : null
-  return vsData ?? fieldManualDetachment(loaded, catalogueId, name)
+  const fieldManual = fieldManualDetachment(loaded, catalogueId, name)
+  return vsData ? { ...vsData, ...(fieldManual ? { fieldManual } : {}) } : fieldManual
 }
 
 /** A Detachment as the field manual prints it, by name, whose spellings imports also read. */
