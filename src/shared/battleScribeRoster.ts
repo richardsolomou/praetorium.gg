@@ -47,15 +47,16 @@ export function battleScribeRoster(
     if (!pick || !context) return []
     const catalogueId = pick.catalogueId ?? data.catalogueId
     const sheet = describeDatasheetAbilities(loaded, catalogueId, selectedDatasheetIn(loaded, catalogueId, pick.entryId, context), rules)
-    const selection = context.selections[context.unitSelectionIndex]
-    if (!sheet || !selection) return []
     const nickname = textNickname(pick.nickname ?? '')
+    // A VS pick needs no catalogue tree, and is written without abilities rather than left out where no sheet describes it.
     const picked = vsUnits.get(unit.key)
     if (picked && definitions) {
-      const abilities = [...sheet.abilities, ...(sheet.enhancements ?? [])]
+      const abilities = sheet ? [...sheet.abilities, ...(sheet.enhancements ?? [])] : []
       const xml = vsDataUnitXml({ picked, entryId: pick.entryId, points: unit.points, nickname, abilities }, vsRoster, definitions)
       if (xml) return [xml]
     }
+    const selection = context.selections[context.unitSelectionIndex]
+    if (!sheet || !selection) return []
     return [unitXml(selection, sheet, unit.points, nickname, index)]
   })
   return rosterXml({
