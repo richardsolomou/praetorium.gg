@@ -555,3 +555,52 @@ describe('an effect for some models in a unit', () => {
     expect(groups?.reduce((total, group) => total + (group.feelNoPain === 5 ? group.models : 0), 0)).toBe(2)
   })
 })
+
+it('adds no Wounds a shield’s bearers already have in the profile the catalogue prints for them', () => {
+  const squad = member('Squad', 2)
+  squad.sheet.profiles.push({
+    id: 'Squad:shield',
+    name: 'Squad w/ Storm Shield',
+    type: 'Unit',
+    values: Object.entries({ T: '4', Sv: '7+', W: '3' }).map(([characteristic, value]) => ({ name: characteristic, value })),
+  })
+  squad.carriers = [
+    { name: 'Squad', models: 1, modelProfileIds: ['Squad:model'], weapons: [{ name: 'Rifle', count: 1, profileIds: ['Squad:weapon'] }] },
+    { name: 'Squad', models: 1, modelProfileIds: ['Squad:shield'], weapons: [{ name: 'Rifle', count: 1, profileIds: ['Squad:weapon'] }] },
+  ]
+  squad.rules = [{ name: 'Storm Shield', effects: [{ role: 'defender', phases: ['ranged'], wounds: 1 }] }]
+  expect(
+    combatUnitTarget(squad, 'ranged')
+      .target!.groups.map((group) => group.wounds)
+      .toSorted((a, b) => a - b),
+  ).toEqual([2, 3])
+})
+
+it('adds a shield’s printed Wounds back onto Wounds another rule sets', () => {
+  const squad = member('Squad', 2)
+  squad.sheet.profiles.push({
+    id: 'Squad:shield',
+    name: 'Squad w/ Storm Shield',
+    type: 'Unit',
+    values: Object.entries({ T: '4', Sv: '7+', W: '3' }).map(([characteristic, value]) => ({ name: characteristic, value })),
+  })
+  squad.carriers = [
+    { name: 'Squad', models: 1, modelProfileIds: ['Squad:model'], weapons: [{ name: 'Rifle', count: 1, profileIds: ['Squad:weapon'] }] },
+    {
+      name: 'Squad',
+      models: 1,
+      modelProfileIds: ['Squad:shield'],
+      abilities: { 'Storm Shield': 1 },
+      weapons: [{ name: 'Rifle', count: 1, profileIds: ['Squad:weapon'] }],
+    },
+  ]
+  squad.rules = [
+    { name: 'Storm Shield', heldBy: 'Storm Shield', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, wounds: 1 }] },
+    { name: 'Giant', effects: [{ role: 'defender', phases: ['ranged'], unitStat: { kind: 'wounds', set: 4 } }] },
+  ]
+  expect(
+    combatUnitTarget(squad, 'ranged')
+      .target!.groups.map((group) => group.wounds)
+      .toSorted((a, b) => a - b),
+  ).toEqual([4, 5])
+})

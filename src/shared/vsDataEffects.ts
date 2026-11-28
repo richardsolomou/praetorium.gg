@@ -340,28 +340,43 @@ export const EFFECT_BLOCKS = [
   'combat',
 ] as const satisfies readonly (keyof VsDataEffectBlocks)[]
 
-/** The effect fields the simulator cannot apply yet, which `effectOf` leaves out. */
-export const UNAPPLIED_EFFECT_FIELDS = ['wounds', 'regainWounds'] as const
-
-const UNIT_STATS = new Set(['movement', 'leadership', 'objective-control'])
+const ROLLED = new Set(['attacks', 'damage'])
 
 /**
- * Whether an effect changes something the simulator cannot apply yet: a weapon's range, dice added to or set as a
- * characteristic, a multiplied one, a set unit characteristic, a weapon ability the attacks lose or an effect only for
- * weapons without one. Its reading is not calculated rather than calculated without that part.
+ * Whether an effect changes something the simulator cannot apply: a save re-roll for some models alone (the engine
+ * re-rolls a whole unit's saves), dice or multiplying for a characteristic other than Attacks and Damage, or Toughness or
+ * Wounds changed through a unit characteristic rather than their own fields. Its reading is not calculated rather than
+ * calculated without that part.
  */
-function unappliable({ characteristic, unitStat, weaponLacks, lostWeaponAbility }: VsDataEffect) {
+function unappliable({ characteristic, unitStat, rolls, ...effect }: VsDataEffect) {
   return (
-    Boolean(weaponLacks || lostWeaponAbility) ||
+    Boolean(rolls?.saveReroll && (effect.modelKeywords || effect.excludedModelKeywords || effect.bearerOnly)) ||
     (characteristic !== undefined &&
-      (characteristic.name === 'range' ||
-        characteristic.multiply !== undefined ||
-        typeof characteristic.add === 'object' ||
-        typeof characteristic.set === 'object')) ||
-    (unitStat !== undefined && (unitStat.set !== undefined || !UNIT_STATS.has(unitStat.kind)))
+      !ROLLED.has(characteristic.name) &&
+      (characteristic.multiply !== undefined || typeof characteristic.add === 'object' || typeof characteristic.set === 'object')) ||
+    (unitStat?.add !== undefined && (unitStat.kind === 'toughness' || unitStat.kind === 'wounds'))
   )
 }
-const appliable = (choices: readonly z.infer<typeof choiceSchema>[]) => !choices.some((choice) => choice.effects.some(unappliable))
+/** Wounds a model regains and mortal wounds outside the attacks, which `effectOf` leaves out as the simulator models neither. */
+const unmodelled = ({ regainWounds, mortalWounds }: VsDataEffect) =>
+  regainWounds !== undefined || mortalWounds?.timing === 'outside-attacks'
+/** The fields of an applied effect that say only where or when it applies. */
+const SELECTORS = new Set([
+  'role',
+  'phases',
+  'bearerOnly',
+  'weapon',
+  'targetKeywords',
+  'excludedTargetKeywords',
+  'modelKeywords',
+  'excludedModelKeywords',
+  'condition',
+])
+const changes = (effect: VsDataEffect) => Object.keys(effectOf(effect) ?? {}).some((field) => !SELECTORS.has(field))
+/** Whether the simulator calculates a reading: one that does nothing but what it leaves out is not calculated. */
+const appliable = (choices: readonly z.infer<typeof choiceSchema>[]) =>
+  !choices.some((choice) => choice.effects.some(unappliable)) &&
+  !(choices.some((choice) => choice.effects.some(unmodelled)) && !choices.some((choice) => choice.effects.some(changes)))
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
 const PROFILE = { ranged: 'Ranged Weapons', melee: 'Melee Weapons' } as const
@@ -464,41 +479,47 @@ function conditionLabel(condition: VsDataCondition): string {
 }
 
 /**
- * An effect as Praetorium applies it, which changes no Wounds and calculates no mortal wounds outside the attacks: the
- * simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
+ * An effect as Praetorium applies it, from a reading `unappliable` passes; an effect left with nothing Praetorium applies
+ * is none. A single re-roll is the attacker's of a hit, wound or damage roll, or the defender's of a save.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
-  const { attacks, weaponAbility, weaponHas, rolls, characteristic, unitStat, mortalWounds: mortals, ...rest } = effect
+  const {
+    attacks,
+    weaponAbility,
+    weaponHas,
+    weaponLacks,
+    lostWeaponAbility,
+    rolls,
+    characteristic,
+    mortalWounds: mortals,
+    regainWounds: _regainWounds,
+    ...applied
+  } = effect
   const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
-  const { wounds: _wounds, regainWounds: _regainWounds, weaponLacks: _lacks, lostWeaponAbility: _lost, ...applied } = rest
-  const { role: _role, bearerOnly: _bearerOnly, ...given } = applied
-  // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
-  // is left out.
-  const { saveReroll: _saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
-  const attackerRerolls = singleRerolls?.filter((kind) => kind !== 'save')
-  const options = { ...otherRolls, ...(attackerRerolls?.length ? { singleRerolls: attackerRerolls } : {}) }
-  if (!Object.keys(given).length && !unitStat && !weaponAbility && !Object.keys(options).length && !characteristic && !mortalWounds)
+  const { role, bearerOnly: _bearerOnly, ...given } = applied
+  const { saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
+  const ownRerolls = singleRerolls?.filter((kind) => (kind === 'save') === (role === 'defender'))
+  const options = { ...otherRolls, ...(ownRerolls?.length ? { singleRerolls: ownRerolls } : {}) }
+  if (
+    !Object.keys(given).length &&
+    !weaponAbility &&
+    !lostWeaponAbility &&
+    !saveReroll &&
+    !Object.keys(options).length &&
+    !characteristic &&
+    !mortalWounds
+  )
     return null
   return {
     ...applied,
-    ...(unitStat?.add !== undefined && UNIT_STATS.has(unitStat.kind)
-      ? { unitStat: { kind: unitStat.kind as 'movement' | 'leadership' | 'objective-control', add: unitStat.add } }
-      : {}),
     phases: attacks,
     ...(weaponAbility ? { keyword: titleCaseAbility(weaponAbility) } : {}),
+    ...(lostWeaponAbility ? { lostKeyword: titleCaseAbility(lostWeaponAbility) } : {}),
     ...(weaponHas ? { requiresWeaponKeyword: titleCaseAbility(weaponHas) } : {}),
+    ...(weaponLacks ? { lacksWeaponKeyword: titleCaseAbility(weaponLacks) } : {}),
     ...(Object.keys(options).length ? { options } : {}),
-    ...(characteristic
-      ? {
-          characteristic: {
-            kind: characteristic.name as Exclude<typeof characteristic.name, 'range'>,
-            ...(characteristic.set === undefined
-              ? { add: (characteristic.add as number | undefined) ?? 0 }
-              : { set: characteristic.set as number }),
-            ...(characteristic.nonCumulative ? { nonCumulative: true } : {}),
-          },
-        }
-      : {}),
+    ...(saveReroll ? { saveReroll } : {}),
+    ...(characteristic ? { characteristic: (({ name, ...change }) => ({ kind: name, ...change }))(characteristic) } : {}),
     ...(mortalWounds
       ? {
           mortalWounds: (({ max, timing, ...wounds }) => ({

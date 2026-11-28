@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Datasheet } from '../contracts/catalogue'
+import type { CombatPhase } from './combat'
 import { combatWeapons } from './combatProfiles'
 import {
   activeCombatRules,
@@ -29,6 +30,8 @@ const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule 
   models: 1,
   ...extra,
 })
+const rangedAttack = { role: 'attacker' as const, phases: ['ranged' as const] }
+
 const weapons = (): Datasheet =>
   datasheetFixture({
     keywords: ['Infantry'],
@@ -256,6 +259,65 @@ describe('combat rule effects', () => {
       sides: 6,
       bonus: 2,
     })
+  })
+  it('adds dice to a weapon’s Damage', () => {
+    const active = [
+      {
+        name: 'Buff',
+        effects: [{ ...rangedAttack, characteristic: { kind: 'damage' as const, add: { dice: 1, sides: 3 as const, bonus: 0 } } }],
+      },
+    ]
+    expect(combatWeapons(combatRuleProfiles(weapons(), active, 'attacker'), [], 'ranged')[0]?.weapon?.damage).toEqual({
+      dice: 1,
+      sides: 3,
+      bonus: 2,
+    })
+  })
+  it('refuses a weapon whose Attacks dice a rule multiplies', () => {
+    const active = [{ name: 'Buff', effects: [{ ...rangedAttack, characteristic: { kind: 'attacks' as const, multiply: 2 } }] }]
+    expect(combatWeapons(combatRuleProfiles(weapons(), active, 'attacker'), [], 'ranged')[0]?.weapon).toBeNull()
+  })
+  it('extends a weapon’s Range', () => {
+    const sheet = weapons()
+    sheet.profiles[0]!.values.unshift({ name: 'Range', value: '12"' })
+    const active = [{ name: 'Buff', effects: [{ ...rangedAttack, characteristic: { kind: 'range' as const, add: 6 } }] }]
+    expect(combatWeapons(combatRuleProfiles(sheet, active, 'attacker'), [], 'ranged')[0]?.weapon?.range).toBe(18)
+  })
+  it('takes away a weapon ability the attacks lose', () => {
+    const sheet = weapons()
+    sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Lethal Hits, Heavy'
+    const active = [{ name: 'Curse', effects: [{ role: 'defender' as const, phases: ['ranged' as const], lostKeyword: 'Lethal Hits' }] }]
+    expect(combatWeapons(combatRuleProfiles(sheet, [], 'attacker', [], active), [], 'ranged')[0]?.weapon?.lethal).toBe(false)
+  })
+  it('gives a weapon ability only to weapons without another', () => {
+    const sheet = weapons()
+    sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Torrent'
+    const both: CombatPhase[] = ['ranged', 'melee']
+    const active = [{ name: 'Buff', effects: [{ ...rangedAttack, phases: both, keyword: 'Lethal Hits', lacksWeaponKeyword: 'Torrent' }] }]
+    expect(
+      combatRuleProfiles(sheet, active, 'attacker').profiles.map(
+        (profile) => profile.values.find((value) => value.name === 'Keywords')!.value,
+      ),
+    ).toEqual(['Torrent', 'Lethal Hits'])
+  })
+  it('re-rolls the hits of only the weapons a rule names by their ability', () => {
+    const sheet = weapons()
+    sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Assault'
+    const carried = [{ weapon: combatWeapons(sheet, [], 'ranged')[0]!.weapon, count: 1, profile: sheet.profiles[0]! }]
+    const active = [
+      { name: 'Racks', effects: [{ ...rangedAttack, requiresWeaponKeyword: 'Assault', options: { hitReroll: 'failed' as const } }] },
+    ]
+    expect(combatRuleWeapons(sheet, carried, active, 'attacker', 'ranged', [])[0]?.hitReroll).toBe('failed')
+  })
+  it('sets a model’s Wounds before adding to them', () => {
+    const target = { groups: [{ models: 1, toughness: 6, save: 3, invulnerable: null, wounds: 3 }], feelNoPain: null }
+    const shield = { role: 'defender' as const, phases: ['ranged' as const], unitStat: { kind: 'wounds' as const, set: 4 }, wounds: 1 }
+    expect(combatRuleDefences(target, [{ name: 'Shield', effects: [shield] }], 'ranged').groups[0]!.wounds).toBe(5)
+  })
+  it('re-rolls the saving throws a rule lets the defender re-roll', () => {
+    const target = { groups: [{ models: 1, toughness: 6, save: 3, invulnerable: null, wounds: 3 }], feelNoPain: null }
+    const ward = { role: 'defender' as const, phases: ['ranged' as const], saveReroll: 'ones' as const }
+    expect(combatRuleDefences(target, [{ name: 'Ward', effects: [ward] }], 'ranged').saveReroll).toBe('ones')
   })
   it('retains feel no pain when the toughness bonus is already projected', () => {
     expect(
