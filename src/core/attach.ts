@@ -339,12 +339,18 @@ export function referenceAttachmentOf(definition: Definition, index: CatalogueIn
     ...(attachment.joins ?? []).flatMap((join) => join.targets ?? []),
   ])
   // Ability text prints a host in capitals and without the Legends or Crucible mark its datasheet's name carries, so each
-  // is named as its datasheet is; a keyword no datasheet holds stays as printed.
-  const named = (target: string) =>
-    ['', ' [legends]', ' [crucible]'].map((mark) => names.exact.get(`${normalizedName(target)}${mark}`)).find(Boolean) ??
-    names.loose.get(looseName(target)) ??
-    target
-  return { ...attachment, targets: uniqueNormalizedNames(targets.map(named)) }
+  // is named as its datasheet is, or as every datasheet it names the start of; a keyword host reads as units of it.
+  const keywords = new Set(attachment.keywords ?? [])
+  const named = (target: string): string[] => {
+    const name =
+      ['', ' [legends]', ' [crucible]'].map((mark) => names.exact.get(`${normalizedName(target)}${mark}`)).find(Boolean) ??
+      names.loose.get(looseName(target))
+    if (name) return [name]
+    const started = [...names.exact].flatMap(([key, value]) => (key.startsWith(`${normalizedName(target)} with `) ? [value] : []))
+    if (started.length) return started.toSorted()
+    return [keywords.has(normalizedName(target)) ? `${target} units` : target]
+  }
+  return { ...attachment, targets: uniqueNormalizedNames(targets.flatMap(named)) }
 }
 
 /** A name without spacing or plurals, as text prints "PLAGUE BEARERS" for Plaguebearers and "GUARDSMAN" for Guardsmen. */
