@@ -1,4 +1,4 @@
-import type { AttachmentCondition, VsAttachment } from '../core/attach'
+import type { AttachmentCondition, AttachmentJoin, VsAttachment } from '../core/attach'
 import type { PrintedTransport } from '../core/transport'
 import { vsTransport } from '../core/transport'
 import type { AttachmentData, ConditionalAttachment, VsDataDefinitions } from '../core/vsDataConstruction'
@@ -31,23 +31,74 @@ export function vsLinksIndex(
   // A unit no catalogue datasheet stands for, as the sodalities VS Data splits by spear, is no host a list can field yet.
   const namesOf = (unit: string) => [...new Set((entriesOf.get(unit) ?? []).flatMap((entryId) => nameOf(entryId) ?? []))]
   const resolved = new Map<string, VsAttachment | null>()
+  const standIns = standInsOf(definitions)
+  const unitKeywords = definitions
+    .all('unit')
+    .map(({ id, data }) => ({ id, keywords: data.keywords.map((keyword) => keyword.toUpperCase()) }))
+  const holdingKeywords = (keywords: readonly string[], excluded: readonly string[] = []) =>
+    unitKeywords
+      .filter(
+        (unit) =>
+          keywords.every((keyword) => unit.keywords.includes(keyword.toUpperCase())) &&
+          !excluded.some((keyword) => unit.keywords.includes(keyword.toUpperCase())),
+      )
+      .map((unit) => unit.id)
   const attachmentOf = (data: AttachmentData): VsAttachment | null => {
+    const capacity = data.capacity && {
+      ...(data.capacity.leads ? { leader: data.capacity.leads } : {}),
+      ...(data.capacity.supports ? { support: data.capacity.supports } : {}),
+      ...(data.capacity.startingStrength ? { startingStrength: data.capacity.startingStrength } : {}),
+      ...(data.capacity.distinct ? { distinct: true as const } : {}),
+      ...(data.capacity.limits?.length ? { limits: data.capacity.limits.map(({ keywords, max }) => ({ keywords, maximum: max })) } : {}),
+    }
+    const host = capacity ? { capacity } : {}
+    if (data.joins?.length) {
+      const joins = data.joins.map((join): AttachmentJoin => {
+        const targets = (join.units ?? []).flatMap(namesOf)
+        return {
+          ...(targets.length ? { targets } : {}),
+          ...(join.keywords?.length ? { keywords: join.keywords } : {}),
+          ...(!join.units && !join.keywords ? { anyHost: true as const } : {}),
+          ...(join.ledBy?.length ? { ledBy: join.ledBy } : {}),
+          ...(join.exclusive?.length ? { exclusive: join.exclusive } : {}),
+        }
+      })
+      return { targets: [], named: [...new Set(joins.flatMap((join) => join.targets ?? []))], joins, ...host }
+    }
     // An attachment takes one role in an army, so a record that leads some units and supports others stays the catalogue's.
-    if (data.leads?.length && data.supports?.length) return null
+    if (data.leads?.length && data.supports?.length) return capacity ? { targets: [], named: [], ...host } : null
     const role = data.leads?.length ? 'leads' : data.supports?.length ? 'supports' : undefined
-    const targets = role ? data[role]!.flatMap(namesOf) : []
+    const keywords = (definitions.get('unit', data.unit)?.data.keywords ?? []).map((keyword) => keyword.toUpperCase())
+    // A bodyguard that stands in for one of its hosts, as "it can be attached to this unit instead" says, takes it too.
+    const instead = (named: readonly string[], entryRole: 'leads' | 'supports') =>
+      standingIn(named, entryRole, keywords, standIns).filter((unit) => unit !== data.unit)
+    const hosts = role ? [...data[role]!, ...instead(data[role]!, role)] : []
+    const targets = [...new Set(hosts.flatMap(namesOf))]
     // A condition no list can meet here is left out, and its hosts with it, so the catalogue's reading of them stands.
     const conditional = (data.conditional ?? []).flatMap((entry) => {
-      const read = condition(entry, namesOf, entriesOf, detachmentsOf)
+      // A host taken by its keywords brings the bodyguards that stand in for it, as named hosts do.
+      const stoodIn = [...(entry.units ?? []), ...(entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords) : [])]
+      const entryHosts = [...(entry.units ?? []), ...instead(stoodIn, entry.role)]
+      const read = condition({ ...entry, ...(entryHosts.length ? { units: entryHosts } : {}) }, namesOf, entriesOf, detachmentsOf)
       return read.requires?.some((group) => !group.length) ? [] : [read]
     })
-    if (!targets.length && !conditional.length) return null
+    const besideAnother = (data.withAnotherLeader ?? []).map((entry) => {
+      const besideNames = (entry.besideUnits ?? []).flatMap(namesOf)
+      return {
+        targets: [...new Set([...entry.units, ...instead(entry.units, 'leads')].flatMap(namesOf))],
+        ...(besideNames.length ? { besideNames } : {}),
+        ...(entry.besideKeywords?.length ? { besideKeywords: entry.besideKeywords } : {}),
+      }
+    })
+    if (!targets.length && !conditional.length) return capacity ? { targets: [], named: [], ...host } : null
     const named = [...targets, ...conditional.flatMap((entry) => entry.targets ?? [])]
     return {
       ...(role ? { kind: ROLE[role] } : {}),
       targets,
       ...(conditional.length ? { conditional } : {}),
       named: [...new Set(named)],
+      ...(besideAnother.length ? { besideAnother } : {}),
+      ...host,
     }
   }
   const attachments: VsLinksIndex['attachments'] = {}
@@ -68,7 +119,7 @@ export function vsLinksIndex(
 }
 
 function condition(
-  { role, units, keywords, when = {}, shared }: ConditionalAttachment,
+  { role, units, keywords, excludedKeywords, when = {}, shared }: ConditionalAttachment,
   namesOf: (unit: string) => string[],
   entriesOf: ReadonlyMap<string, string[]>,
   detachmentsOf: ReadonlyMap<string, string[]>,
@@ -88,10 +139,43 @@ function condition(
     kind: ROLE[role],
     ...(targets.length ? { targets } : {}),
     ...(keywords?.length ? { keywords } : {}),
+    ...(excludedKeywords?.length ? { excludedKeywords } : {}),
     ...(requires.length ? { requires } : {}),
     ...(excludes.length ? { excludes } : {}),
     ...(shared ? { shared } : {}),
   }
+}
+
+type StandIn = { unit: string; role?: 'leads' | 'supports'; keywords?: string[]; excludedKeywords?: string[] }
+
+/** Each unit's stand-ins: the bodyguards whose `insteadOf` names it, with the role and keywords they take a joiner in. */
+function standInsOf(definitions: VsDataDefinitions) {
+  const found = new Map<string, StandIn[]>()
+  for (const { data } of definitions.all('attachment'))
+    for (const { units, ...entry } of data.insteadOf ?? [])
+      for (const unit of units) found.set(unit, [...(found.get(unit) ?? []), { unit: data.unit, ...entry }])
+  return found
+}
+
+/** The bodyguards that stand in for any of `units`, and for those in turn, for a joiner in `role` holding `keywords`. */
+function standingIn(
+  units: readonly string[],
+  role: 'leads' | 'supports',
+  keywords: readonly string[],
+  standIns: ReadonlyMap<string, StandIn[]>,
+) {
+  const found = new Set<string>()
+  const visit = (unit: string) => {
+    for (const standIn of standIns.get(unit) ?? []) {
+      if (found.has(standIn.unit) || (standIn.role && standIn.role !== role)) continue
+      if (!(standIn.keywords ?? []).every((keyword) => keywords.includes(keyword.toUpperCase()))) continue
+      if ((standIn.excludedKeywords ?? []).some((keyword) => keywords.includes(keyword.toUpperCase()))) continue
+      found.add(standIn.unit)
+      visit(standIn.unit)
+    }
+  }
+  for (const unit of units) visit(unit)
+  return [...found]
 }
 
 function reverse(map: ReadonlyMap<string, string>) {

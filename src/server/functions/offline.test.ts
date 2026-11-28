@@ -308,7 +308,6 @@ it('rejects an over-points captured roster even when its submitted snapshot clai
     factionKeys: new Map(),
     detachmentReferences: new Map(),
     detachmentDetails: new Map(),
-    factionRestrictions: new Map(),
   })
   const data = input()
   data.catalogueRevision = catalogue.index.revision
@@ -343,7 +342,6 @@ it('fields the syncing player’s alert on the captured roster’s unit holding 
     factionKeys: new Map(),
     detachmentReferences: new Map(),
     detachmentDetails: new Map(),
-    factionRestrictions: new Map(),
   })
   const alert = {
     key: 'datasheet:charge',

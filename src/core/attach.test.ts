@@ -1187,3 +1187,129 @@ describe('a datasheet VS Data gives a role only in some armies', () => {
     ])
   })
 })
+
+it("takes VS Data's role over the catalogue's", () => {
+  const index = {
+    ...indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'priest',
+          name: 'Sanguinary Priest',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following unit:\n■ ASSAULT SQUAD')],
+        },
+      ],
+    }),
+    attachments: { priest: { kind: 'leader' as const, targets: ['Assault Squad'], named: ['Assault Squad'] } },
+  }
+  expect(attachmentOf(index.definitions.get('priest')!, index)?.kind).toBe('leader')
+})
+
+describe("VS Data's attachment rules", () => {
+  const unit = (id: string, name: string) => ({ id, name, type: 'unit' as const })
+  const index = {
+    ...indexOf({
+      sharedSelectionEntries: [
+        unit('cryptek', 'Cryptek'),
+        unit('overlord', 'Overlord'),
+        unit('warriors', 'Necron Warriors'),
+        unit('thralls', 'Cryptothralls'),
+        unit('crawlers', 'Canoptek Tomb Crawlers'),
+        unit('bearer', 'Icon Bearer'),
+        unit('marines', 'Plague Marines'),
+        unit('carnivores', 'Kroot Carnivores'),
+        unit('shaper', 'Trail Shaper'),
+        unit('shocks', 'Cadian Shock Troops'),
+        unit('command', 'Cadian Command Squad'),
+        unit('castellan', 'Cadian Castellan'),
+      ],
+    }),
+    attachments: {
+      cryptek: { kind: 'support' as const, targets: ['Necron Warriors'], named: ['Necron Warriors'] },
+      overlord: { kind: 'leader' as const, targets: ['Necron Warriors', 'Plague Marines'], named: ['Necron Warriors', 'Plague Marines'] },
+      thralls: { targets: [], named: [], joins: [{ anyHost: true as const, ledBy: ['CRYPTEK'], exclusive: ['CRYPTOTHRALLS'] }] },
+      crawlers: { targets: [], named: [], joins: [{ anyHost: true as const, ledBy: ['CRYPTEK'], exclusive: ['CRYPTOTHRALLS'] }] },
+      bearer: {
+        kind: 'leader' as const,
+        targets: ['Plague Marines'],
+        named: ['Plague Marines'],
+        besideAnother: [{ targets: ['Plague Marines'], besideKeywords: ['CHARACTER'] }],
+      },
+      shaper: { kind: 'leader' as const, targets: ['Kroot Carnivores'], named: ['Kroot Carnivores'] },
+      carnivores: { targets: [], named: [], capacity: { leader: 2, distinct: true as const } },
+      command: { kind: 'leader' as const, targets: ['Cadian Shock Troops'], named: ['Cadian Shock Troops'] },
+      castellan: { kind: 'leader' as const, targets: ['Cadian Shock Troops'], named: ['Cadian Shock Troops'] },
+      shocks: { targets: [], named: [], capacity: { leader: 2, limits: [{ keywords: ['COMMAND SQUAD'], maximum: 1 }] } },
+    },
+  }
+  const messages = (units: { entryId: string; attachedTo?: number }[], keywords: Record<string, string[]> = {}) =>
+    attachmentErrors(
+      units,
+      index,
+      [],
+      units.map((entry) => keywords[entry.entryId]),
+    ).map((error) => `${error.entryName}: ${error.message}`)
+  const at = (entryId: string, host?: number) => ({ entryId, ...(host === undefined ? {} : { attachedTo: host }) })
+
+  it('lets a unit join any unit the character its rule names is attached to', () => {
+    expect(messages([at('warriors'), at('cryptek', 0), at('thralls', 0)], { cryptek: ['Cryptek'] })).toEqual([])
+  })
+
+  it('refuses a joining unit without the leader it needs', () => {
+    expect(messages([at('warriors'), at('overlord', 0), at('thralls', 0)], { overlord: ['Overlord'] })).toEqual([
+      'Cryptothralls: cannot join Necron Warriors without the character it needs',
+    ])
+  })
+
+  it('refuses a second unit an exclusive join shuts out', () => {
+    expect(
+      messages([at('warriors'), at('cryptek', 0), at('thralls', 0), at('crawlers', 0)], {
+        cryptek: ['Cryptek'],
+        thralls: ['Cryptothralls'],
+        crawlers: ['Tomb Crawlers'],
+      }),
+    ).toEqual(['Canoptek Tomb Crawlers: cannot join Necron Warriors, which Cryptothralls has already joined'])
+  })
+
+  it('refuses a joining unit an earlier join shuts out', () => {
+    expect(
+      messages([at('warriors'), at('cryptek', 0), at('crawlers', 0), at('thralls', 0)], {
+        cryptek: ['Cryptek'],
+        thralls: ['Cryptothralls'],
+        crawlers: ['Tomb Crawlers'],
+      }),
+    ).toEqual(['Cryptothralls: cannot join Necron Warriors, which Canoptek Tomb Crawlers has already joined'])
+  })
+
+  it('does not ask a joining unit with nothing to join to be attached', () => {
+    expect(messages([at('thralls')])).toEqual([])
+  })
+
+  it('lets a leader lead beside another leader of the keyword it names', () => {
+    expect(messages([at('marines'), at('overlord', 0), at('bearer', 0)], { overlord: ['Character'], bearer: ['Character'] })).toEqual([])
+  })
+
+  it('refuses a leader beside another leader without the keyword it names', () => {
+    expect(messages([at('marines'), at('overlord', 0), at('bearer', 0)], { overlord: ['Monster'], bearer: ['Character'] })).toEqual([
+      'Icon Bearer: cannot lead Plague Marines, which is already led by Overlord',
+    ])
+  })
+
+  it("takes the leaders a bodyguard's capacity allows", () => {
+    expect(
+      messages([at('shocks'), at('command', 0), at('castellan', 0)], { command: ['Command Squad'], castellan: ['Character'] }),
+    ).toEqual([])
+  })
+
+  it('refuses more attached units of a keyword than its capacity allows', () => {
+    expect(messages([at('shocks'), at('command', 0), at('command', 0)], { command: ['Command Squad'] }).at(-1)).toBe(
+      'Cadian Command Squad: cannot be attached to Cadian Shock Troops, which already has 1 Command Squad',
+    )
+  })
+
+  it('refuses two of the same leader where its capacity takes only distinct ones', () => {
+    expect(messages([at('carnivores'), at('shaper', 0), at('shaper', 0)])).toEqual([
+      'Trail Shaper: cannot lead Kroot Carnivores, which is already led by Trail Shaper',
+    ])
+  })
+})

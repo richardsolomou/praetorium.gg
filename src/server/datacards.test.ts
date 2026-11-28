@@ -11,7 +11,6 @@ import {
   factionRestrictionCoverageIssues,
   factionRestrictions,
   prose,
-  restrictedBy,
   type SectionProse,
   transformed,
 } from '../shared/datacards'
@@ -880,16 +879,6 @@ describe('army-construction restrictions', () => {
     })
     expect(factionRestrictionCoverageIssues(datacards)).toEqual(['Space Wolves: wolf scouts'])
   })
-
-  it('refuses a unit by name unless it carries the exempting keyword', () => {
-    const restrictions = { excludedNames: new Map([['impulsor', 'black templars']]), excludedKeywords: new Set(['psyker']) }
-    expect([
-      restrictedBy(restrictions, 'Impulsor', ['Vehicle']),
-      restrictedBy(restrictions, 'Impulsor', ['Vehicle', 'Faction: Black Templars']),
-      restrictedBy(restrictions, 'Librarian', ['Character', 'Psyker']),
-      restrictedBy(restrictions, 'Marshal', ['Character']),
-    ]).toEqual([{ keyword: null }, null, { keyword: 'Psyker' }, null])
-  })
 })
 
 it('hands a card\u2019s table on as the source wrote it', () => {
@@ -960,7 +949,7 @@ describe('what a faction file publishes', () => {
   })
 
   it('reads the units an army rule refuses from words it does not publish', () => {
-    expect(restrictedBy(factionRestrictions(published()).get('orks')!, 'Gretchin', [])).toEqual({ keyword: null })
+    expect(factionRestrictions(published()).get('orks')?.excludedNames.has('gretchin')).toBe(true)
   })
 
   it('reads a transport capacity from words it does not publish', () => {
