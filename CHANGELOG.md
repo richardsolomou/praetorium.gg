@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.13 (2026-11-28)
+
+### Patch Changes
+
+- 43e9fad: [rosters] King of the Colosseum lists are again limited to 4 Enhancements.
+
 ## 0.280.12 (2026-11-28)
 
 ### Patch Changes
