@@ -3,6 +3,7 @@ import { nameOf } from '../core/catalogue'
 import { remember } from '../core/collections'
 import { legacyIdsSchema } from '../core/legacyIds'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { vsFactionOf } from './factionNames'
 import { wargearKey } from '../core/wargearNames'
 import { normalized } from './importMismatch'
 import { vsDefinitionsOf } from './vsDataBuild'
@@ -27,10 +28,8 @@ function soleVsFaction(loaded: LoadedCatalogue, catalogueId: string) {
   return id && loaded.factions.filter((faction) => filed[bookOf(faction.id)] === id).length <= 1 ? id : undefined
 }
 
-export function vsFactionName(loaded: LoadedCatalogue, catalogueId: string) {
-  const id = soleVsFaction(loaded, catalogueId)
-  return id ? vsDefinitionsOf(loaded)?.get('faction', id)?.name : undefined
-}
+export const vsFactionName = (loaded: LoadedCatalogue, catalogueId: string) =>
+  soleVsFaction(loaded, catalogueId) ? vsFactionOf(loaded, catalogueId)?.name : undefined
 
 const sharedNamesOf = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
 
