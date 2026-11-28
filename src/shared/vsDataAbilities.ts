@@ -45,7 +45,7 @@ export function abilitySummaryIn<T = RuleSummary>(units: UnitsOf<T>, subject: st
 
 /**
  * A datasheet ability's summary: the record its BSData id is, else the first of the records its printed text names that is
- * its own owner's, a faction's or detachment's rule, or no ability at all, as a core rule, else its owner's or its owner's
+ * its own owner's or one VS Data shares with it, any faction's or the detachment's rule, or no ability at all, as a core rule, else its owner's or its owner's
  * faction's own record of its exact `name`, as a detachment's Enhancement or an army rule whose text names none.
  */
 export function datasheetAbilitySummary<T = RuleSummary>(
@@ -61,10 +61,16 @@ export function datasheetAbilitySummary<T = RuleSummary>(
   const owner = ownerOf(units, subject)
   // A faction's rule (`<faction>.<rule>`), or the owner's own record, whatever catalogue owns the detachment.
   const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
+  const shared = units.units[subject]?.shared ?? []
   const reaches = ({ id: record }: { id: string }) => {
     if (!record.startsWith('ability:')) return true
     const held = record.slice('ability:'.length, record.lastIndexOf('.'))
-    return !held.includes('.') || held === owner || (detachment !== null && held.endsWith(detachment))
+    return (
+      !held.includes('.') ||
+      held === owner ||
+      (detachment !== null && held.endsWith(detachment)) ||
+      shared.includes(record.slice('ability:'.length))
+    )
   }
   const found = printed.find(reaches)?.summary
   if (found || !name || !owner) return found ?? null

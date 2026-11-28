@@ -454,16 +454,21 @@ function rosterCombatRules(
       )
     }
     for (const option of options) {
-      // A card's words are withheld as tokens; the catalogue's own copy of the same rule, where it has one, records what they decide.
-      const catalogued = detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? []
+      // A card's words are withheld as tokens; where a rules version records nothing for them, the catalogue's own copy of
+      // the same rule, where it has one, records what they decide.
+      let copies: NonNullable<ReturnType<typeof detachmentCatalogueDetail>>['rules'] | undefined
+      const catalogued = () => (copies ??= detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? [])
       for (const rule of detachmentReference(loaded, rules, data.catalogueId, routeSlug(option.name))?.rules ?? []) {
-        const judgeable = catalogued.find(
-          (candidate) =>
-            sameRuleName(candidate.name, rule.name) &&
-            candidate.description &&
-            (!hasTextTokens(candidate.description) || recordedCombat(candidate.description) !== undefined),
-        )?.description
-        const description = rule.description && hasTextTokens(rule.description) ? (judgeable ?? rule.description) : rule.description
+        const unrecorded = rule.description && hasTextTokens(rule.description) && recordedCombat(rule.description) === undefined
+        const judgeable = unrecorded
+          ? catalogued().find(
+              (candidate) =>
+                sameRuleName(candidate.name, rule.name) &&
+                candidate.description &&
+                (!hasTextTokens(candidate.description) || recordedCombat(candidate.description) !== undefined),
+            )?.description
+          : undefined
+        const description = judgeable ?? rule.description
         if (description)
           add(
             {
