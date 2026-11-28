@@ -58,7 +58,15 @@ import {
 } from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
-import { vsDataChecks, vsDataEnhancementOptions, vsDataErrors, vsDataWithoutDetachments, vsPickErrors } from './vsDataLegality'
+import {
+  vsDataChecks,
+  vsDataEnhancementOptions,
+  vsDataErrors,
+  vsDataAllyLimited,
+  vsDataPlaces,
+  vsDataWithoutDetachments,
+  vsPickErrors,
+} from './vsDataLegality'
 import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
@@ -690,12 +698,22 @@ function calculateRoster(
     unit.vs?.models ?? remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
   // limits then stand only for the datasheets VS Data leaves to it.
-  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit }))
-  const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
-  const whole = evaluateForces(forces, loaded.index, options, vsPicksOf(picked, vsPrices, vsData === null))
+  const placed = vsDataPlaces(loaded.vsRoster, data)
+  const whole = evaluateForces(forces, loaded.index, options, vsPicksOf(picked, vsPrices, !placed))
   const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
-  const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
+  // VS Data's ally points limits count what each unit costs the list.
+  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: selectionPoints.get(unit.selection) ?? 0 }))
+  const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
+  // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
+  // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
+  // the catalogue's total counts every unit.
+  const pointCapResult = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
+  const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
+  const keyOf = new Map(picked.map((unit) => [unit.selection, unit.key]))
+  const pointCaps = pointCapResult.errors.filter(
+    (error) => !(pointCapResult.counted.get(error) ?? []).every((selection) => allyLimited.has(keyOf.get(selection) ?? -1)),
+  )
   // Keywords and Toughness are only inputs to King of the Colosseum's construction rules.
   // Projecting every contextual datasheet for an ordinary roster would revisit the whole roster once per unit.
   const constructionUnits = isKotcLimit(data.limit)
@@ -795,10 +813,8 @@ function calculateRoster(
     ((error.limit !== undefined && copyLimited.has(error.entryId)) ||
       (rosterScoped(error.entryId) && !leftToCatalogue.has(error.entryName)) ||
       enhancementOptions.has(error.entryId))
-  // The catalogue keeps the Detachment a datasheet needs where VS Data does not record it yet (Deathwatch in a chapter),
-  // and says it once where both do.
-  const detachmentLocks = detachmentLockErrors(loaded, data, picked, roster)
-  const locked = new Set(detachmentLocks.map((error) => error.entryId))
+  // VS Data says which Detachments a unit needs wherever it places the list, so the catalogue's locks stand only beside none.
+  const detachmentLocks = vsData === null ? detachmentLockErrors(loaded, data, picked, roster) : []
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
     ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),
@@ -816,18 +832,15 @@ function calculateRoster(
       data.detachmentIds,
     ),
     // King of the Colosseum's own Detachment count, which the player can waive, stands for VS Data's.
-    ...(vsData?.filter(
-      (error) =>
-        !(error.message.startsWith('needs one of these Detachments') && locked.has(error.entryId)) &&
-        !(isKotcLimit(data.limit) && error.message === 'needs one to three Detachments'),
-    ) ?? vsDataRefusedUnits(loaded, data, picked)),
+    ...(vsData?.filter((error) => !(isKotcLimit(data.limit) && error.message === 'needs one to three Detachments')) ??
+      vsDataRefusedUnits(loaded, data, picked)),
     ...(isKotcLimit(data.limit)
       ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? [], enhancementsHeld)
       : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLocks,
     ...(vsData === null ? vsPickErrors(loaded.vsRoster, data, checkedUnits) : []),
-    ...pointCaps.errors,
+    ...pointCaps,
     ...enhancementsPerUnitErrors,
     // King of the Colosseum's own Enhancement count stands for this one.
     ...(vsData === null && !isKotcLimit(data.limit) && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
@@ -853,6 +866,7 @@ function calculateRoster(
     return {
       kind: 'assessment' as const,
       points,
+      detachments: purchased,
       detachmentError,
       errors,
       units: picked.map((unit) => {
@@ -930,7 +944,7 @@ function calculateRoster(
     errors,
     unhandled: [
       ...whole.unhandled,
-      ...pointCaps.unhandled.filter((note) => !whole.unhandled.includes(note)),
+      ...pointCapResult.unhandled.filter((note) => !whole.unhandled.includes(note)),
       ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
     ],
     selections,

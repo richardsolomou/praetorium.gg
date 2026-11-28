@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import {
   armyReminder,
   fieldedReminders,
@@ -35,11 +35,11 @@ export function useReminderEditor({
   positioned: readonly RosterPick[]
   units: ReturnType<typeof useRosterPrice>['units']
 }) {
-  const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
+  const [editing, setEditing] = useState<{ draft: ReminderDraft; rule: ReactNode } | null>(null)
   const resetAbilityAlert = abilityAlerts.reset
   const controls = {
     active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
-    onSelect: (subject: ReminderSubject) => {
+    onSelect: (subject: ReminderSubject, rule: ReactNode) => {
       const key = reminderKey(subject)
       const description = ownWords(subject.description ?? '') ?? ''
       const suggested = subject.reminder ?? {
@@ -48,17 +48,16 @@ export function useReminderEditor({
       }
       resetAbilityAlert()
       const saved = abilityAlerts.settings.find((reminder) => reminder.key === key)
-      setReminderDraft(
-        saved
-          ? { ...saved, description: subject.description ?? saved.description }
-          : {
-              key,
-              ability: subject.name,
-              description: subject.description ?? '',
-              timings: suggested.timings,
-              ...(!armyReminder(subject) && suggested.whileDestroyed ? { whileDestroyed: true } : {}),
-            },
-      )
+      const draft: ReminderDraft = saved
+        ? { ...saved, description: subject.description ?? saved.description }
+        : {
+            key,
+            ability: subject.name,
+            description: subject.description ?? '',
+            timings: suggested.timings,
+            ...(!armyReminder(subject) && suggested.whileDestroyed ? { whileDestroyed: true } : {}),
+          }
+      setEditing({ draft, rule })
     },
   }
   const { data: reminderAbilities } = useQuery({
@@ -69,24 +68,25 @@ export function useReminderEditor({
     () => reminderTimingCountsByUnit(fieldedReminders(abilityAlerts.settings, { detachmentIds, units }, reminderAbilities ?? [])),
     [abilityAlerts.settings, detachmentIds, reminderAbilities, units],
   )
-  const dialog = reminderDraft ? (
+  const dialog = editing ? (
     <ReminderEditorDialog
-      key={reminderDraft.key}
-      draft={reminderDraft}
-      full={!abilityAlerts.fits(reminderDraft.key)}
+      key={editing.draft.key}
+      draft={editing.draft}
+      rule={editing.rule}
+      full={!abilityAlerts.fits(editing.draft.key)}
       error={abilityAlerts.error}
-      onClose={() => setReminderDraft(null)}
+      onClose={() => setEditing(null)}
       onSave={(reminder) =>
         void abilityAlerts.save(reminder).then(
-          () => setReminderDraft(null),
+          () => setEditing(null),
           () => {},
         )
       }
       onRemove={
-        abilityAlerts.settings.some((reminder) => reminder.key === reminderDraft.key)
+        abilityAlerts.settings.some((reminder) => reminder.key === editing.draft.key)
           ? () =>
-              void abilityAlerts.remove(reminderDraft.key).then(
-                () => setReminderDraft(null),
+              void abilityAlerts.remove(editing.draft.key).then(
+                () => setEditing(null),
                 () => {},
               )
           : undefined

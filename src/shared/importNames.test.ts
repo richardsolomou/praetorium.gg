@@ -16,6 +16,7 @@ it('gives a stored Detachment ID the VS Data names of the Detachment the frozen 
       detachments: { '01b8-fa17-620e-8e79': 'leagues-of-votann.needgaard-oathband' },
       datasheetNames: new Map(),
       detachmentNames: new Map([['01b8-fa17-620e-8e79', ['Needgaârd Oathband']]]),
+      bookNames: new Map(),
     },
   )
   expect(names.detachments.get('01b8-fa17-620e-8e79')).toContain('Needgaard-Eidbund')

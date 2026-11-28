@@ -244,10 +244,11 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen VS Data 
 })
 
 describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData names', () => {
-  // Imports read a datasheet or Detachment only by the names frozen for its ID (`scripts/freezeImportNames.ts`).
-  it('name every datasheet and Detachment of the current rules version', { timeout: 180_000 }, () => {
+  // Imports read a book, datasheet or Detachment only by the names frozen for its ID (`scripts/freezeImportNames.ts`).
+  it('name every book, datasheet and Detachment of the current rules version', { timeout: 180_000 }, () => {
     const { catalogue } = sharedSnapshot(source)
     const unnamed = [
+      ...catalogue.factions.filter(({ id }) => !legacyImportIds.bookNames.has(id)).map(({ id }) => id),
       ...catalogue.factions.flatMap(({ id }) =>
         [...(catalogue.index.datasheets.get(id) ?? [])].filter((entry) => !legacyImportIds.datasheetNames.has(entry)),
       ),

@@ -8,6 +8,7 @@ import { countedKeywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataR
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
+import { keywordName } from '../core/text'
 
 const definitionsOf = new WeakMap<LoadedCatalogue, VsDataDefinitions | null>()
 
@@ -157,8 +158,5 @@ export function vsPickKeywords(
   const definitions = vsDefinitionsOf(loaded)
   const built = units[position]?.vs
   if (!definitions || !built || !definitions.get('unit', built.unit.unit)) return null
-  // VS Data writes keywords in capitals; a list shows them as the catalogue does, each word capitalised.
-  return countedKeywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map((keyword) =>
-    keyword.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase()),
-  )
+  return countedKeywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map(keywordName)
 }

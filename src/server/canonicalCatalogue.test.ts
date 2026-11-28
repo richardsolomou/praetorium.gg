@@ -19,6 +19,7 @@ import {
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from '../shared/datacards'
 import type { SelectionEntry } from '../core/catalogue'
 import type { LoadedRules } from '../shared/rules'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
 
@@ -91,6 +92,70 @@ describe('canonical catalogue', () => {
         { models: '1', cost: '105', keyword: null, faction: null, detachment: null, copies: 'Your 3rd + Unit Costs' },
       ],
       provenance: { sources: ['points'], strategy: 'single-source' },
+    })
+  })
+  it('counts the models of a datasheet VS Data defines as its unit fields them', () => {
+    const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+    const loaded = {
+      ...catalogue(),
+      vsRoster: vsRosterData(
+        {
+          release: 'test',
+          rulesVersion: { edition: '11th', update: 'test' },
+          unavailable: [],
+          points: [],
+          definitions: {
+            faction: { host: record('Host', {}) },
+            unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5, 10] }) },
+            model: {
+              'host.squad.sergeant': record('Sergeant', { unit: 'host.squad', min: 1, max: 1, wargear: {} }),
+              'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 9, wargear: {} }),
+            },
+          },
+        },
+        { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad' }, enhancements: {} },
+        null,
+        () => 'Squad',
+      ),
+    }
+
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.composition).toEqual([
+      '1 × Sergeant',
+      '4–9 × Trooper',
+      '5 or 10 models in all',
+    ])
+  })
+  it("prints VS Data's rows for other armies and Detachments labelled with them, beside its own list's price", () => {
+    const loaded = catalogue()
+    loaded.vsPoints = {
+      books: { cat: 'agents' },
+      factions: { agents: { name: 'Agents of the Imperium' } },
+      units: {
+        squad: {
+          faction: 'agents',
+          tiers: [
+            {
+              copies: { from: 1 },
+              costs: [
+                { models: 1, points: 55, composition: 'in an army of Agents' },
+                { models: 1, points: 65, composition: 'as Imperium' },
+                { models: 1, points: 75, composition: 'in the Veiled Blade Detachment' },
+              ],
+            },
+          ],
+          wargear: [],
+        },
+      },
+      detachments: { 'veiled-blade': { faction: 'agents', name: 'Veiled Blade', dp: 1, enhancements: [] } },
+    }
+    const sheet = compileCanonicalCatalogue(loaded, revisions).datasheets[0]
+    expect({ points: sheet?.points, costs: sheet?.costs }).toEqual({
+      points: 55,
+      costs: [
+        { models: '1', cost: '55', keyword: null, faction: null, detachment: null },
+        { models: '1', cost: '65', keyword: null, faction: null, detachment: null, allied: 'Imperium' },
+        { models: '1', cost: '75', keyword: null, faction: null, detachment: 'Veiled Blade' },
+      ],
     })
   })
   it('compiles upstream labels into one typed datasheet with provenance', () => {
