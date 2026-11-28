@@ -16,16 +16,13 @@ const AGENTS_LEGENDS_SQUADS = [
 /**
  * Joiners whose VS Data hosts are known wrong or unsettled, which keep the catalogue's reading of every host VS Data does
  * not name, or of these: the Regimental Attachés' join, the Crisis Commander's misprinted host and the Watch Masters'
- * Legends squads until richardsolomou/vs-data#228 releases, and the Crucible Node and Prime Organisms' Raveners, which
- * only the catalogue gives, until richardsolomou/vs-data#ISSUE settles them.
+ * Legends squads, until richardsolomou/vs-data#228 releases.
  */
 const CATALOGUE_HOSTS: Readonly<Record<string, true | readonly string[]>> = {
   'astra-militarum.regimental-attaches': true,
   'tau-empire.commander-in-crisis-battlesuit': true,
   'imperial-agents.watch-master': AGENTS_LEGENDS_SQUADS,
   'imperial-agents.watch-captain-artemis': AGENTS_LEGENDS_SQUADS,
-  'tyranids.node-organism': true,
-  'tyranids.prime-organism': true,
 }
 
 /**
