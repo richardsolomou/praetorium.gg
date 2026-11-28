@@ -55,9 +55,12 @@ for (const catalogue of index.catalogues.values()) {
       sheet,
     }
   })
+  // Entries sharing a name in one book, as a codex and its allied copy, count once.
+  const counted = new Set<string>()
   for (const joiner of units) {
     const key = `${catalogue.name} / ${joiner.name}`
-    if (!own.has(joiner.id) || attachments[key]) continue
+    if (!own.has(joiner.id) || counted.has(key)) continue
+    counted.add(key)
     const definition = index.definitions.get(joiner.id)!
     const before = attachmentOf(definition, catalogueOnly, joiner.selection)
     const after = attachmentOf(definition, index, joiner.selection)
