@@ -88,8 +88,8 @@ it('keeps hiding a unit its detachment unlocks where VS Data offers it under any
         faction: { chapter: record('Chapter', { allies: [{ units: ['watch.veteran'] }] }), watch: record('Watch', {}) },
         detachment: { 'chapter.gladius': record('Gladius Task Force', { faction: 'chapter' }) },
         unit: {
-          'chapter.marine': record('Marine', { faction: 'chapter', sizes: [1] }),
-          'watch.veteran': record('Veteran', { faction: 'watch', sizes: [1] }),
+          'chapter.marine': record('Marine', { faction: 'chapter', keywords: [], sizes: [1] }),
+          'watch.veteran': record('Veteran', { faction: 'watch', keywords: [], sizes: [1] }),
         },
       },
     },
