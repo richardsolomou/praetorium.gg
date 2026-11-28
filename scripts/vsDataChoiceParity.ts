@@ -286,7 +286,7 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'sizes',
     units: /^genestealer-cults\.atalan-jackals$/,
-    detail: /.*/,
+    detail: /^BSData 5\/6\/7\/8\/9, VS Data 5\/6\/7\/8\/9\/10$/,
     why: 'the app (build 995) fields 4 to 8 Jackals and 1 or 2 Wolfquads, the second only with 8 Jackals: 5 to 10 models',
   },
   {
@@ -316,7 +316,7 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'sizes',
     units: /^tau-empire\.tidewall-shieldline$/,
-    detail: /.*/,
+    detail: /^BSData 1, VS Data 1\/2$/,
     why: 'the app (build 995) fields the defence platform as a second model',
   },
   {
@@ -500,9 +500,9 @@ function vsLeast(picked: VsRosterUnit) {
     if (!n) continue
     const own = options.filter((option) => !option.data.carrier || option.data.carrier === model.id)
     for (const [id, k] of Object.entries(model.data.wargear)) {
-      const taking = own.filter((option) => id in (option.data.replaces ?? {}))
-      const swapped = taking.reduce((total, option) => total + reach(option, n), 0)
-      add(id, Math.max(0, n - swapped) * k)
+      // A swap takes away only as many as it replaces, as a Tankbusta Nob trading 1 of its 2 rokkit pistols.
+      const swapped = own.reduce((total, option) => total + reach(option, n) * (option.data.replaces?.[id] ?? 0), 0)
+      add(id, Math.max(0, n * k - swapped))
     }
   }
   for (const option of options) {
