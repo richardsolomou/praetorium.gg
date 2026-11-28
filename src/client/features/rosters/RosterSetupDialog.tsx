@@ -7,7 +7,7 @@ import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { prepareFactionUnits } from '../../functions'
 import { Link } from '@tanstack/react-router'
 import { BookOpen, Check } from 'lucide-react'
-import { type ReactNode, useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
@@ -48,7 +48,7 @@ import { SearchableSelect, type SearchableGroup } from '../../components/Searcha
 import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
-import { detachmentRefusal, dispositionsFor, dispositionTag } from '../../components/rosterSetup'
+import { type DetachmentRefusal, detachmentRefusal, dispositionsFor, dispositionTag } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
@@ -257,12 +257,8 @@ export function RosterSetupDialog({
       return refusal ? [[detachment.id, refusal] as const] : []
     }),
   )
-  // A clash stays on the shelf to say why; one over the count or the DP budget is not offered at all.
-  const offeredDetachments = favouriteDetachmentsFirst(
-    faction?.detachments.filter((detachment) => (refusals.get(detachment.id)?.kind ?? 'conflict') === 'conflict') ?? [],
-    faction?.id ?? '',
-    favouriteDetachments,
-  )
+  // A refused detachment keeps its place, greyed, so choosing or dropping one never moves the rest.
+  const offeredDetachments = favouriteDetachmentsFirst(faction?.detachments ?? [], faction?.id ?? '', favouriteDetachments)
   // A detachment already bought stays on the shelf whatever is typed: the shelf is
   // the only place it can be given back, and a query that hid it would leave the
   // points spent with no way to undo them.
@@ -338,22 +334,15 @@ export function RosterSetupDialog({
   }
 
   const title = mode === 'create' ? 'Create roster' : mode === 'convert' ? 'Convert rules version' : 'Edit roster setup'
-  const missingId = useId()
-  const missing = !draft.catalogueId
-    ? 'Choose your faction.'
-    : loadingFaction
-      ? 'Loading your army choices…'
-      : mode === 'convert' && draft.catalogueId === (sourceCatalogueId ?? value.catalogueId)
-        ? 'Choose a different rules version.'
-        : budgetError
-          ? 'Fix the points limit.'
-          : !draft.detachmentIds.length && !takesNone
-            ? 'Choose a detachment.'
-            : unavailableDetachmentIds.length
-              ? takesNone
-                ? 'Remove the detachment.'
-                : 'Replace the unavailable detachment.'
-              : pointsError
+  // The form shows what is left to choose, so the disabled action says nothing of its own.
+  const incomplete =
+    !draft.catalogueId ||
+    loadingFaction ||
+    (mode === 'convert' && draft.catalogueId === (sourceCatalogueId ?? value.catalogueId)) ||
+    Boolean(budgetError) ||
+    (!draft.detachmentIds.length && !takesNone) ||
+    unavailableDetachmentIds.length > 0 ||
+    Boolean(pointsError)
   const description = (
     <>
       {mode === 'create'
@@ -441,30 +430,38 @@ export function RosterSetupDialog({
         ) : null}
 
         <div data-onboarding="setup-size">
-          <Label className="eyebrow block" htmlFor="setup-size">
-            Battle size
-          </Label>
-          <div className="mt-1 flex items-center gap-2">
-            <SearchableSelect
-              id="setup-size"
-              disabled={mode === 'convert'}
-              ariaLabel="Battle size"
-              value={String(draft.limit)}
-              groups={BATTLE_SIZE_GROUPS}
-              onValueChange={changeSize}
-              placeholder="Battle size"
-              popupClassName="min-w-[min(22rem,var(--available-width))]"
-              className="h-11 min-w-0 flex-1"
-            />
-            {allowsPointsBudget(draft.limit) ? (
-              <PointsTotalInput
-                id="setup-budget"
-                limit={draft.limit}
-                value={budgetText}
-                error={budgetError}
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1">
+              <Label className="eyebrow block" htmlFor="setup-size">
+                Battle size
+              </Label>
+              <SearchableSelect
+                id="setup-size"
                 disabled={mode === 'convert'}
-                onChange={changeBudget}
+                ariaLabel="Battle size"
+                value={String(draft.limit)}
+                groups={BATTLE_SIZE_GROUPS}
+                onValueChange={changeSize}
+                placeholder="Battle size"
+                popupClassName="min-w-[min(22rem,var(--available-width))]"
+                className="mt-1 h-11 w-full"
               />
+            </div>
+            {allowsPointsBudget(draft.limit) ? (
+              <div>
+                <Label className="eyebrow block" htmlFor="setup-budget">
+                  Points limit
+                </Label>
+                <PointsTotalInput
+                  id="setup-budget"
+                  className="mt-1"
+                  limit={draft.limit}
+                  value={budgetText}
+                  error={budgetError}
+                  disabled={mode === 'convert'}
+                  onChange={changeBudget}
+                />
+              </div>
             ) : null}
           </div>
           <PointsTotalError id="setup-budget" error={budgetError} />
@@ -514,21 +511,17 @@ export function RosterSetupDialog({
             inputClassName="h-11"
           />
         ) : null}
-        <div className="mt-2 grid max-h-72 overflow-y-auto border-t border-edge sm:grid-cols-2 sm:gap-x-4">
+        <div className="mt-2 grid border-t border-edge sm:grid-cols-2 sm:gap-x-4">
           {availableDetachments.map((detachment) => {
             const chosen = draft.detachmentIds.includes(detachment.id)
-            const conflict = refusals.get(detachment.id)?.reason ?? null
+            const refusal = refusals.get(detachment.id)
             return (
               <div
                 key={detachment.id}
-                className={`flex items-center gap-1 border-b border-edge pr-1 transition-colors ${chosen ? 'bg-parchment/6' : 'hover:bg-raised'}`}
+                className={`flex items-center gap-1 border-b border-edge pr-1 transition-colors ${chosen ? 'bg-parchment/6' : refusal ? '' : 'hover:bg-raised'}`}
               >
-                {conflict ? (
-                  <UnavailableDetachment name={detachment.name} reason={conflict}>
-                    <ChoiceMark chosen={false} />
-                    <DetachmentSummary detachment={detachment} />
-                    <span className="readout shrink-0 text-xs text-faint">{detachment.points ?? '—'} DP</span>
-                  </UnavailableDetachment>
+                {refusal ? (
+                  <UnavailableDetachment detachment={detachment} refusal={refusal} />
                 ) : (
                   <button
                     type="button"
@@ -682,10 +675,6 @@ export function RosterSetupDialog({
         <Problem className="mr-auto self-center">
           Could not save roster: {saveError ?? errorMessage(reviewing.error ?? confirming.error)}
         </Problem>
-      ) : missing ? (
-        <output className="mr-auto self-center text-sm text-discarded">
-          <span id={missingId}>{missing}</span>
-        </output>
       ) : null}
       <Button variant="outline" disabled={confirming.isPending} onClick={() => onOpenChange(false)}>
         Cancel
@@ -706,8 +695,7 @@ export function RosterSetupDialog({
       <Button
         data-onboarding="setup-create"
         className="sm:min-w-40"
-        aria-describedby={missing ? missingId : undefined}
-        disabled={pending || reviewing.isPending || confirming.isPending || (!review && Boolean(missing))}
+        disabled={pending || reviewing.isPending || confirming.isPending || (!review && incomplete)}
         onClick={() => {
           if (review) confirming.mutate()
           else {
@@ -826,9 +814,9 @@ export function ChoiceMark({ chosen }: { chosen: boolean }) {
   )
 }
 
-function DetachmentSummary({ detachment }: { detachment: Detachment }) {
+function DetachmentSummary({ detachment, refused = false }: { detachment: Detachment; refused?: boolean }) {
   return (
-    <span className="min-w-0 flex-1">
+    <span className={`min-w-0 flex-1 ${refused ? 'opacity-60' : ''}`}>
       <span className="block text-sm leading-tight font-medium text-bone">{detachment.name}</span>
       <span className="mt-1 flex flex-wrap gap-1 empty:hidden">
         {detachment.dispositions.map((entry) => (
@@ -841,9 +829,13 @@ function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   )
 }
 
-/** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
-function UnavailableDetachment({ name, reason, children }: { name: string; reason: string; children: ReactNode }) {
+/**
+ * Fades in place with its reason behind a tap, so choosing another detachment never moves a row; its DP turns
+ * amber when the points are what refuse it. It stays focusable, and a screen reader hears the reason.
+ */
+function UnavailableDetachment({ detachment, refusal }: { detachment: Detachment; refusal: DetachmentRefusal }) {
   const [open, setOpen] = useState(false)
+  const reasonId = useId()
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger
@@ -852,16 +844,26 @@ function UnavailableDetachment({ name, reason, children }: { name: string; reaso
           <button
             type="button"
             aria-disabled="true"
-            aria-label={`Select ${name}, unavailable`}
+            aria-label={`Select ${detachment.name}, unavailable`}
+            aria-describedby={reasonId}
             onClick={() => setOpen(true)}
-            className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-3 py-2.5 pl-2 text-left opacity-60"
+            className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-3 py-2.5 pl-2 text-left"
           />
         }
       >
-        {children}
+        <span className="opacity-60">
+          <ChoiceMark chosen={false} />
+        </span>
+        <DetachmentSummary detachment={detachment} refused />
+        <span className={`readout shrink-0 text-xs ${refusal.kind === 'points' ? 'text-discarded' : 'text-faint'}`}>
+          {detachment.points ?? '—'} DP
+        </span>
+        <span id={reasonId} className="sr-only">
+          {refusal.reason}
+        </span>
       </TooltipTrigger>
       <TooltipContent role="tooltip" side="bottom" className="max-w-60 text-xs">
-        {reason}
+        {refusal.reason}
       </TooltipContent>
     </Tooltip>
   )
