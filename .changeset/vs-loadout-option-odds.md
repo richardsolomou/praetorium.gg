@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[simulator] Each weapon option on a unit's simulator card now shows the odds of that option, not of the unit's current loadout, for units built from VS Data.
+[simulator] A unit built from VS Data now shows, beside each weapon option in its loadout, the odds the unit would have with that option, as other units do.
