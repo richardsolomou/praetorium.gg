@@ -792,7 +792,9 @@ function calculateRoster(
   const specialsByKey = new Map(
     picked.map((unit) => [
       unit.key,
-      unit.vs
+      // VS Data records no Enhancement a Detachment requires, as Pantheon of Woe's Singularity Matrix on the C'tan Shard of
+      // the Deceiver, so a VS pick taking none of its own still shows the one its catalogue tree is forced to take.
+      unit.vs?.unit.enhancement
         ? vsSpecials(loaded, unit.vs)
         : selectedSpecials(
             unit.choices,
