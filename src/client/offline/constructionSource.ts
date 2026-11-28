@@ -1,4 +1,4 @@
-import { catalogueEditionId, editionCatalogueFiles, editionCatalogueId } from '../../core/catalogueEdition'
+import { catalogueEditionId, editionCatalogueFiles } from '../../core/catalogueEdition'
 import { datacardExclusions } from '../../core/catalogueReferencePolicy'
 import { buildIndex } from '../../core/catalogue'
 import { jsonByteLength } from '../../core/json'
@@ -60,15 +60,21 @@ export function buildConstruction(saved: OfflineConstructionSource, data?: Offli
   return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }
 }
 
-const savedRosters = new WeakMap<OfflineConstructionSource, LoadedCatalogue['vsRoster'] | null>()
+const savedRosters = new WeakMap<object, LoadedCatalogue['vsRoster'] | null>()
 
-/** An earlier rules version's roster definitions and points from its part, where the download has loaded it. */
+/**
+ * An earlier rules version's roster definitions and points from its part, where the download has loaded it: only the
+ * part's roster data is restored, as a pick read there needs nothing else of it.
+ */
 function savedVersionRoster(data: OfflineConstructionData, rulesVersion: string) {
-  const selected = constructionSource(data, editionCatalogueId(rulesVersion, ''))
-  if (!selected?.edition || selected.edition.id !== rulesVersion) return null
-  if (!savedRosters.has(selected))
-    savedRosters.set(selected, selected.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(selected.vsRoster) : null)
-  return savedRosters.get(selected) ?? null
+  const part = data.editions?.find((candidate) => candidate.edition?.id === rulesVersion)
+  if (!part || 'base' in part || !part.vsRoster || !data.vsRoster) return null
+  if (!savedRosters.has(part)) {
+    const budget = { remaining: MAX_OFFLINE_BYTES - jsonByteLength(part) }
+    const restored = data.shared ? restoreRuntimeData(part.vsRoster, data.vsRoster, budget) : part.vsRoster
+    savedRosters.set(part, unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(restored))
+  }
+  return savedRosters.get(part) ?? null
 }
 
 /** The construction source for a catalogue's rules version, restored from shared data once per selection. */
