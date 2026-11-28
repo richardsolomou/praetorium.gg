@@ -112,10 +112,16 @@ export function vsBuiltUnit(definitions: VsDataDefinitions, unitId: string, pick
     for (const [id, n] of line.extra) add(total, id, n)
     return total
   }
+  // A carrier's weapon keeps the wargear it is, so the simulator finds its stat lines by ID.
+  const armed = (held: ReadonlyMap<string, number>) =>
+    named(held).map((weapon) => ({
+      ...weapon,
+      wargear: [...held].filter(([id, n]) => n > 0 && (definitions.get('wargear', id)?.name ?? id) === weapon.name).map(([id]) => id),
+    }))
   const nameOf = (modelId: string) => definitions.get('model', modelId)?.name ?? modelId
   const carriers: CombatCarrier[] = [
-    ...lines.map((line) => ({ name: nameOf(line.model), models: line.models, weapons: named(totalOf(line)) })),
-    ...(unitWide.size ? [{ name: unit?.name ?? unitId, models: 1, weapons: named(unitWide), unitWide: true }] : []),
+    ...lines.map((line) => ({ name: nameOf(line.model), models: line.models, weapons: armed(totalOf(line)) })),
+    ...(unitWide.size ? [{ name: unit?.name ?? unitId, models: 1, weapons: armed(unitWide), unitWide: true }] : []),
   ]
   const held = new Map([...carried(definitions, picked)].filter(([id]) => !bundled(definitions, id)))
   const sizes = [...(unit?.data.sizes ?? [])].toSorted((left, right) => left - right)

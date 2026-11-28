@@ -9,7 +9,8 @@ import type { PrintedTransport } from '../core/transport'
 /** A stat line's values as a datasheet prints them, by characteristic; a characteristic VS Data leaves out is absent. */
 export type VsStatValues = Partial<Record<DatasheetCharacteristicKind, string>>
 type UnitLine = { name: string; models?: string[]; values: VsStatValues }
-type WeaponLine = { keys: string[]; melee: boolean; values: VsStatValues }
+/** `id`, `name` and `wargear` are the VS Data weapon profile's record, its printed name and the wargear it is a profile of. */
+export type WeaponLine = { keys: string[]; melee: boolean; values: VsStatValues; id: string; name: string; wargear?: string }
 /**
  * One rules version's VS Data stat lines, by the BSData entry IDs saved lists hold: each datasheet's VS Data unit, and
  * each unit's model names and stat lines, a weapon's under every name a datasheet may print it by.
@@ -154,7 +155,7 @@ export function vsProfilesIndex(
     // A weapon's modes are counted in each phase, so one with a ranged and a melee profile prints its own name in both.
     const phased = (data: WeaponProfileData) => `${data.wargear}|${data.range === 'melee'}`
     for (const { data } of weapons) if (data.wargear) modes.set(phased(data), (modes.get(phased(data)) ?? 0) + 1)
-    const weaponLines = weapons.map(({ name, data }): WeaponLine => {
+    const weaponLines = weapons.map(({ id, name, data }): WeaponLine => {
       const values: VsStatValues = {}
       for (const kind of Object.keys(WEAPON_FIELDS) as (keyof typeof WEAPON_FIELDS)[]) {
         const value = weaponValue(kind, data, glossary)
@@ -165,6 +166,9 @@ export function vsProfilesIndex(
         keys: weaponKeys(wargear && same(wargear), name, data.wargear ? (modes.get(phased(data)) ?? 1) : 1, data.range === 'melee'),
         melee: data.range === 'melee',
         values,
+        id,
+        name,
+        ...(data.wargear ? { wargear: data.wargear } : {}),
       }
     })
     return {

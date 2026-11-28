@@ -2,6 +2,8 @@ import type { CombatCarrier } from '../core/combatLoadout'
 import type { Datasheet } from '../core/datasheet'
 import { normalizedName, normalizedNameVariants } from '../core/name'
 import { wargearKey } from '../core/wargearNames'
+import { inBook } from './vsDataPoints'
+import type { VsProfilesIndex, VsStatValues, WeaponLine } from './vsDataProfiles'
 import { ARTICLE, vsKeySpelling } from './wargearSpellings'
 
 /**
@@ -49,4 +51,56 @@ export function vsCarriersFiring(
         .toSorted((left, right) => at(left) - at(right)),
     }
   })
+}
+
+const LABELS = {
+  range: 'Range',
+  attacks: 'A',
+  'ballistic-skill': 'BS',
+  'weapon-skill': 'WS',
+  strength: 'S',
+  'armour-penetration': 'AP',
+  damage: 'D',
+  keywords: 'Keywords',
+} as const satisfies Partial<Record<keyof VsStatValues, string>>
+
+/** A VS Data weapon profile as a datasheet prints one, its skill the one its phase uses. */
+const profileOf = (line: WeaponLine): Datasheet['profiles'][number] => ({
+  id: line.id,
+  name: line.name,
+  type: line.melee ? 'Melee Weapons' : 'Ranged Weapons',
+  values: (Object.keys(LABELS) as (keyof typeof LABELS)[]).flatMap((kind) => {
+    const value = line.values[kind]
+    return value === undefined || kind === (line.melee ? 'ballistic-skill' : 'weapon-skill') ? [] : [{ name: LABELS[kind], value }]
+  }),
+})
+
+/**
+ * A VS pick's weapons as VS Data prints them, with each carried weapon firing the VS Data profiles of the wargear it is,
+ * in the order `catalogueFiring` (`vsCarriersFiring`) keeps; null where VS Data prints no weapon profiles for the
+ * datasheet, or a weapon the catalogue fires has none, which leaves the unit to the catalogue's profiles.
+ */
+export function vsDataFiring(
+  index: VsProfilesIndex | undefined,
+  catalogueId: string,
+  entryId: string,
+  catalogueFiring: readonly CombatCarrier[],
+): { weapons: Datasheet['profiles']; carriers: CombatCarrier[] } | null {
+  const unit = inBook(index?.units, catalogueId, entryId)
+  const lines = unit ? index?.lines[unit]?.weapons : undefined
+  if (!lines?.length) return null
+  const fires = (wargear: readonly string[]) => lines.flatMap((line) => (line.wargear && wargear.includes(line.wargear) ? [line.id] : []))
+  const firing = catalogueFiring.map((carrier) => carrier.weapons.map((weapon) => fires(weapon.wargear ?? [])))
+  const unread = catalogueFiring.some((carrier, at) =>
+    carrier.weapons.some((weapon, step) => weapon.profileIds?.length && !firing[at]![step]!.length),
+  )
+  if (unread) return null
+  const carriers = catalogueFiring.map((carrier, at) => ({
+    ...carrier,
+    weapons: carrier.weapons.map(({ profileIds: _catalogue, ...weapon }, step) => {
+      const profileIds = firing[at]![step]!
+      return profileIds.length ? { ...weapon, profileIds } : weapon
+    }),
+  }))
+  return { weapons: lines.map(profileOf), carriers }
 }
