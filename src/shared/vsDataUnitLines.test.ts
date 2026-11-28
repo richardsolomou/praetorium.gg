@@ -26,6 +26,16 @@ it('gives a unit’s size where its model lines do not add up to it', () => {
   ).toBe('4–10 models in all')
 })
 
+it('names each size a unit takes where there are gaps between them', () => {
+  const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
+  expect(
+    unitComposition({ sizes: [10, 20], options: [], models: [model('Boy', 9, 18), model('Nob', 1, 2)] })
+      .at(-1)
+      ?.map((run) => run.text)
+      .join(''),
+  ).toBe('10 or 20 models in all')
+})
+
 it('writes a model’s plural as English does', () => {
   expect(
     [

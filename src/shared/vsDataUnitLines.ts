@@ -38,18 +38,23 @@ export function pluralModel(name: string) {
 }
 
 /**
- * Each model line of a unit, as "5–10 Immortals" or "1 Overlord", then the unit's size where its lines do not add up to it,
- * as a Brotherhood Terminator Squad's optional Ancient takes the place of one of its Terminators.
+ * Each model line of a unit, as "5–10 Immortals" or "1 Overlord", then the unit's sizes where its lines do not add up to
+ * them, as a Brotherhood Terminator Squad's optional Ancient takes the place of one of its Terminators, or where it takes
+ * only some sizes between its smallest and largest, as Boyz take 10 or 20 models.
  */
 export function unitComposition(
   unit: Pick<VsDataUnit, 'sizes' | 'defaultModels'> & { models: readonly Pick<VsDataUnit['models'][number], 'name' | 'min' | 'max'>[] },
 ): Line[] {
   const lines = unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
   if (!unit.sizes.length) return lines
-  const [fewest, most] = [Math.min(...unit.sizes), Math.max(...unit.sizes)]
+  const sizes = [...new Set(unit.sizes)].toSorted((left, right) => left - right)
+  const [fewest, most] = [sizes[0]!, sizes.at(-1)!]
+  // A unit fielded at 10 or 20 models only says so, or its lines would read as allowing any size between.
+  const gaps = sizes.length !== most - fewest + 1
   const low = unit.models.reduce((total, model) => total + model.min, 0)
   const high = unit.models.reduce((total, model) => total + model.max, 0)
-  const sized = low === fewest && high === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
+  const size = gaps ? listed(sizes.map(String)).join('') : range(fewest, most)
+  const sized = low === fewest && high === most && !gaps ? lines : [...lines, line(`${size} models in all`)]
   return unit.defaultModels ? [...sized, line('It starts as ', listed(counted(unit.defaultModels), 'and'), '.')] : sized
 }
 
