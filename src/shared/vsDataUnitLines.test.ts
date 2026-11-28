@@ -11,6 +11,15 @@ it('counts a unit’s models as a datasheet does', () => {
   ).toEqual(['5–10 × Immortal', '1 × Overlord', '3–6 × Canoptek Wraith'])
 })
 
+it('counts like models VS Data records apart on one line', () => {
+  const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
+  expect(
+    unitComposition({ sizes: [], models: [model('Veteran', 1, 1), model('Veteran', 1, 1), model('Sergeant', 1, 1)] }).map((line) =>
+      line.map((run) => run.text).join(''),
+    ),
+  ).toEqual(['2 × Veteran', '1 × Sergeant'])
+})
+
 it('gives a unit’s size where its model lines do not add up to it', () => {
   const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
   expect(

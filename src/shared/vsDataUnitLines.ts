@@ -38,7 +38,14 @@ export const counted = (items: readonly (readonly [string, number])[]) =>
 export function unitComposition(
   unit: Pick<VsDataUnit, 'sizes' | 'defaultModels'> & { models: readonly Pick<VsDataUnit['models'][number], 'name' | 'min' | 'max'>[] },
 ): Line[] {
-  const lines = unit.models.map((model) => line(modelLine(model.name, model.min, model.max)))
+  // VS Data gives like models one record each where their wargear differs, as a Command Squad's veterans; a datasheet
+  // counts them on one line.
+  const counts = new Map<string, { min: number; max: number }>()
+  for (const { name, min, max } of unit.models) {
+    const held = counts.get(name)
+    counts.set(name, { min: (held?.min ?? 0) + min, max: (held?.max ?? 0) + max })
+  }
+  const lines = [...counts].map(([name, { min, max }]) => line(modelLine(name, min, max)))
   if (!unit.sizes.length) return lines
   const sizes = [...new Set(unit.sizes)].toSorted((left, right) => left - right)
   const [fewest, most] = [sizes[0]!, sizes.at(-1)!]
