@@ -1,8 +1,13 @@
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createElement, type ReactElement } from 'react'
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { SavedRoster } from './rosterLibrary'
 import { RosterSummary } from './RosterSummary'
+
+/** The summary reads the recorded battle sizes through a query, so it renders inside a client as the app does. */
+const renderToStaticMarkup = (element: ReactElement) =>
+  renderMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, element))
 
 const roster = {
   id: 'roster-1',

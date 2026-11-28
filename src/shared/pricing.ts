@@ -6,6 +6,7 @@ import { joinKey } from '../core/text'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import {
   borrowedDispositionError,
+  battleSizeOf,
   detachmentPointBudget,
   detachmentPointsError,
   enforces,
@@ -34,7 +35,7 @@ import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
-import { buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { battleSizesOf, buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -548,7 +549,8 @@ function calculateRoster(
   const detailFor = (option: (typeof chosen)[number]) => detachmentNamed(details, option.name)
   const referenceFor = (option: (typeof chosen)[number]) => detachmentNamed(references, option.name)
   // A faction that takes no Detachment, as a Titan army does, plays its own dispositions whatever its list holds.
-  const allowedDispositions = vsDataWithoutDetachments(loaded.vsRoster, data.catalogueId) ?? [
+  const withoutDetachments = vsDataWithoutDetachments(loaded.vsRoster, data.catalogueId)
+  const allowedDispositions = withoutDetachments ?? [
     ...new Set(
       chosen.flatMap((option) => {
         const reference = referenceFor(option)
@@ -565,20 +567,26 @@ function calculateRoster(
   // Disposition and nothing else, for the detachment points this roster left unspent. An
   // unaffordable or unpriced borrow grants nothing, so an illegal list cannot quietly
   // play a mission matchup it did not pay for.
-  const borrowedDetachment = data.borrowedDetachmentId
-    ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
-    : null
+  // A faction that takes no Detachment, as a Titan army does, borrows none either.
+  const takesNone = withoutDetachments !== null
+  const borrowedDetachment =
+    data.borrowedDetachmentId && !takesNone
+      ? (rosterDetachments(loaded, data.catalogueId, [data.borrowedDetachmentId]).chosen[0] ?? null)
+      : null
   const borrowedReference = borrowedDetachment ? referenceFor(borrowedDetachment) : undefined
   const borrowedPoints = borrowedDetachment ? detachmentPoints(loaded, data.catalogueId, borrowedDetachment.id, borrowedReference) : null
   const ownPoints = purchased.some((option) => option.points === null)
     ? null
     : purchased.reduce((total, option) => total + (option.points ?? 0), 0)
-  const borrowedError = borrowedDispositionError(
-    data.limit,
-    data.optionalRules,
-    { points: ownPoints },
-    data.borrowedDetachmentId ? { points: borrowedPoints } : null,
-  )
+  // VS Data's check says a faction that takes no Detachment borrows none, so the borrow raises nothing more here.
+  const borrowedError = takesNone
+    ? null
+    : borrowedDispositionError(
+        data.limit,
+        data.optionalRules,
+        { points: ownPoints },
+        data.borrowedDetachmentId ? { points: borrowedPoints } : null,
+      )
   const borrowedDispositions =
     borrowedError || !borrowedDetachment
       ? []
@@ -629,7 +637,8 @@ function calculateRoster(
     })
     return filed.length === 1 ? filed[0] : undefined
   }
-  const budget = detachmentPointBudget(data.limit)
+  const battleSizes = battleSizesOf(loaded)
+  const budget = detachmentPointBudget(data.limit, battleSizes)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const upgradeNames = new Set([
     ...detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => cardName(upgrade.name)) ?? []),
@@ -680,7 +689,7 @@ function calculateRoster(
     unit.vs?.models ?? remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
   // limits then stand only for the datasheets VS Data leaves to it.
-  const checkedUnits = picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit), vs: unit.vs?.unit }))
+  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit }))
   const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
   const whole = evaluateForces(forces, loaded.index, options, vsPicksOf(picked, vsPrices, vsData === null))
   const selectionPoints = selectionPointsOf(forces, whole)
@@ -760,7 +769,7 @@ function calculateRoster(
    * rather than for anything in it. The count is the data's own: a second copy of an
    * upgrade costs no enhancement, so the army's total already excludes it.
    */
-  const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
+  const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()

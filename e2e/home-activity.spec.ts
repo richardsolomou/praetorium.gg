@@ -312,6 +312,9 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.goto('/')
     const idleHistory = host.locator('[data-battle-shelf="Recent results"]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
+    // A shelf in the DOM has no box until it is laid out, so measure once both are on screen.
+    await expect(idleHistory).toBeVisible()
+    await expect(host.locator('[data-home-rosters]')).toBeVisible()
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     await host.setViewportSize(PHONE)
     // The phone layout stacks the shelves only once it has reflowed after the resize.

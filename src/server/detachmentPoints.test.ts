@@ -3,6 +3,7 @@ import { bookOf, shelfOf } from './catalogue.fixtures'
 import { detachmentPoints } from '../shared/detachmentPoints'
 import { factionsFor } from '../shared/factionReferences'
 import { calculateRosterPrice } from '../shared/pricing'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 const dp = 'cost-detachment-points'
 const loaded = bookOf({
@@ -113,4 +114,28 @@ it('uses the fallback cost in roster pricing', () => {
     null,
   )
   expect(priced?.detachments).toEqual([{ name: 'Anvil Siege Force', points: 2 }])
+})
+
+it("allows the Detachment points the list's own rules version records for its battle size", () => {
+  const recorded = {
+    ...loaded,
+    vsRoster: vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update: 'test' },
+        unavailable: [],
+        points: [],
+        definitions: { 'battle-size': { 'strike-force': { name: 'Strike Force', data: { points: 2_000, detachmentPoints: 1 } } } },
+      },
+      { books: {}, detachments: {}, units: {}, enhancements: {} },
+      null,
+      () => undefined,
+    ),
+  }
+  const priced = calculateRosterPrice(
+    { catalogueId: 'cat', detachmentIds: ['anvil'], disposition: null, limit: 2_000, units: [] },
+    recorded,
+    null,
+  )
+  expect(priced?.detachmentPointBudget).toBe(1)
 })

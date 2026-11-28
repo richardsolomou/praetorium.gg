@@ -3,6 +3,7 @@ import { builtDetachments, pointsSpent, type Roster, type BuiltRoster } from '..
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { factionQuery } from '../../queries'
 import { rosterWaivers } from '../../components/FormatWaivers'
+import { useBattleSizes } from '../../components/battleSizes'
 import { ListBuilder, type FrozenRoster } from './ListBuilder'
 import { NO_PREP } from './rosterDraft'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -28,6 +29,7 @@ export function BattleRosterSnapshot({
 }) {
   const built = roster.built
   const factionResult = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
+  const battleSizes = useBattleSizes(built?.catalogueId)
   const faction = factionResult.data
   const reading = rosterReading(roster)
   usePrintWhenReady(Boolean(print) && reading.kind === 'text')
@@ -78,7 +80,7 @@ export function BattleRosterSnapshot({
           detachments={detachments(built)}
           disposition={built?.disposition}
           dispositions={built?.dispositions}
-          waivers={rosterWaivers(built)}
+          waivers={rosterWaivers(built, battleSizes)}
         />
         <RosterBody>
           <RosterUnits>
