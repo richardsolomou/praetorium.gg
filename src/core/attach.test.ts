@@ -385,6 +385,23 @@ describe('a character that can join a unit', () => {
     expect(referenceAttachmentOf(index.definitions.get('agent')!, index)?.targets).toEqual(['Tactical Squad', 'Crusaders'])
   })
 
+  it('names each host on a datasheet page as its datasheet is named', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'lieutenant',
+          name: 'Lieutenant',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following unit:\n■ CRUSADER SQUAD')],
+        },
+        { id: 'crusaders', name: 'Crusader Squad', type: 'unit' },
+      ],
+      entryLinks: [{ id: 'crusader-link', name: 'Crusader Squad', type: 'selectionEntry', targetId: 'crusaders' }],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('lieutenant')!, index)?.targets).toEqual(['Crusader Squad'])
+  })
+
   it('offers a unit association only datasheets that are units', () => {
     const index = indexOf({
       categoryEntries: [{ id: 'tacticus', name: 'Tacticus' }],
