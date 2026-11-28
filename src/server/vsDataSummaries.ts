@@ -39,15 +39,17 @@ export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entrie
 
 /**
  * The ability each BSData profile is, by its id, or by `<datasheet>/<id>` where it is another on each datasheet; a
- * datasheet whose own record is no ability, as a core keyword, keeps an empty one, never the id's, and one whose record
- * the rules version lacks reads the id's, as a bare frozen key reaches every version.
+ * datasheet whose own record is no ability, as a core keyword, or which is frozen as having none, keeps an empty one, never
+ * the id's, and one whose record the rules version lacks reads the id's, as a bare frozen key reaches every version.
  */
 export function abilityAliases(records: BsdataRecords, summarized: (key: string) => boolean): Record<string, string> {
   const ability = (key: string) => (key.startsWith('ability:') && summarized(key) ? key.slice('ability:'.length) : undefined)
   return {
     ...Object.fromEntries(Object.entries(records.byId).flatMap(([id, key]) => (ability(key) ? [[id, ability(key)!] as const] : []))),
     ...Object.fromEntries(
-      Object.entries(records.bySheet).flatMap(([sheet, key]) => (summarized(key) ? [[sheet, ability(key) ?? ''] as const] : [])),
+      Object.entries(records.bySheet).flatMap(([sheet, key]) =>
+        key === null ? [[sheet, ''] as const] : summarized(key) ? [[sheet, ability(key) ?? ''] as const] : [],
+      ),
     ),
   }
 }
