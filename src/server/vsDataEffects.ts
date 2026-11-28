@@ -139,9 +139,11 @@ export function vsDataTextFacts(
     records: () => Object.fromEntries(Object.keys(effects).map((record) => [record, factsOf(record)])),
     abilities: () => {
       const ability = (key: string | null) => key === null || key.startsWith('ability:')
-      const only = <T extends string | null>(map: Readonly<Record<string, T>>) =>
-        Object.fromEntries(Object.entries(map).filter(([, key]) => ability(key)))
-      return { records: { byId: only(records.byId), bySheet: only(records.bySheet) }, names: release.names?.abilities ?? {} }
+      const only = <T extends string | null>(map: Readonly<Record<string, T>>, kept: (key: T) => boolean) =>
+        Object.fromEntries(Object.entries(map).filter(([, key]) => kept(key)))
+      // A datasheet's profile filed as a core keyword rule, as a Damaged bracket, stays, since it stands for the unit's own record of it.
+      const bySheet = only(records.bySheet, (key) => ability(key) || Boolean(key?.startsWith('core-ability:')))
+      return { records: { byId: only(records.byId, ability), bySheet }, names: release.names?.abilities ?? {} }
     },
     printed: (key) => (WHOLE_STRING.has(key.slice(0, key.indexOf(':'))) ? (printed.get(key.slice(key.indexOf(':') + 1)) ?? []) : []),
     get: (key) => {

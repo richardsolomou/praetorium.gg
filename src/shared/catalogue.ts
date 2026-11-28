@@ -1210,7 +1210,14 @@ function vsHoldingAt(loaded: LoadedCatalogue, context: DatasheetContext, at: num
   return {
     /** Whether a profile at this place counts, marking the VS Data ability it stands for as shown. */
     counts: (profileId: string) => {
-      const ability = vsDataRecordOfBsdata(links.records, profileId, sheet)?.slice('ability:'.length)
+      const record = vsDataRecordOfBsdata(links.records, profileId, sheet)
+      // A profile filed as a core keyword rule, as a Damaged bracket, stands for the unit's own record named for it.
+      const core = record?.startsWith('core-ability:') ? record.slice('core-ability:'.length) : undefined
+      const ability = core
+        ? [...linked].find((id) => id.slice(id.lastIndexOf('.') + 1) === core)
+        : record?.startsWith('ability:')
+          ? record.slice('ability:'.length)
+          : undefined
       if (!ability || !linked.has(ability)) return true
       if (!held.has(ability)) return false
       shown.add(ability)
