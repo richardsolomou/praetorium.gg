@@ -176,7 +176,7 @@ function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: 
     const roster = { faction, detachments: [detachment], units: [] }
     const offered = (unit.data.allegiances ?? []).filter((offer) => !offer.detachment || offer.detachment === detachment)
     const allegiances = offered.flatMap((offer) =>
-      offer.choices.filter((choice) => !offer.requires?.[choice] || reachable.has(offer.requires[choice]!)),
+      offer.choices.filter((choice) => !offer.requires?.[choice] || reachable.has(offer.requires[choice])),
     )
     return (
       (enhancement.data.eligibility.requiredWargear ?? []).every((name) => reachableNames.has(name.toLowerCase())) &&
