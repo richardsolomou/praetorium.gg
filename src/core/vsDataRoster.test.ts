@@ -14,6 +14,18 @@ const construction: VsDataConstruction = {
       chapter: record('Chapter', { parent: 'host', excludedDetachments: ['host.guard'] }),
       titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
       band: record('Band', { unitLimits: [{ keywords: ['CHARACTER'], max: 1 }] }),
+      keep: record('Keep', {
+        allies: [
+          {
+            units: ['band.boss', 'host.walker'],
+            oneLimit: true,
+            limits: [
+              { keywords: ['CHARACTER'], battleSize: 'small', max: 3 },
+              { keywords: ['VEHICLE'], battleSize: 'small', max: 3 },
+            ],
+          },
+        ],
+      }),
       court: record('Court', {
         allies: [
           {
@@ -374,6 +386,10 @@ describe('vsUnitAllowance', () => {
 
   it('names the keywords that lift the ally limit holding a unit back', () => {
     expect(vsUnitAllowance(definitions, roster([], 'court', []), 'band.boss').unlockedBy).toBe('Crew')
+  })
+
+  it('takes no unit of an ally entry beside members of another of its limits where they must share one', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'host.walker' }], 'keep', []), 'band.boss').limit).toBe(0)
   })
 
   it('counts the roster’s other units against a shared keyword limit', () => {

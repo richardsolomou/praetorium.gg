@@ -21,7 +21,7 @@ import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
 import { alliedSource, vsDataOffer, vsDataRefused } from './vsDataOffers'
-import { vsDataBook, vsDataCheck, vsDataChecks } from './vsDataLegality'
+import { vsDataCheck, vsDataChecks } from './vsDataLegality'
 import { countedKeywordsOf, type VsRoster, vsUnitAllowance } from '../core/vsDataRoster'
 import type { VsDataDefinitions } from '../core/vsDataConstruction'
 import { isOfferedDatasheet, listPriceOf, rosterPrices, seedListPrice } from './catalogueUnit'
@@ -331,33 +331,44 @@ export type VsCheckedRoster = { definitions: VsDataDefinitions; roster: VsRoster
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null, checked: VsCheckedRoster) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
-  const detachments = checked?.roster.detachments.join(',') ?? ''
-  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${battleSize?.id ?? ''}:${detachments}`, () => {
-    const vs = vsAllowanceOf(loaded, catalogueId, entryId, checked)
-    return vs ? vs.limit : rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
+  const read = currentVsRoster(loaded, checked)
+  const key = read ? `vs:${read.roster.battleSize}:${read.roster.detachments.join(',')}` : `catalogue:${battleSize?.id ?? ''}`
+  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${key}`, () => {
+    const vs = vsAllowanceOf(loaded, catalogueId, entryId, read)
+    return vs
+      ? vs.limit
+      : rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
   })
 }
 
-/** A list with no units yet as VS Data reads it, at the largest battle size where none is given, as the catalogue's limits are. */
-function emptyVsRoster(loaded: LoadedCatalogue, catalogueId: string, list: { battleSize?: number; detachmentIds: readonly string[] }) {
-  const book = vsDataBook(loaded.vsRoster, catalogueId)
-  if (!book) return null
-  const limit = list.battleSize ?? Math.max(...book.definitions.all('battle-size').map((size) => size.data.points))
-  return vsDataCheck(loaded.vsRoster, { catalogueId, detachmentIds: list.detachmentIds, limit }, [])
+/** A list with no units yet as VS Data reads it. */
+const emptyVsRoster = (loaded: LoadedCatalogue, catalogueId: string, list: { battleSize?: number; detachmentIds: readonly string[] }) =>
+  vsDataCheck(loaded.vsRoster, { catalogueId, detachmentIds: list.detachmentIds, limit: list.battleSize ?? 0 }, [])
+
+/**
+ * The checked list VS Data's limits are read from: none in an earlier rules version, whose release is not yet checked
+ * against its app build's limits. A list whose points name no battle size, as King of the Colosseum's or a faction page
+ * with none, is read at the largest, as the catalogue's limits are.
+ */
+function currentVsRoster(loaded: LoadedCatalogue, checked: VsCheckedRoster): VsCheckedRoster {
+  if (!checked || (loaded.edition && !loaded.edition.default)) return null
+  if (checked.roster.battleSize) return checked
+  const largest = checked.definitions.all('battle-size').toSorted((left, right) => right.data.points - left.data.points)[0]
+  return { ...checked, roster: { ...checked.roster, ...(largest ? { battleSize: largest.id } : {}) } }
 }
 
 /**
- * VS Data's allowance for a datasheet it checks and defines, in the current rules version's list VS Data checked; null
- * where the catalogue's limits stand. They also stand where the faction limits a unit by its own name and VS Data's unit does not yet hold that keyword, as
- * the Emperor's Champion, so the picker never shows more copies than the faction allows.
+ * VS Data's allowance for a datasheet it checks and defines, in the list VS Data's limits are read from; null where the
+ * catalogue's limits stand. They also stand where the faction limits a unit by its own name and VS Data's unit does not
+ * yet hold that keyword, as the Emperor's Champion, so the picker never shows more copies than the faction allows.
  */
-function vsAllowanceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, checked: VsCheckedRoster) {
+function vsAllowanceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, read: VsCheckedRoster) {
   const entry = loaded.index.definitions.get(entryId)
-  const unit = checked && entry ? vsDataChecks(loaded.vsRoster, catalogueId, { entryId, name: nameOf(entry, loaded.index.definitions) }) : undefined
-  const record = unit ? checked?.definitions.get('unit', unit) : undefined
-  // An earlier rules version's release is not yet checked against its app build's limits, so its lists keep the catalogue's.
-  if (!checked || !unit || !record || (loaded.edition && !loaded.edition.default)) return null
-  const { definitions, roster } = checked
+  const unit =
+    read && entry ? vsDataChecks(loaded.vsRoster, catalogueId, { entryId, name: nameOf(entry, loaded.index.definitions) }) : undefined
+  const record = unit ? read?.definitions.get('unit', unit) : undefined
+  if (!read || !unit || !record) return null
+  const { definitions, roster } = read
   const name = sameKeyword(record.name)
   const held = countedKeywordsOf(definitions, roster, { unit, size: record.data.sizes[0] }).map(sameKeyword)
   const limits = definitions.get('faction', roster.faction)?.data.unitLimits ?? []
@@ -379,7 +390,7 @@ export function contextualUnitLimit(
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return { limit: 0, unlockedBy: null }
   const allowance =
-    vsAllowanceOf(loaded, catalogueId, entryId, checked) ??
+    vsAllowanceOf(loaded, catalogueId, entryId, currentVsRoster(loaded, checked)) ??
     rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
   if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)

@@ -374,11 +374,6 @@ export function checkVsUnit(definitions: VsDataDefinitions, picked: VsRosterUnit
 }
 
 /**
- * Every reason the roster is not legal under these definitions, in roster order: VS Data's `checkRoster`
- * (`src/roster-definitions/roster.ts`), with Enhancement eligibility read from each Enhancement's rule facts. The
- * points limit and the Detachment points budget are format rules a roster may waive, so `battleFormat.ts` checks them.
- */
-/**
  * How many copies of `unit` the roster may hold, by the limits `checkVsRoster` reads: its own for the battle size, its
  * faction's keyword limits and its ally entry's, each less what the roster's other units already count against it. An
  * ally limit other units lift (`free`) grows with them, and `unlockedBy` names their keywords where that limit is the
@@ -410,11 +405,17 @@ export function vsUnitAllowance(
   }
   const allies = faction?.allies ?? []
   const entryOf = (id: string) =>
-    allies.findIndex((ally) => ally.units.includes(id) && (!ally.detachments || ally.detachments.some((d) => roster.detachments.includes(d))))
+    allies.findIndex(
+      (ally) => ally.units.includes(id) && (!ally.detachments || ally.detachments.some((d) => roster.detachments.includes(d))),
+    )
   const entry = entryOf(unit)
-  for (const limit of entry < 0 ? [] : (allies[entry]!.limits ?? [])) {
+  const ally = entry < 0 ? undefined : allies[entry]!
+  const entryKeywords = othersKeywords.filter((_, at) => entryOf(others[at]!.unit) === entry)
+  for (const limit of ally?.limits ?? []) {
     if (limit.battleSize !== roster.battleSize || !holdsAll(keywords, limit.keywords)) continue
-    const members = othersKeywords.filter((held, at) => entryOf(others[at]!.unit) === entry && holdsAll(held, limit.keywords))
+    // A unit that both backs and fills a free allowance frees each copy itself, so this limit never holds it.
+    if ((limit.free ?? []).some((free) => holdsAll(keywords, free.keywords) && holdsAll(keywords, free.per))) continue
+    const members = entryKeywords.filter((held) => holdsAll(held, limit.keywords))
     // The members counted once `copies` more are taken, freed in the order `checkVsRoster` frees them.
     const counted = (copies: number) => {
       const added = Array.from({ length: copies }, () => keywords)
@@ -432,6 +433,11 @@ export function vsUnitAllowance(
     const lifting = (limit.free ?? []).find((free) => holdsAll(keywords, free.keywords))
     found.push({ limit: copies, unlockedBy: lifting ? keywordNames(lifting.per) : null })
   }
+  // An entry whose units must all fall under one of its limits takes none of this unit beside members of another.
+  const sets = (ally?.limits ?? []).filter((limit) => limit.battleSize === roster.battleSize).map((limit) => limit.keywords)
+  const under = [...entryKeywords, keywords].filter((held) => sets.some((set) => holdsAll(held, set)))
+  const joins = sets.some((set) => holdsAll(keywords, set))
+  if (ally?.oneLimit && joins && !sets.some((set) => under.every((held) => holdsAll(held, set)))) found.push({ limit: 0, unlockedBy: null })
   if (!found.length) return { limit: null, unlockedBy: null }
   const limit = Math.min(...found.map((candidate) => candidate.limit))
   // A limit other units lift is the one to grow only when nothing else holds the unit to the same number.
@@ -442,6 +448,11 @@ export function vsUnitAllowance(
 const keywordNames = (keywords: readonly string[]) =>
   keywords.map((keyword) => keyword.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' ')
 
+/**
+ * Every reason the roster is not legal under these definitions, in roster order: VS Data's `checkRoster`
+ * (`src/roster-definitions/roster.ts`), with Enhancement eligibility read from each Enhancement's rule facts. The
+ * points limit and the Detachment points budget are format rules a roster may waive, so `battleFormat.ts` checks them.
+ */
 export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, price = priceVsRoster(definitions, roster)): VsProblem[] {
   const problems: VsProblem[] = []
   const current = (kind: Parameters<VsDataDefinitions['get']>[0], id: string, unit?: number) => {
