@@ -140,9 +140,9 @@ export function* loadCatalogueSteps(
   const factsOf = (key: string) => {
     // A text's facts for one rule or profile holding it are recorded only where its holders read differently.
     const text = textOfFactsKey(key)
-    const read = effects!.get(key)
-    if (!read && text !== key) return undefined
-    const facts = withLegality(read ?? NO_FACTS, shown.fact(text) ?? cardFacts?.get(text))
+    const recorded = effects!.get(key)
+    if (!recorded && text !== key) return undefined
+    const facts = withLegality(recorded ?? NO_FACTS, shown.fact(text) ?? cardFacts?.get(text))
     const vsData = facts.combat
     const roles = () => {
       const said = shown.said(text) ?? cards.textWords?.(text)

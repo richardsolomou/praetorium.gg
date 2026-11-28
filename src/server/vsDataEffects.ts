@@ -103,8 +103,9 @@ export function vsDataTextFacts(
     if (found) return { record: found, by: 'id' }
     return { record: null, by: byId.length || held.length ? 'ambiguous' : 'none' }
   }
-  // Where the rules or profiles holding one text are records that read differently, each one's own record, by its id:
-  // the text alone joins none of them, or the one its card is, as the words say nothing of which datasheet prints them.
+  // Where the rules or profiles holding one text are records that do not agree, as `agreed` reads them, each one's own
+  // record, by its id: the text alone joins none of them, or the one its card is, as the words say nothing of which
+  // datasheet prints them.
   const ownRecords = new Map<string, ReadonlyMap<string, string> | null>()
   const ownRecordsOf = (factsKey: string) =>
     remember(ownRecords, factsKey, () => {
@@ -113,8 +114,7 @@ export function vsDataTextFacts(
         const record = agreed(candidates) ?? standingIn(candidates)
         return record && effects[record] ? [[holder.id, record] as const] : []
       })
-      const readings = new Set(own.map(([, record]) => JSON.stringify([...blocks(record)])))
-      return readings.size > 1 ? new Map(own) : null
+      return new Set(own.map(([, record]) => record)).size > 1 && !agreed(own.map(([, record]) => record)) ? new Map(own) : null
     })
   const joins = new Map<string, VsDataJoin>()
   const facts = new Map<string, TextFacts>()

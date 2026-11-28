@@ -212,6 +212,10 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(offered(priested, marines(), 'defender')).toContain('Blood Chalice')
   })
 
+  it("calculates a Falcon's own Damaged bracket, which other vehicles print alike", () => {
+    expect(offered(side('Aeldari', ['Falcon']), marines(), 'attacker')).toContain('Damaged: 1-4 Wounds Remaining')
+  })
+
   it("keeps a Canoptek Reanimator's Feel No Pain 4+ among the defender's rules", () => {
     const rule = side('Necrons', ['Canoptek Reanimator']).rules.find((candidate) => candidate.name === 'Feel No Pain 4+')
     expect(rule && combatRuleAppliesTo(rule, 'defender')).toBe(true)
