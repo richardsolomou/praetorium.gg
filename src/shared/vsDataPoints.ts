@@ -176,7 +176,7 @@ const rangeOf = ({ from, to }: Tier['copies']) => (to === undefined ? `[${from},
 
 /**
  * A datasheet's VS Data prices in the field manual's shape, for a list of the book `catalogueId` with `detachments`:
- * at each size, the cost row `costRowFor` takes there. A size whose rows leave the price open has none.
+ * at each size, the cost row `costRowFor` takes there. A size whose rows leave the price open is `unpriced`.
  */
 export function vsMfmUnit(
   index: VsPointsIndex | undefined,
@@ -192,14 +192,20 @@ export function vsMfmUnit(
   const context = { detachments: detachments.flatMap((id) => index.detachments[id]?.name ?? []), armies }
   return {
     name: entryId,
-    pricing: unit.tiers.map((tier) => ({
-      range: rangeOf(tier.copies),
-      costs: [...new Set(tier.costs.map((cost) => cost.models))].flatMap((models) => {
+    pricing: unit.tiers.map((tier) => {
+      const sizes = [...new Set(tier.costs.map((cost) => cost.models))].map((models) => {
         const rows = tier.costs.filter((cost) => cost.models === models)
         const row = rows.length === 1 ? rows[0] : costRowFor(rows, context)
-        return row && typeof row.points === 'number' ? [{ models, points: row.points }] : []
-      }),
-    })),
+        return { models, points: typeof row?.points === 'number' ? row.points : null }
+      })
+      const unpriced = sizes.flatMap(({ models, points }) => (points === null ? [models] : []))
+      return {
+        range: rangeOf(tier.copies),
+        costs: sizes.flatMap(({ models, points }) => (points === null ? [] : [{ models, points }])),
+        // A size its rows leave open stays in the table, so no count is charged between the sizes either side of it.
+        ...(unpriced.length ? { unpriced } : {}),
+      }
+    }),
     wargear: unit.wargear,
   }
 }

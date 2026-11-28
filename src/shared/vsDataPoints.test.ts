@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { vsDataDefinitions } from '../core/vsDataConstruction'
+import { mfmPrice } from './mfm'
 import { vsMfmDetachment, vsMfmUnit, vsPointsIndex } from './vsDataPoints'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
@@ -14,7 +15,7 @@ const definitions = vsDataDefinitions({
       'host.tank': record('Tank', { faction: 'host', keywords: [], sizes: [1] }),
       'host.relic-tank': record('Relic Tank', { faction: 'host', keywords: [], sizes: [1], legends: true }),
       'host.pack': record('Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
-      'host.mixed-pack': record('Mixed Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
+      'host.mixed-pack': record('Mixed Pack', { faction: 'host', keywords: [], sizes: [3, 6, 12] }),
     },
   },
   points: [
@@ -64,6 +65,7 @@ const definitions = vsDataDefinitions({
                     { models: 3, points: 60 },
                     { models: 6, points: 115, mix: { 'host.mixed-pack.hunter': 3, 'host.mixed-pack.hound': 3 } },
                     { models: 6, points: 170, mix: { 'host.mixed-pack.hunter': 6 } },
+                    { models: 12, points: 230 },
                   ],
                 },
               ],
@@ -136,7 +138,14 @@ describe('vsMfmUnit', () => {
   })
 
   it('prices a datasheet whose mixed size gives each row’s mix from VS Data at its other sizes', () => {
-    expect(vsMfmUnit(index, 'bs-host', 'bs-mixed-pack')?.pricing[0]?.costs).toEqual([{ models: 3, points: 60 }])
+    expect(vsMfmUnit(index, 'bs-host', 'bs-mixed-pack')?.pricing[0]?.costs).toEqual([
+      { models: 3, points: 60 },
+      { models: 12, points: 230 },
+    ])
+  })
+
+  it('leaves a mixed size read by its size alone unpriced, never at the next size up', () => {
+    expect(mfmPrice(vsMfmUnit(index, 'bs-host', 'bs-mixed-pack')!, 6, 1)).toBeNull()
   })
 
   it('prices a Warhammer Legends datasheet from VS Data', () => {

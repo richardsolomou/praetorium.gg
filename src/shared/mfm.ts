@@ -8,7 +8,13 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { grantedWargear } from './heldWargear'
 import { vsMfmDetachment } from './vsDataPoints'
 const costSchema = z.object({ models: z.number().int().positive(), points: z.number().int().nonnegative(), addon: z.boolean().optional() })
-const tierSchema = z.object({ range: z.string(), label: z.string().optional(), costs: z.array(costSchema) })
+const tierSchema = z.object({
+  range: z.string(),
+  label: z.string().optional(),
+  costs: z.array(costSchema),
+  /** Model counts the table prints with no one price, as a size VS Data prices by its mix of models. */
+  unpriced: z.array(z.number().int().positive()).optional(),
+})
 const unitSchema = z.object({
   name: z.string(),
   groupTitle: z.string().optional(),
@@ -156,7 +162,9 @@ export function mfmPrice(unit: MfmUnit, models: number, copy: number): number | 
   const prices = costs.filter((cost) => cost.models === models)
   if (prices.length) return prices.length === 1 ? prices[0]!.points : null
   // MFM Starting Strength guidance (https://mfm.warhammer-community.com/en): only a two-row table charges counts between its rows, at the upper row.
-  return costs.length === 2 && models > costs[0]!.models && models < costs[1]!.models ? costs[1]!.points : null
+  return costs.length === 2 && !tiers[0]!.unpriced?.length && models > costs[0]!.models && models < costs[1]!.models
+    ? costs[1]!.points
+    : null
 }
 export function mfmCostRows(unit: MfmUnit) {
   return unit.pricing.flatMap((tier) =>
