@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from './vsDataConstruction'
-import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsUnitAllowance } from './vsDataRoster'
+import { automaticEnhancementsOf, checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsUnitAllowance } from './vsDataRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const construction: VsDataConstruction = {
@@ -294,6 +294,18 @@ describe('checkVsRoster', () => {
   it('counts a unit a Character model leads towards a CHARACTER limit', () => {
     const band = roster([{ unit: 'band.boss' }, { unit: 'band.retinue' }], 'band', [])
     expect(checkVsRoster(definitions, band).map((problem) => problem.code)).toContain('unit-limit')
+  })
+
+  it('gives an Epic Hero the Enhancement its Detachment gives units of its keywords', () => {
+    const hero = { unit: 'host.hero' }
+    expect(automaticEnhancementsOf(definitions, roster([hero], 'host', ['host.pantheon']), hero).map((one) => one.id)).toEqual([
+      'host.pantheon.matrix',
+    ])
+  })
+
+  it('lets an Epic Hero name the Enhancement its Detachment gives it', () => {
+    const named = roster([{ unit: 'host.hero', enhancement: 'host.pantheon.matrix' }], 'host', ['host.pantheon'])
+    expect(checkVsRoster(definitions, named).map((problem) => problem.code)).not.toContain('enhancement-keywords')
   })
 
   it('counts an Enhancement a Detachment gives towards the roster’s limit', () => {

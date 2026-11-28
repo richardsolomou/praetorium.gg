@@ -172,7 +172,43 @@ export function automaticEnhancementsOf(definitions: VsDataDefinitions, roster: 
   const given = automatic.filter((one) => roster.detachments.includes(one.data.detachment) && one.id !== picked.enhancement)
   if (!given.length) return []
   const keywords = keywordsOf(definitions, roster, picked)
-  return given.filter((one) => enhancementAdmits(definitions, one, picked, keywords))
+  return given.filter((one) => automaticAdmits(definitions, one, picked, keywords))
+}
+
+/**
+ * The keywords each of the unit's models holds as an Enhancement's bearer, with its unit's: one fielded, or any for a unit
+ * read by its size alone.
+ */
+function bearerKeywords(definitions: VsDataDefinitions, picked: VsRosterUnit, keywords: readonly string[]) {
+  const sizeOnly = picked.size !== undefined && !picked.models
+  const counts = modelCounts(definitions, picked)
+  const bearers = definitions.modelsOf(picked.unit).filter((model) => sizeOnly || (counts.get(model.id) ?? 0) > 0)
+  return (bearers.length ? bearers.map((model) => [...keywords, ...(model.data.keywords ?? [])]) : [keywords]).map(upper)
+}
+
+/** Whether keywords a bearer holds meet one of an Enhancement's `anyOf` groups and none of its `excludedKeywords`. */
+function meetsEligibility(enhancement: Definition<'enhancement'>, picked: VsRosterUnit, held: readonly string[]) {
+  const { eligibility } = enhancement.data
+  if ((eligibility.excludedKeywords ?? []).some((keyword) => held.includes(keyword.toUpperCase()))) return false
+  return eligibility.anyOf.some(
+    (entry) =>
+      (!entry.unit || entry.unit.id === picked.unit) &&
+      holdsAll(held, upper(entry.keywords ?? [])) &&
+      holdsAll(held, upper(entry.factionKeywords ?? [])),
+  )
+}
+
+/**
+ * Whether a Detachment gives the unit an `automatic` Enhancement: by its keywords alone, without the Character, Epic Hero,
+ * Warlord or wargear restrictions a chosen one has, as Pantheon of Woe gives each C'tan Shard, Epic Heroes all, its own.
+ */
+export function automaticAdmits(
+  definitions: VsDataDefinitions,
+  enhancement: Definition<'enhancement'>,
+  picked: VsRosterUnit,
+  keywords: readonly string[],
+) {
+  return bearerKeywords(definitions, picked, keywords).some((held) => meetsEligibility(enhancement, picked, held))
 }
 
 /** Whether an Enhancement's eligibility admits this unit, before the roster's Warlord is considered. */
@@ -185,25 +221,13 @@ export function enhancementAdmits(
   const unit = definitions.get('unit', picked.unit)
   if (!unit || unit.data.enhancements === false) return false
   const { eligibility } = enhancement.data
-  const bears = (keywordsHeld: readonly string[]) => {
-    const held = upper(keywordsHeld)
-    if (!eligibility.nonCharacters && !held.includes('CHARACTER')) return false
-    if (!eligibility.epicHeroes && held.includes('EPIC HERO')) return false
-    if ((eligibility.excludedKeywords ?? []).some((keyword) => held.includes(keyword.toUpperCase()))) return false
-    return eligibility.anyOf.some(
-      (entry) =>
-        (!entry.unit || entry.unit.id === picked.unit) &&
-        holdsAll(held, upper(entry.keywords ?? [])) &&
-        holdsAll(held, upper(entry.factionKeywords ?? [])),
-    )
-  }
-  // A model of the unit bears it, with its unit's keywords and its own: one fielded, or any for a unit read by its size alone.
-  const sizeOnly = picked.size !== undefined && !picked.models
-  const counts = modelCounts(definitions, picked)
-  const bearers = definitions.modelsOf(picked.unit).filter((model) => sizeOnly || (counts.get(model.id) ?? 0) > 0)
-  if (!(bearers.length ? bearers.map((model) => [...keywords, ...(model.data.keywords ?? [])]) : [keywords]).some(bears)) return false
+  const bears = (held: readonly string[]) =>
+    (eligibility.nonCharacters || held.includes('CHARACTER')) &&
+    (eligibility.epicHeroes || !held.includes('EPIC HERO')) &&
+    meetsEligibility(enhancement, picked, held)
+  if (!bearerKeywords(definitions, picked, keywords).some(bears)) return false
   // A unit read by its size alone has no wargear read, so what it carries is the catalogue's to check.
-  if (sizeOnly) return true
+  if (picked.size !== undefined && !picked.models) return true
   const carrying = carried(definitions, picked)
   const names = new Set([...carrying].filter(([, n]) => n > 0).map(([id]) => (definitions.get('wargear', id)?.name ?? id).toLowerCase()))
   return (eligibility.requiredWargear ?? []).every((name) => names.has(name.toLowerCase()))
@@ -252,8 +276,10 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
           ? row.points
           : (missing.push(`unit:${unit.id} at ${total} (ambiguous-size)`), 0)
         : price({ kind: 'unit', faction: unit.data.faction, unit: unit.id, models: total, copy }, `unit:${unit.id} at ${total}`)
-    // An Enhancement a Detachment gives the unit (`automatic`) is already in the unit's cost row for that Detachment.
-    const enhancement = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
+    // An Enhancement a Detachment gives the unit (`automatic`) is already in the unit's cost row for that Detachment, named
+    // or not.
+    const named = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
+    const enhancement = named?.data.automatic ? undefined : named
     const enhancementFaction = enhancement ? (definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? '') : ''
     const points =
       unitPoints +
@@ -606,9 +632,9 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
           add('enhancement-exclusive', `${unit.name} takes only ${keeper.name} enhancements`)
       }
       if (entry >= 0 && !allies[entry]!.enhancements) add('ally-enhancement', `${unit.name} cannot take enhancements`)
-      if (!enhancementAdmits(definitions, enhancement, picked, keywords))
-        add('enhancement-keywords', `${unit.name} cannot take ${enhancement.name}`)
-      if (enhancement.data.eligibility.notWarlord && picked.warlord !== undefined)
+      const admits = enhancement.data.automatic ? automaticAdmits : enhancementAdmits
+      if (!admits(definitions, enhancement, picked, keywords)) add('enhancement-keywords', `${unit.name} cannot take ${enhancement.name}`)
+      if (!enhancement.data.automatic && enhancement.data.eligibility.notWarlord && picked.warlord !== undefined)
         add('enhancement-keywords', `${enhancement.name} cannot be taken by the warlord`)
       const taken = (enhancementCounts.get(enhancement.id) ?? 0) + 1
       enhancementCounts.set(enhancement.id, taken)
