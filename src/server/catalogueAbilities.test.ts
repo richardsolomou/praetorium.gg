@@ -844,9 +844,10 @@ describe('the Enhancements a datasheet VS Data defines lists', () => {
 
   it('offers a Detachment Character upgrade only under its own Detachment', () =>
     expect(
-      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'walker'), rules)?.detachments.map(
-        ({ id, enhancements }) => [id, enhancements.length],
-      ),
+      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'walker'), rules)?.detachments.map(({ id, enhancements }) => [
+        id,
+        enhancements.length,
+      ]),
     ).toEqual([
       ['lance', 1],
       ['court', 0],
