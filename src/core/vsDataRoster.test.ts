@@ -231,8 +231,8 @@ describe('priceVsRoster', () => {
     expect(priceVsRoster(definitions, roster([walker])).points).toBe(110)
   })
 
-  it('charges an Enhancement the roster’s Detachment gives the unit without its naming one', () => {
-    expect(priceVsRoster(definitions, roster([{ unit: 'host.captain' }], 'host', ['host.pantheon'])).points).toBe(100)
+  it('prices a unit its Detachment gives an Enhancement at its cost row alone', () => {
+    expect(priceVsRoster(definitions, roster([{ unit: 'host.captain' }], 'host', ['host.pantheon'])).points).toBe(80)
   })
 
   it('charges a priced item a model carries by default', () => {

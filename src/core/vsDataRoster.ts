@@ -252,15 +252,17 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
           ? row.points
           : (missing.push(`unit:${unit.id} at ${total} (ambiguous-size)`), 0)
         : price({ kind: 'unit', faction: unit.data.faction, unit: unit.id, models: total, copy }, `unit:${unit.id} at ${total}`)
-    const chosen = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
-    const enhancements = [...(chosen ? [chosen] : []), ...automaticEnhancementsOf(definitions, roster, picked)]
+    // An Enhancement a Detachment gives the unit (`automatic`) is already in the unit's cost row for that Detachment.
+    const enhancement = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
+    const enhancementFaction = enhancement ? (definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? '') : ''
     const points =
       unitPoints +
-      enhancements.reduce((sum, enhancement) => {
-        const faction = definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? ''
-        const ref = { kind: 'enhancement', faction, detachment: enhancement.data.detachment, enhancement: enhancement.id } as const
-        return sum + price(ref, `enhancement:${enhancement.id}`)
-      }, 0) +
+      (enhancement
+        ? price(
+            { kind: 'enhancement', faction: enhancementFaction, detachment: enhancement.data.detachment, enhancement: enhancement.id },
+            `enhancement:${enhancement.id}`,
+          )
+        : 0) +
       // A priced item costs for every one the unit carries, by default or through a bundle as much as by its own choice.
       [...carried(definitions, picked)].reduce((sum, [item, n]) => {
         if (!(n > 0)) return sum
