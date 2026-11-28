@@ -30,6 +30,7 @@ vi.mock('./app', () => ({
           capture(message.distinctId, message.event, message.properties),
       },
     },
+    factionsFor: async () => null,
     combatUnitsFor: async () => [
       {
         catalogueId: 'necrons',

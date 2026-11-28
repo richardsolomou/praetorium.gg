@@ -42,7 +42,7 @@ import {
   pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
 } from '../core/battle'
-import { catalogueFactionName, factionDisplayName } from './factionNames'
+import { catalogueFactionName, factionDisplayName, vsFactionOf } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
@@ -164,15 +164,16 @@ export function importRosterFaction(file: string) {
 }
 
 /** The faction a text's units belong to, for a text whose stated faction no book answers to, as one translated by the official app. */
-export function importRosterUnitFaction(file: string, loaded: LoadedCatalogue) {
+export function importRosterUnitFaction(file: string, loaded: LoadedCatalogue, names: ImportNames = NO_IMPORT_NAMES) {
   const parsed = parsedImport(file)?.parsed
-  return parsed ? unitFaction(parsed, loaded) : null
+  return parsed ? unitFaction(parsed, loaded, { ...NO_IMPORT_NAMES, ...names }) : null
 }
 
-const unitFaction = (parsed: TextRoster, loaded: LoadedCatalogue) => {
+const unitFaction = (parsed: TextRoster, loaded: LoadedCatalogue, names: ImportNames) => {
   const id = factionOfDatasheets(
     parsed.units.map((unit) => unit.name),
     loaded,
+    names,
   )
   return loaded.factions.find((faction) => faction.id === id) ?? null
 }
@@ -181,8 +182,26 @@ export function importRosterCatalogueId(file: string) {
   return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
-/** Whether a text's faction names this book, by its own name, a faction keyword such as "Heretic Astartes", or a translation of either. */
-export function matchesImportFaction(stated: string, name: string, translations: CatalogueTranslations = NO_TRANSLATIONS) {
+/** What a text's faction is matched against: a book's catalogue name, and the VS Data faction it plays where it has one. */
+export type ImportFactionNames = { name: string; vsFaction?: { name: string } | null }
+
+/**
+ * Whether a text's faction names this book: any name of the VS Data faction it plays, as "Heretic Astartes" and "Chaos Space
+ * Marines", or a translation of one, read from the whole text or its last part, as New Recruit prints "Chaos - Chaos Space
+ * Marines". The catalogue's own name, which New Recruit prints and the community translates, and a keyword it stands for,
+ * still read too, as does a book whose VS Data faction is its parent's, as an earlier rules version's Salamanders book.
+ */
+export function matchesImportFaction(stated: string, book: ImportFactionNames, translations: CatalogueTranslations = NO_TRANSLATIONS) {
+  if (matchesCatalogueName(stated, book.name, translations)) return true
+  if (!book.vsFaction) return false
+  const wanted = new Set([stated, stated.split(' - ').at(-1)!].map(unaccented))
+  // A faction's names are grouped together in the translations, and the community's translate each of them.
+  return translationsOf(book.vsFaction.name, translations)
+    .flatMap((name) => translationsOf(name, translations))
+    .some((name) => wanted.has(unaccented(name)))
+}
+
+function matchesCatalogueName(stated: string, name: string, translations: CatalogueTranslations) {
   const wanted = new Set([stated, catalogueFactionName(stated)].map(unaccented))
   const leaf = name.split(' - ').at(-1) ?? ''
   return [...translationsOf(name, translations), ...translationsOf(leaf, translations)].some((candidate) =>
@@ -442,11 +461,14 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
   const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
-  const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
+  const stated = loaded?.factions.find((candidate) =>
+    matchesImportFaction(parsed.faction, { name: candidate.name, vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
+  )
   // A list can state a chapter's parent faction, whose units then name the chapter.
   const names = parsed.units.map((unit) => unit.name)
-  const chapterId = loaded && stated ? chapterOfDatasheets(names, stated.id, loaded) : null
-  const faction = loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded))
+  const chapterId = loaded && stated ? chapterOfDatasheets(names, stated.id, loaded, appNames) : null
+  const faction =
+    loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded, appNames))
   if (!loaded || !faction) {
     return {
       name: title,

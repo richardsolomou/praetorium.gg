@@ -33,8 +33,8 @@ export function registerChangeTools(server: AgentTools) {
       },
       annotations: READ_ONLY_TOOL,
     },
-    async ({ faction, before }) => {
-      const { updates, older } = await changeLogPage({ faction, before })
+    async ({ faction: named, before }) => {
+      const { updates, older, faction = named } = await changeLogPage({ faction: named, before })
       const page = `/data-updates${faction ? `/${encodeURIComponent(faction)}` : ''}${before ? `?before=${encodeURIComponent(before)}` : ''}`
       return structured({
         updates: updates.map(({ anchor, recordedAt, total, omitted, groups }) => ({

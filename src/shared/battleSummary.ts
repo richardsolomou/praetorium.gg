@@ -12,6 +12,8 @@ export type BattleFaction = {
   displayName: string
   icon: string | null
   edition?: StandingFaction['edition']
+  isDefault?: boolean
+  vsFaction?: { id: string; name: string } | null
   detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
 }
 

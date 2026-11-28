@@ -95,7 +95,14 @@ export function vsDataTextFacts(
       : []
     const card = agreed(held)
     if (card) return { record: card, by: 'card' }
-    if (keys.length !== 1) return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    if (keys.length !== 1) {
+      // A text of several parts, as a card printing a catalogue text's paragraphs between its own strings, joins the
+      // record every part joins alone; parts all joining one record by card would have joined it above.
+      const parts = keys.map(join)
+      const [first] = parts
+      if (first?.record && parts.every((part) => part.record === first.record)) return { record: first.record, by: 'id' }
+      return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    }
     // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it are.
     const within = (candidates: readonly string[]) => (held.length ? candidates.filter((key) => held.includes(key)) : candidates)
     const byId = within([...new Set((definitions.holders?.(factsKey) ?? []).flatMap(recordsOf))])
