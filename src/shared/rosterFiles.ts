@@ -402,6 +402,39 @@ const slug = (value: string) =>
 
 type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames; dataBuild?: number }
 
+/**
+ * Where each unit of a group that does not say which is its bodyguard goes: to the one other unit it can join, or of
+ * several, the one that joins nothing itself, as an Ogryn Bodyguard joins its Command Squad while the squad leads its
+ * regiment's troops. A unit that can join none joins the group's one bodyguard, and legality then judges it.
+ */
+export function groupHosts<T>(members: readonly T[], joins: (member: T, host: T) => boolean): Map<T, T> {
+  const candidates = new Map(members.map((member) => [member, members.filter((host) => host !== member && joins(member, host))]))
+  const roots = members.filter((member) => !candidates.get(member)!.length)
+  const hosts = new Map<T, T>()
+  for (const [member, found] of candidates) {
+    const host = found.length === 1 ? found[0] : onlyOne(found.filter((candidate) => roots.includes(candidate)))
+    if (host !== undefined) hosts.set(member, host)
+  }
+  const rootOf = (member: T) => {
+    const seen = new Set<T>()
+    let at = member
+    while (hosts.has(at)) {
+      if (seen.has(at)) return undefined
+      seen.add(at)
+      at = hosts.get(at)!
+    }
+    return at
+  }
+  const reached = new Set([...hosts.keys()].map(rootOf))
+  // Two units that each join only the other leave the group as it was written.
+  if (reached.has(undefined)) return new Map()
+  const bodyguard = reached.size === 1 ? [...reached][0] : undefined
+  if (bodyguard !== undefined) for (const root of roots) if (root !== bodyguard) hosts.set(root, bodyguard)
+  return hosts
+}
+
+const onlyOne = <T>(found: readonly T[]) => (found.length === 1 ? found[0] : undefined)
+
 function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[], spellings: Spellings) {
   const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
@@ -565,14 +598,10 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   takeEnhancementsOnce(units, loaded.index, detachmentSelections)
   assumeWarlord(units)
   attachTextUnits(parsed.units, units, sourceToImported)
-  // A group that does not say which unit is its bodyguard joins the one unit of it another can join; legality then judges the rest.
-  const attachmentIn = (member: { entryId: string }) => {
-    const leader = loaded.index.definitions.get(member.entryId)
-    return leader && referenceAttachmentOf(leader, loaded.index)
-  }
   const joins = (member: { entryId: string }, host: { entryId: string }) => {
+    const leader = loaded.index.definitions.get(member.entryId)
     const bodyguard = loaded.index.definitions.get(host.entryId)
-    const attachment = attachmentIn(member)
+    const attachment = leader && referenceAttachmentOf(leader, loaded.index)
     return Boolean(
       attachment &&
       bodyguard &&
@@ -582,14 +611,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const grouped = [...sourceToImported].filter(([source]) => parsed.units[source]!.group !== undefined)
   for (const members of groupBy(grouped, ([source]) => parsed.units[source]!.group).values()) {
     const picks = members.map(([, imported]) => units[imported]!)
-    // A unit that joins any unit its leader leads would make every member a bodyguard, so the others choose one where they
-    // can, and a joining unit only where they cannot, as an Ogryn Bodyguard alone with its Command Squad.
-    const bodyguards = picks.filter((pick) => !attachmentIn(pick)?.joins)
-    const chosenBy = (members: typeof picks) =>
-      bodyguards.filter((host) => members.some((member) => member !== host && joins(member, host)))
-    const hosts = chosenBy(bodyguards).length ? chosenBy(bodyguards) : chosenBy(picks)
-    if (hosts.length !== 1) continue
-    for (const member of picks) if (member !== hosts[0] && member.attachedTo === undefined) member.attachedTo = units.indexOf(hosts[0]!)
+    for (const [member, host] of groupHosts(picks, joins)) if (member.attachedTo === undefined) member.attachedTo = units.indexOf(host)
   }
   // Omitted units shift saved positions, so attachments are resolved after matching.
   const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))

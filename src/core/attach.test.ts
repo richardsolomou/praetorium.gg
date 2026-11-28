@@ -1257,7 +1257,7 @@ describe("VS Data's attachment rules", () => {
 
   it('refuses a joining unit without the leader it needs', () => {
     expect(messages([at('warriors'), at('overlord', 0), at('thralls', 0)], { overlord: ['Overlord'] })).toEqual([
-      'Cryptothralls: cannot join Necron Warriors without the Leader it needs',
+      'Cryptothralls: cannot join Necron Warriors without the character it needs',
     ])
   })
 
