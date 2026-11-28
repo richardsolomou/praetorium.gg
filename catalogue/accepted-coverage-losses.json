@@ -292,5 +292,15 @@
       "chaos-knights / Renegade Plague Ogryns [Legends] roster errors: needs one of these Detachments: Iconoclast Fiefdom",
       "chaos-knights / Rogue Psyker [Legends] roster errors: needs one of these Detachments: Iconoclast Fiefdom"
     ]
+  },
+  {
+    "reason": "Composition lines of the same model name are combined into one, so a unit that printed several lines for one model now prints one: fewer lines, the same models.",
+    "entries": [
+      "genestealer-cults / Cadian Command Squad: composition 5 → 2",
+      "genestealer-cults / Krieg Command Squad: composition 6 → 2",
+      "astra-militarum / Cadian Command Squad: composition 5 → 2",
+      "astra-militarum / Krieg Command Squad: composition 6 → 2",
+      "leagues-of-votann / Brôkhyr Iron-master: composition 5 → 3"
+    ]
   }
 ]
