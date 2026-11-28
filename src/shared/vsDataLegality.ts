@@ -75,7 +75,7 @@ function vsDataPlacement(data: VsRosterData | undefined, list: { catalogueId: st
   return { ...placed, detachments }
 }
 
-const keyword = (text: string) => text.toUpperCase().replaceAll('’', "'")
+const asKeyword = (text: string) => text.toUpperCase().replaceAll('’', "'")
 /** Faction keyword limits no unit VS Data defines could count, as one naming alternatives it reads as all of them. */
 const unholdableLimits = new WeakMap<object, Set<object>>()
 
@@ -100,10 +100,10 @@ export function vsDataUnheld(
     () =>
       new Set<object>(
         limits.filter((limit) => {
-          const wanted = limit.keywords.map(keyword)
+          const wanted = limit.keywords.map(asKeyword)
           return !definitions.all('unit').some((unit) => {
-            const held = [...(unit.data.keywords ?? []), unit.name].map(keyword)
-            return wanted.every((one) => held.includes(one))
+            const held = new Set([...(unit.data.keywords ?? []), unit.name].map(asKeyword))
+            return wanted.every((one) => held.has(one))
           })
         }),
       ),
@@ -112,11 +112,11 @@ export function vsDataUnheld(
     units.flatMap((unit) => {
       const record = definitions.get('unit', unit.vs?.unit ?? vsDataChecks(data, list.catalogueId, unit) ?? '')
       if (!record) return []
-      const name = keyword(record.name)
-      const held = (record.data.keywords ?? []).map(keyword)
+      const name = asKeyword(record.name)
+      const held = new Set((record.data.keywords ?? []).map(asKeyword))
       const unheld = limits.some((limit) => {
-        const wanted = limit.keywords.map(keyword)
-        return (wanted.includes(name) && !held.includes(name)) || (unholdable.has(limit) && wanted.some((one) => held.includes(one)))
+        const wanted = limit.keywords.map(asKeyword)
+        return (wanted.includes(name) && !held.has(name)) || (unholdable.has(limit) && wanted.some((one) => held.has(one)))
       })
       return unheld ? [unit.key] : []
     }),
