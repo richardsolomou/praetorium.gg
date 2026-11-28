@@ -355,25 +355,28 @@ test('an alert set in one roster follows the player into another and fires in ba
     const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name })
     await addUnit(page, unit)
     await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
-    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Resurrection orb', exact: true }).click())
+    await waitForRosterSave(page, () => page.getByRole('button', { name: /^Select Resurrection orb$/i }).click())
     return roster
   }
   await addBarge('First alerts')
-  await page.getByLabel('Set alert for Resurrection orb').click()
-  const editor = page.getByRole('dialog', { name: 'Resurrection orb', exact: true })
+  // VS Data and the catalogue capitalise the orb differently, so the alert goes by whichever name the page shows.
+  const alert = page.getByLabel(/^Set alert for Resurrection orb$/i)
+  const ability = (await alert.getAttribute('aria-label'))!.replace('Set alert for ', '')
+  await alert.click()
+  const editor = page.getByRole('dialog', { name: ability, exact: true })
   await expect(editor).toContainText('every unit with this ability in all your rosters')
   await expect(editor.getByText('Alert: End of any phase', { exact: true })).toBeVisible()
   await expect(editor.getByRole('combobox', { name: 'Phase', exact: true }).locator('[data-slot="select-value"]')).toHaveText('Any phase')
   await expect(editor.getByLabel('Show while unit is destroyed')).not.toBeChecked()
   await fitsBothWidths(page)
-  await saveAlert(editor, 'Resurrection orb')
+  await saveAlert(editor, ability)
   await page.setViewportSize(desktopContext.viewport)
   // The phone layout's pane leaves the address once the page is wide again; creating the next roster first races that navigation.
   await expect(page).not.toHaveURL(/#roster-pane$/)
   await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
 
   const second = await addBarge('Second alerts')
-  await expect(page.getByLabel('Edit alert for Resurrection orb')).toBeVisible()
+  await expect(page.getByLabel(`Edit alert for ${ability}`)).toBeVisible()
   await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
 
   await practiceBattle(page, second)
@@ -382,7 +385,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
   for (const phase of ['Command', 'Movement']) {
     await page.getByRole('button', { name: `End the ${phase.toLowerCase()} phase`, exact: true }).click()
-    await expect(reminder.getByRole('heading', { name: 'Resurrection orb', exact: true })).toBeVisible()
+    await expect(reminder.getByRole('heading', { name: ability, exact: true })).toBeVisible()
     await expect(reminder).toContainText(`End of your ${phase} phase`)
     await reminder.getByRole('button', { name: 'End the phase', exact: true }).click()
     await expect(reminder).toBeHidden()
