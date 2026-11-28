@@ -250,7 +250,14 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...(selectedCatalogue.vsPoints ? { vsPoints: packRuntimeData(selectedCatalogue.vsPoints) } : {}),
     ...(selectedCatalogue.vsRoster ? { vsRoster: packRuntimeData(selectedCatalogue.vsRoster) } : {}),
     ...(selectedCatalogue.vsProfiles ? { vsProfiles: packRuntimeData(selectedCatalogue.vsProfiles) } : {}),
-    rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
+    // A device names entries from the catalogue it downloads, since the frozen entry names would take the rules part past
+    // its size limit; each reader falls back to the catalogue's name for an entry they lack.
+    rules: packRuntimeData({
+      ...selectedRules,
+      ...(selectedRules.importNames ? { importNames: { ...selectedRules.importNames, entryNames: new Map() } } : {}),
+      terrainLayouts: [],
+      terrainTemplates: [],
+    }),
   })
   const write = async (kind: 'reference' | 'construction', value: unknown, limit?: number) => {
     const part = encodeOfflinePart(value, limit)

@@ -17,11 +17,10 @@ import type { UnitSize } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName } from './datacards'
 import type { VsRosterData } from './vsDataLegality'
-import { storedNames, type ImportNames } from './importNames'
 import { factionDisplayName } from './factionNames'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { editionFamilyId } from '../core/catalogueEdition'
-import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
+import { frozenNames, storedNames, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 
 /** What each faction's data updates removed and never brought back, by name: an older list can still name it. */
@@ -90,7 +89,7 @@ export function unmatchedDatasheetReason(
   removed: RemovedNames = NO_REMOVALS,
 ): string {
   const faction = factionOf(loaded, catalogueId)
-  const other = otherFaction(stated, catalogueId, loaded)
+  const other = otherFaction(stated, catalogueId, loaded, names)
   if (other) return `a ${other} datasheet, not ${faction}`
   const gone = removedReason(stated, 'datasheet', catalogueId, removed)
   if (gone) return gone
@@ -164,8 +163,8 @@ const factionOf = (loaded: LoadedCatalogue, catalogueId: string) =>
  * imported into. Two are named where two have it, because a Plague Marine bought from
  * the wrong book is as likely to belong to either.
  */
-function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue): string | null {
-  const elsewhere = [...(datasheetFactions(loaded, NO_IMPORT_NAMES).get(normalized(stated)) ?? [])]
+function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue, names: ImportNames): string | null {
+  const elsewhere = [...(datasheetFactions(loaded, names).get(normalized(stated)) ?? [])]
     .filter((id) => id !== catalogueId)
     .map((id) => factionOf(loaded, id))
     .filter(Boolean)
