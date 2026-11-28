@@ -47,6 +47,15 @@ import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslatio
 import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
+  datasheetName,
+  exportRuleset,
+  vsDatasheetName,
+  vsDetachmentName,
+  vsEnhancementName,
+  vsFactionName,
+  vsWargearNames,
+} from './vsDataNames'
+import {
   attachmentReason,
   normalized,
   type UnmatchedName,
@@ -381,10 +390,10 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
   })
   const roster = { ...exchange, detachmentIds, units: exchange.picks }
   const resolved = new Set(calculateRosterPrice(roster, loaded, rules)?.units.map((unit) => unit.key) ?? [])
-  const name = (pick: RosterPick, at: number) => {
-    const definition = loaded.index.definitions.get(pick.entryId)
-    return definition ? `${nameOf(definition, loaded.index.definitions)} (entry ${at + 1})` : `Entry ${at + 1}`
-  }
+  const name = (pick: RosterPick, at: number) =>
+    loaded.index.definitions.has(pick.entryId)
+      ? `${datasheetName(loaded, exchange.catalogueId, pick.entryId)} (entry ${at + 1})`
+      : `Entry ${at + 1}`
   const kept = exchange.picks.flatMap((pick, at) => {
     if (resolved.has(at)) return [{ pick, at }]
     unknown.push({ name: name(pick, at), reason: 'this datasheet is not in the selected rules version' })
@@ -2178,11 +2187,13 @@ function combinedCounts(
 type ExportPrice = {
   points: number
   disposition: string | null
-  detachments: { name: string; points: number | null }[]
+  detachments: { id: string; name: string; points: number | null }[]
   units: {
     key: number
+    entryId: string
     size: { models: number }
     name: string
+    choices: readonly { kind?: 'enhancement' | 'upgrade'; options: readonly { name: string; count: number; vsDataId?: string }[] }[]
     points: number
     group: UnitGroup
     attachment: Attachment | null
@@ -2210,7 +2221,8 @@ export function exportRosterFile(
     text:
       data.format === 'ros'
         ? battleScribeRoster(data, loaded, rules, priced)
-        : toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
+        : toGwText(readableRoster(data, loaded, priced, dispositionNames), version) +
+          gwTextVersionLines(loaded.edition, exportRuleset(loaded, data.catalogueId)),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
     /** Saved detachments and options of printed units the current data no longer offers, which the text leaves out. */
@@ -2220,9 +2232,39 @@ export function exportRosterFile(
   }
 }
 
-/** A priced list by name, points, loadout and attachment, as the readable export prints it. */
-export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue, priced: ExportPrice, dispositionNames: string[]) {
+/** A priced unit by the English names VS Data gives its datasheet, Enhancements and wargear, the catalogue's where it gives none. */
+function vsNamedUnit<T extends ExportPrice['units'][number]>(unit: T, loaded: LoadedCatalogue, catalogueId: string): T {
+  const enhancements = new Map(
+    unit.choices
+      .filter((choice) => choice.kind)
+      .flatMap((choice) => choice.options.filter((option) => option.count > 0 && option.vsDataId))
+      .flatMap((option) => {
+        const name = vsEnhancementName(loaded, option.vsDataId!)
+        return name ? [[option.name, name] as const] : []
+      }),
+  )
+  const enhancement = (name: string) => enhancements.get(name) ?? name
+  const wargear = vsWargearNames(loaded, catalogueId, unit.entryId)
+  return {
+    ...unit,
+    name: vsDatasheetName(loaded, catalogueId, unit.entryId) ?? unit.name,
+    enhancements: unit.enhancements.map(enhancement),
+    upgrades: unit.upgrades.map(enhancement),
+    wargear: unit.wargear.map((piece) => ({ ...piece, name: wargear(piece.name) })),
+  }
+}
+
+/** A priced list by name, points, loadout and attachment, as the readable export prints it, in VS Data's English names. */
+export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue, price: ExportPrice, dispositionNames: string[]) {
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
+  const priced = {
+    ...price,
+    detachments: price.detachments.map((detachment) => ({
+      ...detachment,
+      name: vsDetachmentName(loaded, detachment.id) ?? detachment.name,
+    })),
+    units: price.units.map((unit) => vsNamedUnit(unit, loaded, data.catalogueId)),
+  }
   const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
   const unitsByPick = data.units.map((pick, index) => {
     const unit = priced.units.find((candidate) => candidate.key === index)
@@ -2230,7 +2272,7 @@ export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue,
   })
   return {
     name: data.name,
-    faction: factionDisplayName(faction),
+    faction: vsFactionName(loaded, data.catalogueId) ?? factionDisplayName(faction),
     detachments: priced.detachments.map(({ name, points }) => ({ name, points })),
     dispositions: dispositionNames,
     size: battleSizeTitle(data.limit),

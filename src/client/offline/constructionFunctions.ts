@@ -4,6 +4,7 @@ import { constructionRead } from './construction'
 import { deviceLoadoutSearch, prepareDeviceConstruction } from './constructionWorker'
 import type { ConstructionReadData, ConstructionReadName } from './constructionReads'
 import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } from '../../shared/rosterFiles'
+import { rulesetCatalogueIds } from '../../shared/vsDataNames'
 import { decodeRosterExchange, isRosterExchangeCode } from '../../core/rosterExchange'
 import { loadSavedQuery, referenceData, referenceRead, savedQuery } from './runtime'
 import { catalogueEditionId } from '../../core/catalogueEdition'
@@ -107,7 +108,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   const stated = importRosterFaction(args.data.file)
   const statedId = importRosterCatalogueId(args.data.file)
   const candidates = statedId
-    ? [await savedFaction(statedId, factions)].filter((found) => found !== undefined)
+    ? (await Promise.all(rulesetCatalogueIds(statedId).map((id) => savedFaction(id, factions)))).filter((found) => found !== undefined)
     : factions.filter((found) => found.isDefault)
   const faction = stated
     ? candidates.find((candidate) =>
