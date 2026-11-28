@@ -58,10 +58,9 @@ const both = (id: string) => [layout(id), deployment(`deployment-${id}`)]
 const read = () => kotcTerrain(both('king-of-the-colosseum-2'))[0]!
 
 it('reads the current Colosseum before the one it replaced', () => {
-  expect(kotcTerrain([...both('king-of-the-colosseum-1'), ...both('king-of-the-colosseum-2')]).map(({ layout }) => layout.id)).toEqual([
-    'king-of-the-colosseum-2',
-    'king-of-the-colosseum-1',
-  ])
+  expect(
+    kotcTerrain([...both('king-of-the-colosseum-1'), ...both('king-of-the-colosseum-2')]).map((colosseum) => colosseum.layout.id),
+  ).toEqual(['king-of-the-colosseum-2', 'king-of-the-colosseum-1'])
 })
 
 it('leaves out a Colosseum whose deployment map is missing', () => {
