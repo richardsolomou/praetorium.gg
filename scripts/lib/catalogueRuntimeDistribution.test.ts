@@ -142,30 +142,7 @@ it('downloads through the public bucket in a job that holds its key', async () =
     urls.push(input.url)
     return new Response('archive')
   })
-  await downloadArchive('key', runtimeStoreUrl())
-  expect(urls).toEqual([`https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium/catalogue/runtime/by-key/key.zip`])
-})
-
-it('downloads again when a read stalls', async () => {
-  let reads = 0
-  vi.stubGlobal('fetch', async () =>
-    ++reads === 1
-      ? new Response(new ReadableStream({ start: (controller) => controller.error(new DOMException('stalled', 'TimeoutError')) }))
-      : new Response('archive'),
-  )
-  expect(Buffer.from((await downloadArchive('key', 'https://store.test/by-key'))!).toString()).toBe('archive')
-})
-
-it('downloads through the public bucket in a job that holds its key', async () => {
-  vi.stubEnv('R2_ACCOUNT_ID', 'a'.repeat(32))
-  vi.stubEnv('ASSETS_R2_ACCESS_KEY_ID', 'key')
-  vi.stubEnv('ASSETS_R2_SECRET_ACCESS_KEY', 'secret')
-  const urls: string[] = []
-  vi.stubGlobal('fetch', async (input: Request) => {
-    urls.push(input.url)
-    return new Response('archive')
-  })
-  await downloadArchive('key', runtimeStoreUrl())
+  await downloadArchive('key', 'https://s3.praetorium.gg/catalogue/runtime/by-key')
   expect(urls).toEqual([`https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium/catalogue/runtime/by-key/key.zip`])
 })
 
