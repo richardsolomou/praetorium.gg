@@ -100,11 +100,7 @@ export function ReminderEditorDialog({
           </DialogHeader>
 
           <DialogBody>
-            {draft.description ? (
-              <div className="rounded-lg border border-edge bg-sunken p-3">
-                <RuleText text={draft.description} rules={[]} className="mt-0" />
-              </div>
-            ) : null}
+            <RuleText text={draft.description} rules={[]} className="mt-0 rounded-lg border border-edge bg-sunken p-3" />
 
             <div className="space-y-3">
               {timings.map((timing, index) => {
