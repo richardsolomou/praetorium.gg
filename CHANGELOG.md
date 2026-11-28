@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.280.15 (2026-11-28)
+
+### Patch Changes
+
+- 1f6767b: [rosters] An alert set for a Detachment rule now suggests when that rule acts, as an ability's alert does, instead of starting with no time chosen.
+- 7bddc22: [rosters] An Enhancement that a rules version's points leave out of its Detachment now costs the field manual's points instead of the catalogue's.
+- 5960191: [simulator] Canoptek Tomb Crawlers fire both twin gauss reapers in the simulator.
+- f59352c: [rosters] 140 more datasheets, among them the Leman Russ tanks, Chaos Predators, Greater Daemons, the Assassins and the C'tan Shards, are now built as the official app prints them, with its sizes, weapon counts and wargear.
+- 195bc9a: [rosters] A unit built from VS Data now has its models' keywords too, so a squad led by a Character counts as one for attachments, reserves, keyword rules and roster limits such as the allied CHARACTER cap.
+- 5960191: [simulator] A unit built from VS Data now attacks with every weapon it carries, including weapons its datasheet spells differently, such as Twin Power Fists or The Bloody Twins.
+
 ## 0.280.14 (2026-11-28)
 
 ### Patch Changes
