@@ -28,6 +28,7 @@ import {
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, ownChoiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit, type BuiltUnit, catalogueTreeOf, resolveUnitChoice } from '../core/roster'
+import { countedEnhancements } from '../core/vsDataRoster'
 import { unavailableRosterSelections } from '../core/rosterSelections'
 import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
@@ -729,13 +730,23 @@ function calculateRoster(
     data,
     picked.map((unit) => ({ ...unit, vs: unit.vs?.unit })),
   )
+  // A VS pick's tree leaves the catalogue's evaluation once nothing there could count it: VS Data places the list, prices
+  // the pick and holds it by its own limits, and the list holds no catalogue pick. It stays in `selections`, which unit
+  // cards, abilities and attachments still read.
+  const left = new Set(
+    !placed || picked.some((unit) => !unit.vs)
+      ? []
+      : picked.flatMap((unit) => (vsPrices.has(unit.key) && !unheld.has(unit.key) ? [unit] : [])),
+  )
+  const leftTrees = new Set([...left].map((unit) => catalogueTreeOf(unit)))
+  const evaluated = forces.map((force) => force.filter((selection) => !leftTrees.has(selection)))
   const whole = evaluateForces(
-    forces,
+    evaluated,
     loaded.index,
     options,
     vsPicksOf(picked, vsPrices, (unit) => !placed || unheld.has(unit.key)),
   )
-  const selectionPoints = selectionPointsOf(forces, whole)
+  const selectionPoints = selectionPointsOf(evaluated, whole)
   const { points: unitPoints, adjustment } = unitPointsOf(loaded, data, picked, vsPrices, selectionPoints)
   const points = whole.points + adjustment
   // VS Data's ally points limits count what each unit costs the list.
@@ -751,7 +762,7 @@ function calculateRoster(
     const key = keyOf.get(selection)
     return key === undefined ? (selectionPoints.get(selection) ?? 0) : (unitPoints.get(key) ?? 0)
   }
-  const pointCapResult = pointCapErrors(forces, loaded.index, options, pointsOf)
+  const pointCapResult = pointCapErrors(evaluated, loaded.index, options, pointsOf)
   const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
   const pointCaps = pointCapResult.errors.filter(
     (error) => !(pointCapResult.counted.get(error) ?? []).every((selection) => allyLimited.has(keyOf.get(selection) ?? -1)),
@@ -842,8 +853,17 @@ function calculateRoster(
    * rather than for anything in it. The count is the data's own: a second copy of an
    * upgrade costs no enhancement, so the army's total already excludes it.
    */
-  const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
-  const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
+  const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, evaluated, options)
+  // The catalogue counts the Enhancements of the picks it still evaluates, and VS Data those of the picks that left it.
+  const leftDefinitions = left.size ? vsDefinitionsOf(loaded) : null
+  const enhancementsHeld =
+    (whole.costs[ENHANCEMENT_COST] ?? 0) +
+    (leftDefinitions
+      ? countedEnhancements(
+          leftDefinitions,
+          [...left].flatMap((unit) => (unit.vs ? [unit.vs.unit] : [])),
+        )
+      : 0)
   const leftToCatalogue = new Set(
     picked.filter((unit) => unheld.has(unit.key) || !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name),
   )
