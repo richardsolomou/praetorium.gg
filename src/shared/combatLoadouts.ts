@@ -108,11 +108,11 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
       ? withVsEdit(vs.definitions, vs.unit, vs.pick, { choice: byKey.get(key)!, counts })
       : { ...pick, models, spreads: { ...pick.spreads, [key]: counts } }
   const chosen = (key: string, entry: string) => {
-    if (vs) return spread(key, Object.fromEntries(byKey.get(key)!.options.map((option) => [option.id, option.id === entry ? 1 : 0])))
-    const choices = { ...pick.choices }
-    if (entry) choices[key] = entry
-    else delete choices[key]
-    return { ...pick, choices }
+    if (vs) return spread(key, Object.fromEntries(byKey.get(key)!.options.map(({ id }) => [id, id === entry ? 1 : 0])))
+    const picked = { ...pick.choices }
+    if (entry) picked[key] = entry
+    else delete picked[key]
+    return { ...pick, choices: picked }
   }
   const hostOf = (choice: UnitChoice) => {
     const parent = choices
