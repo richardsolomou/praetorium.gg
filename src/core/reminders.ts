@@ -155,9 +155,15 @@ export function abilityRemindersFromRosters(
 
 export function detachmentRuleSubject(
   detachmentId: string,
-  rule: { name: string; description: string | null },
+  rule: { name: string; description: string | null; reminder?: ReminderSuggestion },
 ): ReminderSubject & { kind: 'detachment' } {
-  return { id: `${detachmentId}/${routeSlug(rule.name)}`, kind: 'detachment', name: rule.name, description: rule.description }
+  return {
+    id: `${detachmentId}/${routeSlug(rule.name)}`,
+    kind: 'detachment',
+    name: rule.name,
+    description: rule.description,
+    ...(rule.reminder ? { reminder: rule.reminder } : {}),
+  }
 }
 
 /** Drops alerts for detachment rules the roster does not field. */
