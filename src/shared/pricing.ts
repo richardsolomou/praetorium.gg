@@ -234,12 +234,12 @@ function detachmentLockErrors(
  * plainest possible version of the same question answered twice.
  */
 function labelUnitsOf(
-  picked: readonly { name: string; selection?: Selection; toggles: BuiltUnit['toggles'] }[],
-  pointsBySelection: ReadonlyMap<Selection, number>,
+  picked: readonly { key: number; name: string; toggles: BuiltUnit['toggles'] }[],
+  unitPoints: ReadonlyMap<number, number>,
 ): LabelUnit[] {
   return picked.map((unit) => ({
     name: unit.name,
-    points: pointsBySelection.get(catalogueTreeOf(unit)) ?? 0,
+    points: unitPoints.get(unit.key) ?? 0,
     warlord: hasWarlordToggle(unit.toggles),
   }))
 }
@@ -277,13 +277,19 @@ function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated:
   return points
 }
 
-function adjustUnitPoints(
+/**
+ * What each pick costs, by its place in the list, and what that adds to the catalogue's total: VS Data's price for a pick
+ * VS Data prices, which the catalogue's evaluation leaves at nothing; for any other pick, the catalogue's points moved to
+ * VS Data's price of its datasheet or the field manual's, read from its catalogue tree.
+ */
+function unitPointsOf(
   loaded: LoadedCatalogue,
   data: PriceInput,
   picked: ReturnType<typeof rosterForces>['picked'],
   vsPrices: ReadonlyMap<number, number>,
-  pointsBySelection: Map<Selection, number>,
+  catalogued: ReadonlyMap<Selection, number>,
 ) {
+  const points = new Map<number, number>()
   let adjustment = 0
   const copies = new Map<string, number>()
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).chosen.flatMap(
@@ -295,18 +301,26 @@ function adjustUnitPoints(
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
-    const vsData =
-      vsPrices.get(unit.key) ?? vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
-    const mfmUnit = pickedMfmUnit(loaded, data, unit)
+    const priced = vsPrices.get(unit.key)
+    if (priced !== undefined) {
+      points.set(unit.key, priced)
+      adjustment += priced
+      continue
+    }
+    const own = catalogued.get(catalogueTreeOf(unit)) ?? 0
+    const vsData = vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
     const difference =
       vsData !== null
-        ? vsData - (pointsBySelection.get(catalogueTreeOf(unit)) ?? 0)
+        ? vsData - own
         : unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy, data.detachmentIds) +
-          mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, { primaryCatalogueId: data.catalogueId, mustering: true })
-    pointsBySelection.set(catalogueTreeOf(unit), (pointsBySelection.get(catalogueTreeOf(unit)) ?? 0) + difference)
+          mfmOptionAdjustment(loaded.index, unit, pickedMfmUnit(loaded, data, unit), detachments, {
+            primaryCatalogueId: data.catalogueId,
+            mustering: true,
+          })
+    points.set(unit.key, own + difference)
     adjustment += difference
   }
-  return adjustment
+  return { points, adjustment }
 }
 
 /** Each saved pick's datasheet and, for a VS pick, the unit VS Data built, by its place in the list. */
@@ -467,8 +481,7 @@ export function calculateRosterTotals(
     { primaryCatalogueId: data.catalogueId },
     vsPicksOf(picked, vsPrices, () => false),
   )
-  const pointsBySelection = selectionPointsOf(forces, evaluated)
-  const adjustment = adjustUnitPoints(loaded, data, picked, vsPrices, pointsBySelection)
+  const { points: unitPoints, adjustment } = unitPointsOf(loaded, data, picked, vsPrices, selectionPointsOf(forces, evaluated))
   return {
     points: evaluated.points + adjustment,
     label:
@@ -477,7 +490,7 @@ export function calculateRosterTotals(
         factionName: factionNameOf(loaded, data.catalogueId, loadedRules),
         detachmentNames: chosen.map((option) => option.name),
         limit: data.limit,
-        units: labelUnitsOf(picked, pointsBySelection),
+        units: labelUnitsOf(picked, unitPoints),
       }),
   }
 }
@@ -719,17 +732,23 @@ function calculateRoster(
     vsPicksOf(picked, vsPrices, (unit) => !placed || unheld.has(unit.key)),
   )
   const selectionPoints = selectionPointsOf(forces, whole)
-  const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
+  const { points: unitPoints, adjustment } = unitPointsOf(loaded, data, picked, vsPrices, selectionPoints)
+  const points = whole.points + adjustment
   // VS Data's ally points limits count what each unit costs the list.
-  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: selectionPoints.get(catalogueTreeOf(unit)) ?? 0 }))
+  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: unitPoints.get(unit.key) ?? 0 }))
   const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
   const vsData = vsChecked?.errors ?? null
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
   // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
   // the catalogue's total counts every unit.
-  const pointCapResult = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
-  const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
   const keyOf = new Map(picked.map((unit) => [catalogueTreeOf(unit), unit.key]))
+  // A pick costs what the list pays for it; anything else in a force, what the catalogue charges.
+  const pointsOf = (selection: Selection) => {
+    const key = keyOf.get(selection)
+    return key === undefined ? (selectionPoints.get(selection) ?? 0) : (unitPoints.get(key) ?? 0)
+  }
+  const pointCapResult = pointCapErrors(forces, loaded.index, options, pointsOf)
+  const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
   const pointCaps = pointCapResult.errors.filter(
     (error) => !(pointCapResult.counted.get(error) ?? []).every((selection) => allyLimited.has(keyOf.get(selection) ?? -1)),
   )
@@ -951,7 +970,7 @@ function calculateRoster(
       factionName,
       detachmentNames: chosen.map((option) => option.name),
       limit: data.limit,
-      units: labelUnitsOf(picked, selectionPoints),
+      units: labelUnitsOf(picked, unitPoints),
     }),
     detachment: chosen[0]?.name ?? null,
     detachments: purchased,
@@ -1100,7 +1119,7 @@ function calculateRoster(
         key: unit.key,
         entryId: unit.entryId,
         name: unit.name,
-        points: selectionPoints.get(catalogueTreeOf(unit)) ?? 0,
+        points: unitPoints.get(unit.key) ?? 0,
         size: {
           min: unit.size.min,
           max: unit.size.max,
