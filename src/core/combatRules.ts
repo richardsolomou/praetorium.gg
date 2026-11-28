@@ -627,7 +627,8 @@ export function combatRuleProfiles(
             (effect.weapon && weaponKey(effect.weapon) !== weaponKey(profile.name))
           )
             continue
-          if (effect.lostKeyword) lost.push({ kind: combatKeywordKind(effect.lostKeyword), source: rule.name })
+          const lostKind = effect.lostKeyword && combatKeywordKind(effect.lostKeyword)
+          if (lostKind) lost.push({ kind: lostKind, source: rule.name })
           if (effect.characteristic) {
             const modifier = effect.characteristic
             const original = profile.values.find((value) => datasheetCharacteristicKind(value.name) === modifier.kind)
