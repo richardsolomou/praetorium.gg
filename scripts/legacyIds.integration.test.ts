@@ -132,55 +132,51 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData d
 })
 
 /**
- * Frozen values today's pinned releases define nothing for, by `<map> <key>`; only a value missing from here fails. A
- * retirement the construction file keeps no single successor for (a split, or another kind's) reads as a drop.
+ * Frozen values today's pinned releases define nothing for, as the test below reports them; only a value missing from
+ * here fails. A retirement the construction file keeps no single successor for (a split, or another kind's) reads as a drop.
  */
 const UNRESOLVED = new Set([
   // The current release names these units without defining them.
-  ...[
-    '2053-6887-5344-5a84',
-    '306-db45-d47c-f0e9',
-    '3082-c9fe-b2b6-2594',
-    '506c-80e8-14a1-616f',
-    '5a24-5d3b-949f-984c',
-    '6c3c-2a51-45a8-7dbf',
-    '736e-8d31-9f86-88b3',
-    '921c-0798-f8ec-2975',
-    '9dd6-bcba-6ec8-330f',
-    'ad75-33ce-c532-c4b9',
-    'b6b0-9449-1f70-6cfe',
-    'ba07-5f80-6b06-292c',
-    'c3d1-a63d-b122-55a2',
-    'd156-7d9b-583f-129e',
-    'd5c7-8476-f068-925d',
-    'daec-96aa-c905-f9b0',
-    'e343-a706-337b-ed54',
-    'e87c-7137-de65-faeb',
-    'e8a9-2c26-4e69-98dd',
-    'f575-6924-86cd-8634',
-  ].map((key) => `units ${key}`),
-  // legacy-profiles retires these with no successor.
-  ...['35c-409a-cf8e-870a', '453-8d3-1fbd-293e', 'dd1b-428a-9463-f1ee'].map((key) => `units legacy-profiles~${key}`),
-  // legacy-marine-old marks these Detachments absent.
-  ...[
-    '0a98-b66e-13b6-13d4',
-    '0fa7-f692-c564-45b9',
-    '1123-8770-3b67-9745',
-    '1f61-2b65-e778-d7ac',
-    '79a8-da59-2007-87b0',
-    '9a90-8bc5-27d1-4d66',
-    'aa9e-3e30-26a9-2302',
-    'c5db-4b91-a749-bbdb',
-    'f854-d78c-feef-7d1e',
-  ].map((key) => `detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-${key}`),
+  'units 2053-6887-5344-5a84: chaos-daemons.daemonic-charioteer',
+  'units 306-db45-d47c-f0e9: space-marines.fire-raptor-gunship',
+  'units 3082-c9fe-b2b6-2594: space-marines.fire-raptor-gunship',
+  'units 506c-80e8-14a1-616f: space-marines.fire-raptor-gunship',
+  'units 5a24-5d3b-949f-984c: space-marines.fire-raptor-gunship',
+  'units 6c3c-2a51-45a8-7dbf: aeldari-2.ghost-warrior',
+  'units 736e-8d31-9f86-88b3: chaos-daemons.daemonic-charioteer',
+  'units 921c-0798-f8ec-2975: chaos-daemons.daemonic-charioteer',
+  'units 9dd6-bcba-6ec8-330f: imperial-agents.martial-agent',
+  'units ad75-33ce-c532-c4b9: chaos-daemons.daemonic-charioteer',
+  'units b6b0-9449-1f70-6cfe: space-marines.bike-squad',
+  'units ba07-5f80-6b06-292c: chaos-daemons.immortal-champion',
+  'units c3d1-a63d-b122-55a2: necrons.hyperscientist',
+  'units d156-7d9b-583f-129e: imperial-agents.enthroned-agent',
+  'units d5c7-8476-f068-925d: chaos-daemons.daemonic-charioteer',
+  'units daec-96aa-c905-f9b0: chaos-daemons.immortal-champion',
+  'units e343-a706-337b-ed54: chaos-daemons.immortal-champion',
+  'units e87c-7137-de65-faeb: chaos-daemons.immortal-champion',
+  'units e8a9-2c26-4e69-98dd: chaos-daemons.immortal-champion',
+  'units f575-6924-86cd-8634: space-marines.fire-raptor-gunship',
+  // legacy-profiles' identity retires these with no successor.
+  'units legacy-profiles~35c-409a-cf8e-870a: space-marines.devastator-squad',
+  'units legacy-profiles~453-8d3-1fbd-293e: space-marines.tactical-squad',
+  'units legacy-profiles~dd1b-428a-9463-f1ee: space-marines.suppressor-squad',
+  // legacy-marine-old's identity marks these Detachments absent.
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-0a98-b66e-13b6-13d4: space-marines.gravis-linebreaker-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-0fa7-f692-c564-45b9: space-marines.gravis-siege-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-1123-8770-3b67-9745: space-marines.phobos-shadow-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-1f61-2b65-e778-d7ac: space-marines.phobos-shock-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-79a8-da59-2007-87b0: space-marines.gauntlet-task-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-9a90-8bc5-27d1-4d66: space-marines.tactical-brethren',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-aa9e-3e30-26a9-2302: space-marines.terminator-storm-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-c5db-4b91-a749-bbdb: space-marines.tacticus-firestorm-force',
+  'detachments legacy-marine-old~profile-detachment-option-470a-6daa-9014-12df-f854-d78c-feef-7d1e: space-marines.devastator-brethren',
   // legacy-rosters names these Enhancements without a record.
-  ...[
-    'dark-angels.darkflight-pursuit/b7d9-b94e-d472-8e4f',
-    'salamanders.forgefathers-seekers/a8c5-e17c-3843-2f0c',
-    'space-marines.ironstorm-spearhead/b020-26ca-302f-e615',
-    'space-marines.ironstorm-spearhead/f974-1fb3-2619-6a3a',
-    'space-marines.phobos-shadow-force/2593-dacd-b635-277b',
-  ].map((key) => `enhancements legacy-rosters~${key}`),
+  'enhancements legacy-rosters~dark-angels.darkflight-pursuit/b7d9-b94e-d472-8e4f: dark-angels.darkflight-pursuit.nightforged-battery-upgarde',
+  'enhancements legacy-rosters~salamanders.forgefathers-seekers/a8c5-e17c-3843-2f0c: space-marines.forgefathers-seekers.adamantine-mantle',
+  'enhancements legacy-rosters~space-marines.ironstorm-spearhead/b020-26ca-302f-e615: space-marines.ironstorm-spearhead.redoubtable-machine-spirit-upgrade',
+  'enhancements legacy-rosters~space-marines.ironstorm-spearhead/f974-1fb3-2619-6a3a: space-marines.ironstorm-spearhead.gunnery-honours-upgrade',
+  'enhancements legacy-rosters~space-marines.phobos-shadow-force/2593-dacd-b635-277b: space-marines.phobos-shadow-force.execute-and-redeploy',
 ])
 
 describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen VS Data IDs', () => {
@@ -202,10 +198,12 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen VS Data 
   // A key names its rules version as `<rules version>~<ID>`, else it is the base's.
   const unresolved = (map: string, kind: DefinitionKind, ids: Readonly<Record<string, string>>) => {
     const base = readCatalogueComposition(source)!.editions.find((entry) => entry.base)!.edition.id
-    return Object.entries(ids).flatMap(([key, id]) => {
-      const edition = key.includes('~') ? key.slice(0, key.indexOf('~')) : base
-      return resolves(releaseOf(edition), kind, id) || UNRESOLVED.has(`${map} ${key}`) ? [] : [`${map} ${key}: ${id}`]
-    })
+    return Object.entries(ids)
+      .flatMap(([key, id]) => {
+        const edition = key.includes('~') ? key.slice(0, key.indexOf('~')) : base
+        return resolves(releaseOf(edition), kind, id) ? [] : [`${map} ${key}: ${id}`]
+      })
+      .filter((found) => !UNRESOLVED.has(found))
   }
 
   it('lead every saved book to a faction its rules version defines', () => {
