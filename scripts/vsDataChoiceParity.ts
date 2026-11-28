@@ -459,13 +459,13 @@ for (const [entryId, catalogueId] of listing) {
     for (const option of vsUnitOptions(definitions, first))
       for (const choice of option.choices) {
         const name = definitions.get('wargear', choice.id)?.name ?? choice.id
-        const mapped = shell?.[option.id]?.[choice.id]?.[0]
-        if (!mapped) {
+        const standsFor = shell?.[option.id]?.[choice.id]?.[0]
+        if (!standsFor) {
           if (wargearChanges) changing.push(`${name}, which no catalogue option stands for`)
           continue
         }
         const taken = vsWithChoice(definitions, first, option.id, { [choice.id]: 1 })
-        if (taken && sheetOf(vsPickOf(taken)) !== sheetOf(catalogueOption(...mapped, name).pick)) changing.push(name)
+        if (taken && sheetOf(vsPickOf(taken)) !== sheetOf(catalogueOption(...standsFor, name).pick)) changing.push(name)
       }
     // Choices taken together, or one at its most, can crowd each other out of the catalogue tree, where a group holds fewer
     // than VS Data allows, so each must keep the abilities it gives alone.

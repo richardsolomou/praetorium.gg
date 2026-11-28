@@ -292,5 +292,12 @@
       "chaos-knights / Renegade Plague Ogryns [Legends] roster errors: needs one of these Detachments: Iconoclast Fiefdom",
       "chaos-knights / Rogue Psyker [Legends] roster errors: needs one of these Detachments: Iconoclast Fiefdom"
     ]
+  },
+  {
+    "reason": "Reviewed wargear spellings keep the Sicarian Ruststalkers' transonic blades and chordclaw and the Wave Serpent's twin Aeldari missile launcher at the same values, but their weapon keywords now take the casing the datasheets' other weapons print (Anti-INFANTRY 3+, Twin-linked); search folds case, so both are still found.",
+    "entries": [
+      "adeptus-mechanicus / Sicarian Ruststalkers search: weapon keyword:Anti-Infantry 3+",
+      "aeldari / Wave Serpent search: weapon keyword:Twin-Linked"
+    ]
   }
 ]
