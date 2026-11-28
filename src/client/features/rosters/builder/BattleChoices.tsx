@@ -13,6 +13,7 @@ import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
 import { useStableValue } from '../../../useStableValue'
 import { useBattleChoicePicks } from './battleChoicePicks'
+import { unitPicksOf, withUnitPicks } from '../../../../core/battleChoicePicks'
 
 function useCombatantDatasheet({
   enabled,
@@ -71,14 +72,10 @@ export function useBattleChoices({
   )
   const lineUp = picks.map((pick) => pick.entryId).join(',')
   const units = stored.picks.lineUp === lineUp ? stored.picks.units : {}
-  const unitKey = (choice: BattleChoice) => `${pickIndex}:${choice.rule.name}`
+  const unitPick = (choice: BattleChoice) => (pickIndex === null ? undefined : unitPicksOf(units, picks, pickIndex, choice.rule.name))
   const pickOf = (choice: BattleChoice) =>
     // Only the units a player selected for a rule such as Noospheric Transference have the army's pick.
-    choice.selected && !units[unitKey(choice)]?.length
-      ? undefined
-      : choice.armyWide
-        ? stored.picks.army[choice.rule.name]
-        : units[unitKey(choice)]
+    choice.selected && !unitPick(choice)?.length ? undefined : choice.armyWide ? stored.picks.army[choice.rule.name] : unitPick(choice)
   const picked = useStableValue<Record<string, readonly string[]>>(
     Object.fromEntries(choices.flatMap((choice) => (pickOf(choice)?.length ? [[choice.rule.name, pickOf(choice)!]] : []))),
   )
@@ -106,18 +103,21 @@ export function useBattleChoices({
     choose: (rule: string, options: readonly string[]) => {
       const choice = choices.find((candidate) => candidate.rule.name === rule)
       if (!choice) return
-      const next = { army: { ...stored.picks.army }, lineUp, units: { ...units } }
-      const store = (to: Record<string, string[]>, key: string, values: string[]) => {
-        if (values.length) to[key] = values
-        else delete to[key]
+      const army = { ...stored.picks.army }
+      let unitPicks = units
+      const forUnit = (values: string[]) => {
+        if (pickIndex !== null) unitPicks = withUnitPicks(unitPicks, picks, pickIndex, rule, values)
       }
       // Past the limit, the newest pick replaces the oldest, as a new Order replaces the last.
       const kept = options.slice(-choice.limit)
       // Picking an option selects the unit and sets the army's pick; clearing it leaves the pick to the other selected units.
-      if (choice.selected) store(next.units, unitKey(choice), kept.length ? [choice.selected] : [])
-      if (kept.length || !choice.selected)
-        store(choice.armyWide ? next.army : next.units, choice.armyWide ? choice.rule.name : unitKey(choice), kept)
-      stored.save(next)
+      if (choice.selected) forUnit(kept.length ? [choice.selected] : [])
+      if (kept.length || !choice.selected) {
+        if (!choice.armyWide) forUnit(kept)
+        else if (kept.length) army[rule] = kept
+        else delete army[rule]
+      }
+      stored.save({ army, lineUp, units: unitPicks })
     },
     keywordRules,
     sheet,
