@@ -8,8 +8,7 @@ import { textNickname } from '../core/textRoster'
 import { selectedDatasheetIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
-import { buildRosterPick, rosterDatasheetContext, rosterDatasheetSelections } from './rosterDatasheetContext'
-import { rosterDetachments } from './rosterDetachments'
+import { rosterDatasheetContext, rosterDatasheetSelections } from './rosterDatasheetContext'
 import { vsDataUnitXml } from './vsDataBattleScribeRoster'
 import { vsDefinitionsOf, vsListOf } from './vsDataBuild'
 import type { LoadedRules } from './rules'
@@ -32,12 +31,10 @@ export function battleScribeRoster(
   const { index } = loaded
   const roster = { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks: data.units }
   const prepared = rosterDatasheetSelections(loaded, roster)
-  // A pick frozen as a VS Data pick is written from VS Data; any other from the catalogue's tree of it.
-  const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
+  // A pick built as a VS Data pick is written from VS Data; any other from the catalogue's tree of it.
   const vsUnits = new Map(
     priced.units.flatMap((unit) => {
-      const pick = data.units[unit.key]
-      const vs = pick?.vs && buildRosterPick(loaded, data.catalogueId, detachments, pick, data.detachmentIds)?.vs
+      const vs = prepared.vsUnits[unit.key]
       return vs ? [[unit.key, vs.unit] as const] : []
     }),
   )

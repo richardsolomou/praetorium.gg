@@ -1,5 +1,5 @@
 import type { Definition, VsDataDefinitions } from '../core/vsDataConstruction'
-import { modelCounts, unitKeywords, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
+import { keywordsOf, modelCounts, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
 import { abilitiesXml, categoriesXml, costXml, profileXml, type RosterAbility, selectionXml } from './battleScribeXml'
 
 export type VsDataRosterFileUnit = {
@@ -54,7 +54,7 @@ export function vsDataUnitXml(
   const { profiles: described, rules } = abilitiesXml(abilities)
   // Yellowscribe tells a faction keyword by BattleScribe's `Faction: ` prefix.
   const factionKeywords = new Set(unit.data.factionKeywords)
-  const keywords = unitKeywords(unit.data, roster, picked.allegiance).map((keyword) =>
+  const keywords = keywordsOf(definitions, roster, picked).map((keyword) =>
     factionKeywords.has(keyword) ? `Faction: ${keyword}` : keyword,
   )
   const details = [rules, categoriesXml(keywords), costXml(points)]
