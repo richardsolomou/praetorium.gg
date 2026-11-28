@@ -4,7 +4,7 @@
  *
  * Units are recorded as VS Data reads them, so a list reads the same whether a unit came in as a catalogue pick or a VS
  * pick: its VS Data unit through `catalogue/legacy-ids/units.json` (else `bsdata:<entry>`), its Enhancement and
- * allegiance by VS Data ID, and its wargear in VS Data's spellings through the reviewed ones, its allegiance left out. A VS pick's own
+ * allegiance by VS Data ID, and its wargear in VS Data's spellings through the reviewed ones. A VS pick's own
  * selections are recorded beside it, and only counted by `compare`.
  *
  *   pnpm exec tsx scripts/importParity.ts record <out.json> [directory ...]
@@ -19,16 +19,12 @@ import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json
 import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
 import type { RosterPick, VsPick } from '../src/core/roster'
-import { wargearKey } from '../src/core/wargearNames'
-import { remember } from '../src/core/collections'
 import { calculateRosterPrice } from '../src/shared/pricing'
-import { vsDefinitionsOf, vsUnitIdOf } from '../src/shared/vsDataBuild'
-import { same } from '../src/shared/vsDataModelNames'
+import { vsSpelledWargear } from '../src/shared/importedVsPicks'
+import { vsUnitIdOf } from '../src/shared/vsDataBuild'
 import { inBook } from '../src/shared/vsDataPoints'
-import { ARTICLE, vsSpelling } from '../src/shared/wargearSpellings'
 import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
 import { importCorpusLists } from './lib/importCorpusLists'
-import { vsKnownWargear } from './lib/vsDataRosters'
 
 type UnitRecord = {
   unit: string
@@ -60,13 +56,8 @@ if (command === 'record') {
     {},
     catalogueDirectory,
   )
-  const definitions = catalogue && vsDefinitionsOf(catalogue)
   const options = legacyOptionsSchema.parse(rawOptions).units
   const allegiances = legacyIdsSchema.parse(rawUnits).allegiances ?? {}
-  // The reviewed spellings read a BSData name against the wargear of the unit's own VS Data unit.
-  const knownWargear = new Map<string, ReadonlySet<string>>()
-  const vsKeysOf = (unit: string | undefined) =>
-    unit && definitions ? remember(knownWargear, unit, () => vsKnownWargear(definitions, unit)) : new Set<string>()
   const records: ListRecord[] = lists.map(({ listing, imported }) => {
     const priced =
       imported.catalogueId && catalogue
@@ -100,7 +91,6 @@ if (command === 'record') {
       })
       return chosen[0] ?? inBook(allegiances, catalogueId, pick.entryId) ?? null
     }
-    const allegianceName = (id: string | null) => (id ? definitions?.get('allegiance', id)?.name : undefined)
     return {
       list: listing.list,
       catalogueId: imported.catalogueId,
@@ -120,21 +110,13 @@ if (command === 'record') {
                 ? choice.options.filter((option) => option.count > 0).map((option) => enhancementId(option.id) ?? option.name)
                 : [],
             )
-        const named = allegiance && same(allegianceName(allegiance) ?? allegiance)
-        const wargear = new Map<string, number>()
-        for (const piece of unit.wargear) {
-          // An allegiance is no wargear, though a VS pick's roster line names it beside its wargear, as BSData names a mark.
-          if (named && same(piece.name).endsWith(named)) continue
-          const key = pick.vs ? wargearKey(piece.name).replace(ARTICLE, '') : vsSpelling(piece.name, vsKeysOf(vsUnit))
-          wargear.set(key, (wargear.get(key) ?? 0) + piece.count)
-        }
         return {
           unit: vsUnit ?? `bsdata:${unit.entryId}`,
           models: unit.size.models,
           points: unit.points,
           enhancements: enhancements.toSorted(),
           allegiance,
-          wargear: [...wargear].map(([key, count]) => `${count}x ${key}`).toSorted(),
+          wargear: vsSpelledWargear(catalogue!, unit, pick, allegiance),
           ...(pick.vs ? { vs: { models: pick.vs.models, options: pick.vs.options } } : {}),
         }
       }),

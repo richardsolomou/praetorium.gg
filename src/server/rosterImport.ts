@@ -15,6 +15,7 @@ import {
 } from '../shared/rosterFiles'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { app } from './app'
+import { importVsMaps } from './importVsMaps'
 import { requireCatalogue } from './requireCatalogue'
 import { withinTime } from './timeLimit'
 
@@ -61,6 +62,7 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
     rules,
     translations,
     instance.catalogueRemovals(),
+    importVsMaps(),
   )
 }
 
@@ -111,6 +113,7 @@ async function importText(file: string, factions: Factions) {
     rules,
     translations,
     instance.catalogueRemovals(),
+    importVsMaps(),
   )
   return { result, loaded, rules }
 }

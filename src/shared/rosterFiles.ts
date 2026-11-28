@@ -67,6 +67,7 @@ import {
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { ARTICLE, SPELLINGS } from './wargearSpellings'
+import { type ImportVsMaps, withImportedVsPicks } from './importedVsPicks'
 import { datacardOf } from './datasheetJoin'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
@@ -202,10 +203,11 @@ export function importRosterFile(
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
+  vsMaps?: ImportVsMaps,
 ) {
   importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed)
+  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed, vsMaps)
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -245,7 +247,10 @@ export function matchParsedRoster(
   return importTextRoster(parsed, loaded, factionNames, { translations, removed, names: { ...NO_IMPORT_NAMES, ...names }, dataBuild })
 }
 
-/** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
+/**
+ * A list already read into army text, from a pasted export or another app's own format, matched and priced. With
+ * `vsMaps`, which only the server holds, a unit the builder adds by VS Data comes in as a VS pick.
+ */
 export function importParsedRoster(
   parsed: TextRoster,
   format: RosterTextFormat,
@@ -254,6 +259,7 @@ export function importParsedRoster(
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
+  vsMaps?: ImportVsMaps,
 ) {
   const result = matchParsedRoster(parsed, loaded, {
     factionNames,
@@ -277,8 +283,12 @@ export function importParsedRoster(
         )
       : null
   const priced = price(result.units)
-  const units = priced ? asBuilt(result.units, priced, price) : result.units
-  const currentPoints = priced?.points ?? null
+  const built = priced ? asBuilt(result.units, priced, price) : result.units
+  const units =
+    priced && vsMaps && loaded && result.catalogueId
+      ? withImportedVsPicks(built, { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds }, loaded, vsMaps, priced, price)
+      : built
+  const currentPoints = (units === built ? priced : price(units))?.points ?? null
   return {
     ...result,
     units,
