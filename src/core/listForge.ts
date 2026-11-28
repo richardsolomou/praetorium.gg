@@ -8,6 +8,27 @@ const battleSize = /^Battle Size:\s*(.+?)\s*\((\d[\d,]*) points? limit\)$/i
 const forceDisposition = /^Force Disposition:\s*(.+)$/i
 const unitHeader = /^(.+?)\s+\((\d[\d,]*) pts\)$/i
 const bullet = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
+
+export function listForgeShareCode(input: string) {
+  const [, host, code] = input.trim().match(/^(?:https:\/\/)?([^/]+)\/([\w-]{20})\/?(?:[?#]\S*)?$/i) ?? []
+  return host?.toLowerCase() === 'share.listforge.club' ? (code ?? null) : null
+}
+
+/** Simple Text lists totals and noteworthy choices, leaving out the full equipment of each model. */
+export function isListForgeSimpleText(input: string) {
+  const [first, ...rest] = input
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  if (!first) return false
+  const titled = (first.match(title)?.[1]?.split(' - ').length ?? 0) >= 4
+  const units = titled ? rest : [first, ...rest]
+  return (
+    units.length > 0 &&
+    units.every((line) => / \(\d[\d,]* pts\)$/i.test(line) && !line.includes(':')) &&
+    (titled || (units.some((line) => / - Warlord \(/i.test(line)) && units.some((line) => / \+ \d+ /.test(line))))
+  )
+}
 /**
  * ListForge's detailed text export.
  *

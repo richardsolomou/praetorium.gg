@@ -38,7 +38,7 @@ A list leaves the tab when a points or datasheet update means it no longer impor
 
 - **Praetorium** text exports, exchange codes and QR links
 - **New Recruit** text exports, including WTC-style and Markdown, and share links
-- **ListForge** detailed, short and WTC text
+- **ListForge** share links and Detailed, Short and WTC text. For a Simple Text export, use the share link or copy Detailed Text to include each model's equipment.
 - **BattleBase** text exports
 - **The official Warhammer 40,000 app** text export, including other languages such as Spanish or German
 - **Warmind** text, including ListForge-style, WTC and official-app-style

@@ -2679,6 +2679,21 @@ describe('roster exchange import', () => {
 })
 
 describe('ListForge, Warmind, WTC, and 40k.app roster import', () => {
+  const simpleOrks = `Painboy + 10 Boyz (130 pts)
+Big Mek Dakkarig with Dreadherder (190 pts)
+Warboss - Warlord (100 pts)
+10 Gretchin (45 pts)
+3 Killa Kans (130 pts)`
+
+  it.each([
+    ['with its title', `Dread test - Orks - Purge the Foe - Dread Mob, Green Tide (595 Points)\n\n${simpleOrks}`],
+    ['without its title', simpleOrks],
+  ])('asks for a complete export when ListForge Simple Text is pasted %s', (_label, file) => {
+    expect(importRosterFile({ file }, null).unknown).toEqual([
+      { name: 'ListForge Simple Text', reason: 'it omits model loadouts. Paste a ListForge share link or copy the Detailed Text export' },
+    ])
+  })
+
   it.each([
     [
       'listforge',

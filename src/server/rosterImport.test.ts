@@ -1,7 +1,13 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { importRosterInput } from './rosterImport'
 
-const mocks = vi.hoisted(() => ({ exchange: false, catalogueFor: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  exchange: false,
+  catalogueFor: vi.fn(),
+  shareText: vi.fn(),
+  importFile: vi.fn((_input: { file: string }) => 'imported'),
+}))
+vi.mock('./listForge', () => ({ listForgeShareText: mocks.shareText }))
 vi.mock('./app', () => ({
   app: () => ({
     factionsFor: async () => ({ factions: [{ id: 'mfm~necrons-root', name: 'Necrons', bookNames: ['Necrons'], isDefault: true }] }),
@@ -21,7 +27,7 @@ vi.mock('../shared/rosterFiles', async (actual) => ({
   ...(await actual<typeof import('../shared/rosterFiles')>()),
   importRosterFaction: () => 'Necrons',
   importRosterCatalogueId: () => 'necrons-root',
-  importRosterFile: () => 'imported',
+  importRosterFile: mocks.importFile,
   importRosterExchange: () => 'imported',
 }))
 
@@ -33,6 +39,13 @@ it('imports army text naming an exact root book the faction index lists only qua
   mocks.exchange = false
   await importRosterInput('army text')
   expect(mocks.catalogueFor).toHaveBeenCalledWith('necrons-root')
+})
+
+it('matches the detailed text fetched for a pasted ListForge share link', async () => {
+  mocks.exchange = false
+  mocks.shareText.mockResolvedValueOnce('Detailed Text')
+  await importRosterInput('https://share.listforge.club/abcdefghijklmnopqrst')
+  expect(mocks.importFile.mock.lastCall?.[0]).toEqual({ file: 'Detailed Text' })
 })
 
 it('imports an exchange code saved on an exact root book the faction index lists only qualified', async () => {
