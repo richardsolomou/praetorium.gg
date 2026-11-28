@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.280.24 (2026-11-28)
+
+### Patch Changes
+
+- bf5a7c0: [rosters] Lists on an earlier rules version check who can lead, support or join a unit against VS Data's records for that rules version.
+- e1eb997: [rosters] On an earlier rules version, Cato Sicarius supports Victrix Honour Guard beside Marneus Calgar and leads them without him.
+- e1eb997: [rosters] On an earlier rules version, a Biophagus, Clamavus, Locus or Nexos is a Support unit, as VS Data records it for that version.
+- 3daab22: [reference] Datasheets that cost differently in another army or Detachment, such as the Assassins, Inquisitors and C’tan Shards, now show each of those prices, labelled with the army or Detachment they apply in.
+- 9138e4b: [rosters] The unit list no longer offers units your Detachments don't allow, so it matches what the list check refuses: Astra Militarum units in a Genestealer Cults army outside Brood Brothers Auxilia, Tyranids outside Final Day, Legends cultists and renegades in Chaos Daemons outside Shadow Legion and in Chaos Knights outside Iconoclast Fiefdom, the Daemonic Herald [Crucible] in Emperor's Children outside Carnival of Excess, and the Legends Corsair bands in a Drukhari army in Reaper's Wager.
+
 ## 0.280.23 (2026-11-28)
 
 ### Patch Changes
