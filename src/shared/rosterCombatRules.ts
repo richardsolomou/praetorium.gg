@@ -119,22 +119,31 @@ function withVsKeywords(
   pickIndex: number,
   sheet: Datasheet,
 ): Datasheet {
-  const vsOf = (index: number) => context.unitSelections.find((unit) => unit.pickIndex === index)?.vs
-  const built = vsOf(pickIndex)
-  // A list's keywords hang on its Detachments and units, never on its points, so the battle size is not read.
-  const list = { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, limit: 0 }
-  const keywords =
-    built &&
-    vsPickKeywords(
-      loaded,
-      list,
-      data.picks.map((pick, index) => ({ entryId: pick.entryId, vs: vsOf(index) })),
-      pickIndex,
-    )
+  const built = context.unitSelections.find((unit) => unit.pickIndex === pickIndex)?.vs
+  const keywords = vsKeywordsAt(loaded, data, context, pickIndex)
   if (!built || !keywords) return sheet
   const { modelKeywords: _catalogue, ...rest } = sheet
   const modelKeywords = vsPickModelKeywords(loaded, built)
   return { ...rest, keywords, ...(modelKeywords.length ? { modelKeywords } : {}) }
+}
+
+/** A VS pick's keywords in its list, as `vsPickKeywords` reads them; null for any other pick. */
+function vsKeywordsAt(
+  loaded: LoadedCatalogue,
+  data: Parameters<typeof rosterDatasheetContext>[1],
+  context: Pick<Projection, 'unitSelections'>,
+  pickIndex: number,
+) {
+  const vsOf = (index: number) => context.unitSelections.find((unit) => unit.pickIndex === index)?.vs
+  if (!vsOf(pickIndex)) return null
+  // A list's keywords hang on its Detachments and units, never on its points, so the battle size is not read.
+  const list = { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, limit: 0 }
+  return vsPickKeywords(
+    loaded,
+    list,
+    data.picks.map((pick, index) => ({ entryId: pick.entryId, vs: vsOf(index) })),
+    pickIndex,
+  )
 }
 
 export function rosterCombatant(
@@ -368,7 +377,9 @@ function rosterCombatRules(
         unitSelectionIndex: unit.selectionIndex,
       }),
     )
-    return [{ unit, source }]
+    // A VS pick's keywords are VS Data's, as its own sheet's are.
+    const keywords = vsKeywordsAt(loaded, data, context, unit.pickIndex)
+    return [{ unit, source: source && keywords ? { ...source, keywords } : source }]
   })
   const unitKeywords = [
     ...new Set([
