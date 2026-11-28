@@ -702,13 +702,13 @@ function calculateRoster(
   // VS Data's ally points limits count what each unit costs the list.
   const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: selectionPoints.get(unit.selection) ?? 0 }))
   const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
-  // A keyword's points cap is VS Data's to say wherever VS Data limits the allies it counts, as Deathwatch's 500 in a
-  // chapter; the catalogue's stands only for allies VS Data sets no limit for.
+  // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
+  // chapter; the catalogue's stands wherever it also counts a datasheet VS Data doesn't, as a Crucible daemon.
   const pointCapResult = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
   const keyOf = new Map(picked.map((unit) => [unit.selection, unit.key]))
   const pointCaps = pointCapResult.errors.filter(
-    (error) => !(pointCapResult.counted.get(error) ?? []).some((selection) => allyLimited.has(keyOf.get(selection) ?? -1)),
+    (error) => !(pointCapResult.counted.get(error) ?? []).every((selection) => allyLimited.has(keyOf.get(selection) ?? -1)),
   )
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.
