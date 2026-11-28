@@ -124,7 +124,8 @@ test('official and New Recruit rosters keep their units, choices and attachments
   const custodes = await importReviewed(page, custodesOfficial, 10)
   for (const line of [
     'First test (2,000 Points)',
-    '• 2x Adrathic Combi-destructors',
+    // The export writes VS Data's spelling of the wargear, whatever the imported list spelled.
+    '• 2x Adrathic Combi-destructor',
     'Auric Exemplar',
     'Flawless Bladework',
     'Memento Moritoi',

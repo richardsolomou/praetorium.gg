@@ -9,6 +9,7 @@ import { rosterProblems } from '../core/rosterLegality'
 import { freeWargear } from '../shared/combatLoadouts'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { pricedDispositionNames, readableRoster } from '../shared/rosterFiles'
+import { vsDatasheetName } from '../shared/vsDataNames'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
 import { agentPoolWork } from './agentPoolWork'
@@ -46,7 +47,11 @@ export async function rosterSummary(roster: SummarisedRoster) {
     freeWargearLeftOut: priced.units.flatMap((unit) =>
       freeWargear(unit, vsDefinitionsOf(loaded))
         .filter((option) => !option.count)
-        .map((option) => ({ unit: unit.name, entry: unit.key + 1, wargear: option.name })),
+        .map((option) => ({
+          unit: vsDatasheetName(loaded, roster.catalogueId, unit.entryId) ?? unit.name,
+          entry: unit.key + 1,
+          wargear: option.name,
+        })),
     ),
   }
 }
