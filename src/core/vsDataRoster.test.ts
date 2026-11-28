@@ -17,7 +17,12 @@ const construction: VsDataConstruction = {
       enclave: record('Enclave', {
         unitLimits: [
           { keywords: ['HERO', 'HERO ON FOOT'], anyOf: [['HERO'], ['HERO ON FOOT']], max: 1 },
-          { keywords: ['COMMANDER', 'SAGE'], anyOf: [['COMMANDER'], ['SAGE']], exclusive: true },
+          {
+            keywords: ['COMMANDER', 'SAGE'],
+            anyOf: [['COMMANDER'], ['SAGE']],
+            exclusive: true,
+            detachments: [{ detachment: 'enclave.court', max: 2 }],
+          },
         ],
       }),
       court: record('Court', {
@@ -34,6 +39,7 @@ const construction: VsDataConstruction = {
       'host.guard': record('Guard', { faction: 'host' }),
       'host.sworn': record('Sworn', { faction: 'host', warlords: ['host.oracle.oracle'] }),
       'host.watch': record('Watch', { faction: 'host', exclusiveEnhancements: { keywords: ['CHARACTER', 'INFANTRY'] } }),
+      'enclave.court': record('Court', { faction: 'enclave' }),
     },
     unit: {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
@@ -278,15 +284,16 @@ describe('checkVsRoster', () => {
     expect(courtCodes([{ unit: 'band.boss' }, { unit: 'band.boss' }, { unit: 'court.crew' }])).not.toContain('ally-limit')
   })
 
-  const enclave = (...units: string[]) =>
+  const enclaveIn = (detachments: string[], ...units: string[]) =>
     checkVsRoster(
       definitions,
       roster(
         units.map((unit) => ({ unit })),
         'enclave',
-        [],
+        detachments,
       ),
     ).filter((problem) => problem.code === 'unit-limit')
+  const enclave = (...units: string[]) => enclaveIn([], ...units)
 
   it('counts a unit holding any one alternative of a limit towards it', () => {
     expect(enclave('enclave.hero', 'enclave.hero-on-foot')).toHaveLength(1)
@@ -294,6 +301,10 @@ describe('checkVsRoster', () => {
 
   it('refuses units of two alternatives of an exclusive limit', () => {
     expect(enclave('enclave.commander', 'enclave.sage')).toHaveLength(1)
+  })
+
+  it('refuses units of two alternatives of an exclusive limit in a Detachment whose row sets its bounds', () => {
+    expect(enclaveIn(['enclave.court'], 'enclave.commander', 'enclave.sage')).toHaveLength(1)
   })
 
   it('accepts units that all fit one alternative of an exclusive limit, one fitting two', () => {

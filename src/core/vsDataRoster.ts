@@ -438,8 +438,10 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
     const row = limit.detachments?.find((d) => detachmentIds.includes(d.detachment)) ?? limit
     const alternatives = limit.anyOf ?? [limit.keywords]
     const named = alternatives.map((set) => set.join(' ')).join(' or ')
-    // The alternatives every unit counted so far fits, for an exclusive limit; null until one is counted.
-    return { alternatives, named, exclusive: limit.exclusive, min: row.min, max: row.max, count: 0, common: null as number[] | null }
+    // A Detachment's row replaces both bounds, though never `exclusive`, and an `anyOf` limit has no minimum. `common` is
+    // the alternatives every unit counted so far fits, for an exclusive limit; null until one is counted.
+    const min = limit.anyOf ? undefined : row.min
+    return { alternatives, named, exclusive: limit.exclusive, min, max: row.max, count: 0, common: null as number[] | null }
   })
   const warlords = roster.units.filter((unit) => unit.warlord !== undefined).length
   roster.units.forEach((picked, at) => {
