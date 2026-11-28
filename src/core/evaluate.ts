@@ -424,7 +424,7 @@ export function pointCapErrors(
   index: CatalogueIndex,
   options: EvaluateOptions,
   pointsOf: (selection: Selection) => number,
-): { errors: EvaluationError[]; unhandled: string[] } {
+): { errors: EvaluationError[]; unhandled: string[]; counted: Map<EvaluationError, Selection[]> } {
   const caps = remember(pointCapsCache, index, () =>
     [...index.categories.values()].flatMap((category) =>
       (category.constraints ?? []).flatMap((constraint) =>
@@ -435,6 +435,8 @@ export function pointCapErrors(
   const census = new Census(0)
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const errors: EvaluationError[] = []
+  // The units each broken cap counted, so a caller can tell which allies it is about.
+  const counted = new Map<EvaluationError, Selection[]>()
   for (const { category, constraint } of caps) {
     if (constraint.scope !== 'roster' && constraint.scope !== 'force') {
       census.note(`points cap scope ${constraint.scope}`)
@@ -446,16 +448,22 @@ export function pointCapErrors(
       if (!holding.length) continue
       const limit = constraintValue(constraint, holding[0]!, root, index, census, extra)
       const measured = holding.reduce((total, unit) => total + (unit.selection ? pointsOf(unit.selection) : 0), 0)
-      if (limit >= 0 && measured > limit)
-        errors.push({
+      if (limit >= 0 && measured > limit) {
+        const error = {
           entryId: category.id,
           entryName: category.name ?? category.id,
           message: `allows at most ${limit} points, has ${measured}`,
           limit: { max: limit, measured },
-        })
+        }
+        errors.push(error)
+        counted.set(
+          error,
+          holding.flatMap((unit) => (unit.selection ? [unit.selection] : [])),
+        )
+      }
     }
   }
-  return { errors, unhandled: census.list }
+  return { errors, unhandled: census.list, counted }
 }
 
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {

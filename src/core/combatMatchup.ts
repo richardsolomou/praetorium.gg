@@ -212,10 +212,17 @@ function phaseMatchup(
     ranged: combatRuleOptions(defenceRules, 'defender', 'ranged'),
     melee: combatRuleOptions(defenceRules, 'defender', 'melee'),
   }
-  const inherited = {
-    ranged: { ...DEFAULT_COMBAT_OPTIONS, ...attackOptions.ranged, ...defenceOptions.ranged },
-    melee: { ...DEFAULT_COMBAT_OPTIONS, ...attackOptions.melee, ...defenceOptions.melee },
+  // Each unit's single-die re-rolls are its own, so the defender's save re-roll joins the attacker's.
+  const inheritedIn = (phase: CombatPhase) => {
+    const singleRerolls = [...(attackOptions[phase].singleRerolls ?? []), ...(defenceOptions[phase].singleRerolls ?? [])]
+    return {
+      ...DEFAULT_COMBAT_OPTIONS,
+      ...attackOptions[phase],
+      ...defenceOptions[phase],
+      ...(singleRerolls.length ? { singleRerolls } : {}),
+    }
   }
+  const inherited = { ranged: inheritedIn('ranged'), melee: inheritedIn('melee') }
   const inheritedOptions = (phase: CombatPhase) => inherited[phase]
   const options = (phase: CombatPhase, adjustments: CombatAdjustments): CombatOptions => {
     const attack = attackOptions[phase]

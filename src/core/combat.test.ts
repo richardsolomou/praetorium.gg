@@ -1078,6 +1078,12 @@ describe('a roll changed to an unmodified 6', () => {
     scenario.options.commandReroll = 'wound'
     expect(() => calculateCombat(scenario)).toThrow('not calculated together')
   })
+
+  it('is calculated beside the defender’s single save re-roll', () => {
+    const scenario = pair('hit')
+    scenario.options.singleRerolls = ['save']
+    expect(() => calculateCombat(scenario)).not.toThrow()
+  })
 })
 
 describe('Command Re-roll', () => {
