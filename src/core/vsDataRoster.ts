@@ -538,9 +538,12 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   allies.forEach((ally, at) => {
     const units = members[at]!
     const allyPoints = units.reduce((sum, i) => sum + (price.units[i]?.points ?? 0), 0)
+    // The allies are named by the factions of the units the roster takes under the entry, as Deathwatch or Chaos Daemons.
+    const factions = [...new Set(units.flatMap((i) => definitions.get('unit', roster.units[i]!.unit)?.data.faction ?? []))]
+    const named = factions.map((id) => definitions.get('faction', id)?.name ?? id).join(' and ')
     for (const row of ally.points ?? [])
       if (row.battleSize === battleSize && allyPoints > row.max)
-        rosterProblem('ally-points', `allied units cost at most ${row.max} points, cost ${allyPoints}`)
+        rosterProblem('ally-points', `allied ${named} units cost at most ${row.max} points, cost ${allyPoints}`)
     for (const limit of ally.limits ?? []) {
       if (limit.battleSize !== battleSize) continue
       const under = units.filter((i) => holdsAll(keywordsAt[i]!, limit.keywords))
