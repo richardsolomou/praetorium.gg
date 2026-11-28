@@ -236,6 +236,16 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
   },
 ]
+/**
+ * Datasheets every check passes that a VS Data release still over-admits in a way the parity can't see, by VS Data unit
+ * ID, so the builder keeps adding them as the catalogue builds them until a release with the fix is pinned.
+ */
+const HELD_BACK = new Map([
+  [
+    'dark-angels.ravenwing-black-knights',
+    'every Black Knight may swap its plasma talon for a grenade launcher, where BSData keeps at least two talons in six',
+  ],
+])
 const RULED_SUFFIX = ' (ruled for VS Data)'
 
 const differences = new Map<string, Map<string, string[]>>()
@@ -612,8 +622,9 @@ for (const [check, byUnit] of differences) {
 // The datasheets the builder fields by VS Data: every matched-play one compared that differs only where VS Data follows the app.
 if (values.write) {
   const native = [...compared]
-    .filter((unit) => !differing.has(unit) && matchedPlay.has(unit) && !definitions.get('unit', unit)!.data.legends)
+    .filter((unit) => !differing.has(unit) && matchedPlay.has(unit) && !definitions.get('unit', unit)!.data.legends && !HELD_BACK.has(unit))
     .toSorted()
+  for (const [unit, why] of HELD_BACK) console.log(`held back ${unit}: ${why}`)
   fs.writeFileSync(NATIVE_FILE, `${JSON.stringify(native, null, 2)}\n`)
   console.log(`wrote ${native.length} datasheets to ${path.relative(process.cwd(), NATIVE_FILE)}`)
 }
