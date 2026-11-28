@@ -1,4 +1,3 @@
-import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { remember, uniqueBy } from '../core/collections'
 import { routeSlug } from '../core/slug'
