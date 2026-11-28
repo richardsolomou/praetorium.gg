@@ -515,6 +515,37 @@ const choiceBound = (definitions: VsDataDefinitions, unit: string): ReadonlySet<
     for (const option of definitions.optionsOf(unit)) for (const id of option.data.choices) add(id)
     return new Set([...pieces].flatMap((id) => definitions.get('wargear', id)?.data.rules ?? []))
   })
+
+/**
+ * The models of a picked unit that carry wargear bringing `ability`: those fielded with it that the options they carry
+ * leave it to, and the carriers of the options it takes. An option that names no carrier gives none, as VS Data does
+ * not say which model takes it.
+ */
+export function vsAbilityCarriers(definitions: VsDataDefinitions, picked: VsRosterUnit, ability: string): Definition<'model'>[] {
+  const seen = new Map<string, boolean>()
+  const brings = (id: string): boolean => {
+    const known = seen.get(id)
+    if (known !== undefined) return known
+    seen.set(id, false)
+    const wargear = definitions.get('wargear', id)?.data
+    const found = (wargear?.rules?.includes(ability) ?? false) || Object.keys(wargear?.includes ?? {}).some(brings)
+    seen.set(id, found)
+    return found
+  }
+  const counts = modelCounts(definitions, picked)
+  const taken = definitions
+    .optionsOf(picked.unit)
+    .flatMap((option) => Object.entries(picked.options?.[option.id] ?? {}).flatMap(([id, n]) => (n > 0 ? [{ option, id, n }] : [])))
+  const replacedOn = (model: string, id: string) =>
+    taken.reduce((sum, { option, n }) => sum + (option.data.carrier === model ? n * (option.data.replaces?.[id] ?? 0) : 0), 0)
+  const fielded = definitions
+    .modelsOf(picked.unit)
+    .filter((model) =>
+      Object.entries(model.data.wargear).some(([id, n]) => brings(id) && n * (counts.get(model.id) ?? 0) > replacedOn(model.id, id)),
+    )
+  const optioned = taken.flatMap(({ option, id }) => (option.data.carrier && brings(id) ? [option.data.carrier] : []))
+  return [...new Set([...fielded.map((model) => model.id), ...optioned])].flatMap((id) => definitions.get('model', id) ?? [])
+}
 const linkedAbilities = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
 const boundAbilities = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
 
