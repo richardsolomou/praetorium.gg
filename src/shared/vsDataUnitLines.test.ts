@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { pluralModel, unitComposition } from './vsDataUnitLines'
+import { unitComposition } from './vsDataUnitLines'
 
 it('counts a unit’s models as a datasheet does', () => {
   const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
@@ -8,7 +8,7 @@ it('counts a unit’s models as a datasheet does', () => {
       sizes: [],
       models: [model('Immortal', 5, 10), model('Overlord', 1, 1), model('Canoptek Wraith', 3, 6)],
     }).map((line) => line.map((run) => run.text).join('')),
-  ).toEqual(['5–10 Immortals', '1 Overlord', '3–6 Canoptek Wraiths'])
+  ).toEqual(['5–10 × Immortal', '1 × Overlord', '3–6 × Canoptek Wraith'])
 })
 
 it('gives a unit’s size where its model lines do not add up to it', () => {
@@ -34,36 +34,12 @@ it('names each size a unit takes where there are gaps between them', () => {
   ).toBe('10 or 20 models in all')
 })
 
-it('writes a model’s plural as English does', () => {
+it('writes each model’s name as VS Data does, beside its count', () => {
+  const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
   expect(
-    [
-      'Ork Boy',
-      'Battle Sister',
-      'Kroot Carnivore',
-      'Grey Knight Brother',
-      'Ogryn Bodyguard',
-      'Rifleman',
-      'Lictor Swarm',
-      'Scout Sentry',
-      'Hunting Wolf',
-      'Deathwing Terminators',
-      'Beast of Nurgle',
-      'Assault Intercessor with Jump Pack',
-      'Fellgor Beastmen',
-    ].map(pluralModel),
-  ).toEqual([
-    'Ork Boys',
-    'Battle Sisters',
-    'Kroot Carnivores',
-    'Grey Knight Brothers',
-    'Ogryn Bodyguards',
-    'Riflemen',
-    'Lictor Swarms',
-    'Scout Sentries',
-    'Hunting Wolves',
-    'Deathwing Terminators',
-    'Beasts of Nurgle',
-    'Assault Intercessors with Jump Packs',
-    'Fellgor Beastmen',
-  ])
+    unitComposition({
+      sizes: [],
+      models: [model('Deathwing Terminators', 4, 9), model('Gretchin', 1, 3), model('Beast of Nurgle', 1, 2), model('Ceramite Fists.', 4, 4)],
+    }).map((line) => line.map((run) => run.text).join('')),
+  ).toEqual(['4–9 × Deathwing Terminators', '1–3 × Gretchin', '1–2 × Beast of Nurgle', '4 × Ceramite Fists'])
 })

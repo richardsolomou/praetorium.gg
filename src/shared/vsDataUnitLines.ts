@@ -28,36 +28,15 @@ export const counted = (items: readonly (readonly [string, number])[]) =>
   items.map(([name, count]) => (count === 1 ? name : `${count} × ${name}`))
 
 /**
- * A model's name for more than one of it, as a datasheet writes "5–10 Immortals", "3 Beasts of Nurgle" or "4–9 Assault
- * Intercessors with Jump Packs": the word before an "of", "with" or "on" takes the plural, as does the one thing a "with"
- * or "on" names, and a word ending in "s" or "en" keeps its spelling, as VS Data writes some names in the plural already.
- */
-export function pluralModel(name: string) {
-  const [, head = '', last = '', joint = '', tail = ''] = /^(.*?)(\S+)(?:( (?:of|with|on) )(.*))?$/.exec(name) ?? []
-  const plural = (word: string) => {
-    if (/(?:s|en)$/i.test(word)) return word
-    if (/man$/i.test(word)) return `${word.slice(0, -2)}en`
-    if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`
-    if (/lf$/i.test(word)) return `${word.slice(0, -1)}ves`
-    if (/(?:x|z|ch|sh)$/i.test(word)) return `${word}es`
-    return `${word}s`
-  }
-  const single = joint !== ' of ' && !/,| and /.test(tail)
-  return `${head}${plural(last)}${joint}${single ? tail.replace(/\S+$/, plural) : tail}`
-}
-
-/**
- * Each model line of a unit, as "5–10 Immortals" or "1 Overlord", then the unit's sizes where its lines do not add up to
- * them, as a Brotherhood Terminator Squad's optional Ancient takes the place of one of its Terminators, or where it takes
- * only some sizes between its smallest and largest, as Boyz take 10 or 20 models.
+ * Each model line of a unit, its count beside the model's name as VS Data writes it, singular or plural ("5–10 × Immortal",
+ * "4–9 × Deathwing Terminators"), since no rule spells every name's plural; then the unit's sizes where its lines do not
+ * add up to them, as a Brotherhood Terminator Squad's optional Ancient takes the place of one of its Terminators, or where
+ * it takes only some sizes between its smallest and largest, as Boyz take 10 or 20 models.
  */
 export function unitComposition(
   unit: Pick<VsDataUnit, 'sizes' | 'defaultModels'> & { models: readonly Pick<VsDataUnit['models'][number], 'name' | 'min' | 'max'>[] },
 ): Line[] {
-  const lines = unit.models.map((model) => {
-    const name = model.name.replace(/[.,;:]+$/, '')
-    return line(`${range(model.min, model.max)} ${model.max === 1 ? name : pluralModel(name)}`)
-  })
+  const lines = unit.models.map((model) => line(`${range(model.min, model.max)} × ${model.name.replace(/[.,;:]+$/, '')}`))
   if (!unit.sizes.length) return lines
   const sizes = [...new Set(unit.sizes)].toSorted((left, right) => left - right)
   const [fewest, most] = [sizes[0]!, sizes.at(-1)!]

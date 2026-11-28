@@ -120,8 +120,8 @@ describe('canonical catalogue', () => {
     }
 
     expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.composition).toEqual([
-      '1 Sergeant',
-      '4–9 Troopers',
+      '1 × Sergeant',
+      '4–9 × Trooper',
       '5 or 10 models in all',
     ])
   })
