@@ -770,6 +770,9 @@ function calculateRoster(
    * upgrade costs no enhancement, so the army's total already excludes it.
    */
   const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
+  // VS Data counts an army's Enhancements only at a battle size it records; at another, as King of the Colosseum's 600,
+  // the catalogue still counts them.
+  const vsCountsEnhancements = vsData !== null && battleSizes.some((size) => size.points === data.limit)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
@@ -828,7 +831,7 @@ function calculateRoster(
     ...(vsData === null ? vsPickErrors(loaded.vsRoster, data, checkedUnits) : []),
     ...pointCaps.errors,
     ...enhancementsPerUnitErrors,
-    ...(vsData === null && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
+    ...(!vsCountsEnhancements && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {
             entryId: 'enhancements',
