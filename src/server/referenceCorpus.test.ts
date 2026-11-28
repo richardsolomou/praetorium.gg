@@ -5,6 +5,8 @@ import type { ReferenceDocument } from '../contracts/reference'
 import type { LoadedRules } from '../shared/rules'
 import { bookOf, card, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
+import { VS_DATA_ATTRIBUTION } from '../shared/vsData'
+import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 
 /** A faction whose detachments offer no force disposition. */
 const noDetachments = { icon: null, referenceDetachmentIds: [], detachments: [] }
@@ -13,7 +15,7 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
   return {
     format: 'praetorium.canonical-catalogue.v1',
     compilerVersion: 1,
-    revisions: { datacards: revision },
+    revisions: { datacards: revision, summaries: revision },
     datasheets: [],
     detachments: [],
     ruleDocuments: [
@@ -121,125 +123,125 @@ it('finds a rule by the id its former address gave it', () => {
   expect(referenceDocument(corpus, 'rule:core:move-uuid')?.id).toBe('rule:core:1.1')
 })
 
-it('includes the force disposition matrix and primary mission scoring', () => {
-  const rules = {
-    attribution: 'Mission data attribution',
-    dispositions: new Map([
-      ['disruption', 'Disruption'],
-      ['take-and-hold', 'Take and Hold'],
-    ]),
-    dispositionDetails: [
-      { id: 'disruption', name: 'Disruption', text: 'Break the opposing force.' },
-      { id: 'take-and-hold', name: 'Take and Hold', text: null },
+const missionRules = {
+  attribution: 'Mission data attribution',
+  dispositions: new Map([
+    ['disruption', 'Disruption'],
+    ['take-and-hold', 'Take and Hold'],
+  ]),
+  dispositionDetails: [
+    { id: 'disruption', name: 'Disruption', text: 'Break the opposing force.' },
+    { id: 'take-and-hold', name: 'Take and Hold', text: null },
+  ],
+  missions: new Map([
+    [
+      'chapter-approved-2026-2027|disruption|take-and-hold',
+      {
+        id: 'death-trap',
+        name: 'Death Trap',
+        roundCap: 15,
+        gameCap: 45,
+        secondaryRoundCap: 15,
+        secondaryGameCap: 45,
+        source: 'Chapter Approved 2026-2027',
+        packId: 'chapter-approved-2026-2027',
+        deploymentIds: ['hammer-and-anvil'],
+      },
     ],
-    missions: new Map([
-      [
-        'chapter-approved-2026-2027|disruption|take-and-hold',
+  ]),
+  primaries: [
+    {
+      key: 'death-trap',
+      name: 'Death Trap',
+      awards: [
         {
-          id: 'death-trap',
-          name: 'Death Trap',
-          roundCap: 15,
-          gameCap: 45,
-          secondaryRoundCap: 15,
-          secondaryGameCap: 45,
-          source: 'Chapter Approved 2026-2027',
-          packId: 'chapter-approved-2026-2027',
-          deploymentIds: ['hammer-and-anvil'],
+          vp: 5,
+          per: null,
+          max: null,
+          mode: null,
+          group: null,
+          criteria: 'Trap an objective.',
+          trigger: {
+            timing: 'end-of-turn',
+            phase: null,
+            playerTurn: 'your-turn',
+            roundMin: null,
+            roundMax: null,
+          },
         },
       ],
-    ]),
-    primaries: [
-      {
-        key: 'death-trap',
-        name: 'Death Trap',
-        awards: [
-          {
-            vp: 5,
-            per: null,
-            max: null,
-            mode: null,
-            group: null,
-            criteria: 'Trap an objective.',
-            trigger: {
-              timing: 'end-of-turn',
-              phase: null,
-              playerTurn: 'your-turn',
-              roundMin: null,
-              roundMax: null,
-            },
-          },
-        ],
-        actions: [],
-        whenDrawn: null,
-      },
-    ],
-    secondaries: [
-      {
-        key: 'behind-enemy-lines',
-        name: 'Behind Enemy Lines',
-        awards: [
-          {
-            vp: 4,
-            per: null,
-            max: null,
-            mode: null,
-            group: null,
-            criteria: 'One unit is wholly within the enemy deployment zone.',
-            trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
-          },
-        ],
-        actions: [],
-        whenDrawn: { operation: 'redraw', roundMax: 1, heldCards: ['engage-on-all-fronts'] },
-      },
-    ],
-    missionTwists: new Map([['chapter-approved-2026-2027', [{ id: 'fog-of-war', name: 'Fog of War', changesPrimary: true }]]]),
-    fixedSecondaryCaps: new Map([['chapter-approved-2026-2027', 20]]),
-    deployments: [
-      {
-        id: 'hammer-and-anvil',
-        name: 'Hammer and Anvil',
-        description: 'Deploy lengthways.',
-        zones: [
-          {
-            player: 'attacker',
-            name: 'Attacker zone',
-            colour: '#ffffff',
-            points: [
-              { x: 0, y: 0 },
-              { x: 1, y: 0 },
-              { x: 1, y: 1 },
-            ],
-          },
-        ],
-        objectives: [{ x: 30, y: 22 }],
-      },
-    ],
-    terrainLayouts: [
-      {
-        id: 'layout-a',
-        name: 'Layout A',
-        description: 'Symmetrical ruins.',
-        matchupId: 'disruption-vs-take-and-hold',
-        variant: 1,
-        deploymentId: 'hammer-and-anvil',
-        pieces: [
-          {
-            id: 'ruin-a',
-            name: 'Ruin A',
-            type: 'ruin',
-            templateId: 'ruin',
-            position: { x: 12, y: 8 },
-            rotation: 90,
-            mirror: null,
-            parentAreaId: null,
-          },
-        ],
-        geometry: { areas: [] },
-      },
-    ],
-  } as unknown as LoadedRules
+      actions: [],
+      whenDrawn: null,
+    },
+  ],
+  secondaries: [
+    {
+      key: 'behind-enemy-lines',
+      name: 'Behind Enemy Lines',
+      awards: [
+        {
+          vp: 4,
+          per: null,
+          max: null,
+          mode: null,
+          group: null,
+          criteria: 'One unit is wholly within the enemy deployment zone.',
+          trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+        },
+      ],
+      actions: [],
+      whenDrawn: { operation: 'redraw', roundMax: 1, heldCards: ['engage-on-all-fronts'] },
+    },
+  ],
+  missionTwists: new Map([['chapter-approved-2026-2027', [{ id: 'fog-of-war', name: 'Fog of War', changesPrimary: true }]]]),
+  fixedSecondaryCaps: new Map([['chapter-approved-2026-2027', 20]]),
+  deployments: [
+    {
+      id: 'hammer-and-anvil',
+      name: 'Hammer and Anvil',
+      description: 'Deploy lengthways.',
+      zones: [
+        {
+          player: 'attacker',
+          name: 'Attacker zone',
+          colour: '#ffffff',
+          points: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 1 },
+          ],
+        },
+      ],
+      objectives: [{ x: 30, y: 22 }],
+    },
+  ],
+  terrainLayouts: [
+    {
+      id: 'layout-a',
+      name: 'Layout A',
+      description: 'Symmetrical ruins.',
+      matchupId: 'disruption-vs-take-and-hold',
+      variant: 1,
+      deploymentId: 'hammer-and-anvil',
+      pieces: [
+        {
+          id: 'ruin-a',
+          name: 'Ruin A',
+          type: 'ruin',
+          templateId: 'ruin',
+          position: { x: 12, y: 8 },
+          rotation: 90,
+          mirror: null,
+          parentAreaId: null,
+        },
+      ],
+      geometry: { areas: [] },
+    },
+  ],
+} as unknown as LoadedRules
 
-  const corpus = referenceCorpusFor({
+function missionCorpus(rules = missionRules) {
+  return referenceCorpusFor({
     canonicalCatalogue: () => canonical('one', 'Rule text.'),
     catalogue: () => null,
     rules: () => rules,
@@ -256,6 +258,10 @@ it('includes the force disposition matrix and primary mission scoring', () => {
       },
     ],
   })!
+}
+
+it('includes the force disposition matrix and primary mission scoring', () => {
+  const corpus = missionCorpus()
   const document = corpus.byId.get('mission-pack:chapter-approved-2026-2027')!
   const mission = corpus.byId.get('mission:chapter-approved-2026-2027:death-trap')!
   const secondary = corpus.byId.get('mission:secondary:behind-enemy-lines')!
@@ -299,6 +305,34 @@ it('includes the force disposition matrix and primary mission scoring', () => {
     url: expect.stringContaining('#terrain-layout-a'),
     sections: [expect.objectContaining({ text: expect.stringMatching(/Ruin A: ruin at 12, 8.*exact terrain areas/s) })],
   })
+})
+
+it('credits mission references to VS Data at its release revision', () => {
+  const corpus = missionCorpus()
+  const ids = [
+    'mission-pack:chapter-approved-2026-2027',
+    'mission:chapter-approved-2026-2027:death-trap',
+    'mission:secondary:behind-enemy-lines',
+    'deployment:hammer-and-anvil',
+    'terrain:layout-a',
+    'disposition:disruption',
+  ]
+
+  expect(ids.map((id) => ({ id, attribution: corpus.byId.get(id)?.attribution, revisions: corpus.byId.get(id)?.revisions }))).toEqual([
+    { id: ids[0], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
+    { id: ids[1], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
+    { id: ids[2], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
+    { id: ids[3], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
+    { id: ids[4], attribution: [VS_DATA_ATTRIBUTION, 'Terrain geometry provided by Battlemaster'], revisions: { summaries: 'one' } },
+    { id: ids[5], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
+  ])
+})
+
+it('does not credit Battlemaster for a King of the Colosseum arena', () => {
+  const arena = { ...missionRules.terrainLayouts[0]!, id: 'arena', matchupId: KOTC_MATCHUP_ID, deploymentId: null, pieces: [] }
+  const corpus = missionCorpus({ ...missionRules, terrainLayouts: [arena] })
+
+  expect(corpus.byId.get('terrain:arena')?.attribution).toEqual([VS_DATA_ATTRIBUTION])
 })
 
 it('does not construct a reference without an active canonical snapshot', () => {
