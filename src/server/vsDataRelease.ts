@@ -705,15 +705,38 @@ export function writeVsDataConstruction(directory: string, file: string) {
   const definitions: VsDataConstruction['definitions'] = {}
   for (const record of records.filter((candidate) => candidate.kind !== 'points-snapshot'))
     (definitions[record.kind] ??= {})[record.id] = { name: names.get(`${record.kind}:${record.id}`) ?? record.id, data: record.data }
+  // A unit ability names the wargear it is the rule of on its record where the release states it, else only by its
+  // identity entry referencing that wargear, as releases before VS Data's wargear `rules` do.
+  const abilityWargear = new Map<string, string[]>()
   // An Enhancement is a rule summary whose typed `enhancement` facts say who may take it.
   for (const entry of manifest.categories.find((category) => category.name === 'rules-reference')?.records ?? []) {
     if (entry.kind !== 'ability') continue
-    const record = enhancementRecordSchema.safeParse(read(entry.path))
+    const raw = read(entry.path)
+    const stated = abilityWargearSchema.safeParse(raw)
+    if (stated.success && stated.data.rulesVersion.update === manifest.rulesVersion.update && stated.data.data.wargear)
+      abilityWargear.set(
+        stated.data.id,
+        stated.data.data.wargear.map(({ id }) => id),
+      )
+    const record = enhancementRecordSchema.safeParse(raw)
     if (!record.success || record.data.rulesVersion.update !== manifest.rulesVersion.update) continue
     const { detachment, facts } = record.data.data
     ;(definitions.enhancement ??= {})[record.data.id] = {
       name: names.get(`ability:${record.data.id}`) ?? record.data.id,
       data: { ...facts.fields.enhancement, detachment: detachment.id },
+    }
+  }
+  // A piece of wargear gives the rules its record names and every current unit ability that names it, the one set VS
+  // Data's roster definitions call the rules it gives.
+  for (const entry of identity.entries) {
+    if (entry.kind !== 'ability' || entry.absent || entry.retired !== undefined) continue
+    const named =
+      abilityWargear.get(entry.id) ?? (entry.references ?? []).flatMap((reference) => (reference.kind === 'wargear' ? [reference.id] : []))
+    for (const wargear of named) {
+      const definition = definitions.wargear?.[wargear]
+      if (!definition) continue
+      const rules = Array.isArray(definition.data.rules) ? (definition.data.rules as string[]) : []
+      definition.data = { ...definition.data, rules: [...new Set([...rules, entry.id])].toSorted() }
     }
   }
   const construction: VsDataConstruction = {
@@ -739,6 +762,10 @@ const retiredSchema = z.object({ replacedBy: z.array(z.string()) })
 const constructionRecordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   data: z.record(z.string(), z.unknown()),
+})
+const abilityWargearSchema = refSchema.extend({
+  rulesVersion: z.object({ update: z.string() }),
+  data: z.object({ wargear: z.array(refSchema).optional() }),
 })
 const enhancementRecordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
