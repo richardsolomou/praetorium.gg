@@ -1,6 +1,7 @@
 import { attachmentErrors } from '../core/attach'
 import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
+import { catalogueTreeOf } from '../core/roster'
 import { hasTextTokens } from '../core/sourceText'
 import type { TextFactsByKey } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
@@ -232,8 +233,8 @@ export function rosterCombatant(
           : data.picks.map((pick, index) => (index === replaceIndex ? candidate : pick))
       const proposedSelections =
         replaceIndex === undefined
-          ? [...selections, built.selection]
-          : selections.map((selection, index) => (index === replaceIndex ? built.selection : selection))
+          ? [...selections, catalogueTreeOf(built)]
+          : selections.map((selection, index) => (index === replaceIndex ? catalogueTreeOf(built) : selection))
       const groupIds = new Set(proposed.flatMap((pick, index) => (attachmentHost(proposed, index) === hostIndex ? [pick.entryId] : [])))
       if (
         attachmentErrors(proposed, loaded.index, proposedSelections, keywords, data.detachmentIds).some((error) =>
@@ -267,7 +268,7 @@ export function rosterCombatant(
             attachmentErrors(
               [candidate, { ...selectedPick, attachedTo: 0 }],
               loaded.index,
-              [built.selection, selections[0]],
+              [catalogueTreeOf(built), selections[0]],
               [],
               data.detachmentIds,
             ).length

@@ -75,13 +75,23 @@ type BuildContext = ChoiceOptions & {
   toggles?: Readonly<Record<string, number>>
 }
 
+/** A built pick. Its catalogue tree is optional: a reader that still needs one reads it through `catalogueTreeOf`. */
 export type BuiltUnit = {
-  selection: Selection
+  selection?: Selection
   size: UnitSize
   choices: UnitChoice[]
   toggles: UnitToggle[]
   /** A VS pick's unit as VS Data fields it, which its size, models, wargear and points are read from. */
   vs?: VsBuiltUnit
+}
+
+/** A unit the catalogue alone builds, which always has its tree. */
+export type CatalogueUnit = BuiltUnit & { selection: Selection }
+
+/** A built pick's catalogue tree, for a reader that still needs one; every build makes one today. */
+export function catalogueTreeOf(unit: { selection?: Selection }): Selection {
+  if (!unit.selection) throw new Error('This unit has no catalogue tree.')
+  return unit.selection
 }
 
 /** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some. */
@@ -144,7 +154,7 @@ export function buildUnit(
   models?: number,
   choices?: Readonly<Record<string, string>>,
   context?: BuildContext,
-): BuiltUnit | null {
+): CatalogueUnit | null {
   const first = assemble(entryId, index, models, choices, context)
   if (!first || !Object.keys(choices ?? {}).length) return first
   const closed = new Set(
@@ -168,7 +178,7 @@ function assemble(
   models?: number,
   choices?: Readonly<Record<string, string>>,
   context?: BuildContext,
-): BuiltUnit | null {
+): CatalogueUnit | null {
   const base = defaultSelection(entryId, index, context)
   if (!base) return null
 
@@ -499,7 +509,7 @@ export function resolveUnitChoice(selection: Selection, key: string, optionId: s
   return request && replacement ? { key: request.key, optionId: replacement } : null
 }
 
-function finishUnit(entryId: string, selection: Selection, size: UnitSize, index: CatalogueIndex, context?: BuildContext): BuiltUnit {
+function finishUnit(entryId: string, selection: Selection, size: UnitSize, index: CatalogueIndex, context?: BuildContext): CatalogueUnit {
   const choices = unitChoices(entryId, selection, index, context)
   const completed = choices.reduce((tree, choice) => {
     const path = choice.key.split('/')
