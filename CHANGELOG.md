@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.32 (2026-11-28)
+
+### Patch Changes
+
+- 89dc5f9: [rosters] A unit converted from an earlier rules version whose loadout the current rules no longer have keeps it, at that version's points.
+
 ## 0.280.31 (2026-11-28)
 
 ### Patch Changes
