@@ -566,10 +566,13 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   assumeWarlord(units)
   attachTextUnits(parsed.units, units, sourceToImported)
   // A group that does not say which unit is its bodyguard joins the one unit of it another can join; legality then judges the rest.
-  const joins = (member: { entryId: string }, host: { entryId: string }) => {
+  const attachmentIn = (member: { entryId: string }) => {
     const leader = loaded.index.definitions.get(member.entryId)
+    return leader && referenceAttachmentOf(leader, loaded.index)
+  }
+  const joins = (member: { entryId: string }, host: { entryId: string }) => {
     const bodyguard = loaded.index.definitions.get(host.entryId)
-    const attachment = leader && referenceAttachmentOf(leader, loaded.index)
+    const attachment = attachmentIn(member)
     return Boolean(
       attachment &&
       bodyguard &&
@@ -579,7 +582,12 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const grouped = [...sourceToImported].filter(([source]) => parsed.units[source]!.group !== undefined)
   for (const members of groupBy(grouped, ([source]) => parsed.units[source]!.group).values()) {
     const picks = members.map(([, imported]) => units[imported]!)
-    const hosts = picks.filter((host) => picks.some((member) => member !== host && joins(member, host)))
+    // A unit that joins any unit its leader leads would make every member a bodyguard, so the others choose one where they
+    // can, and a joining unit only where they cannot, as an Ogryn Bodyguard alone with its Command Squad.
+    const bodyguards = picks.filter((pick) => !attachmentIn(pick)?.joins)
+    const chosenBy = (members: typeof picks) =>
+      bodyguards.filter((host) => members.some((member) => member !== host && joins(member, host)))
+    const hosts = chosenBy(bodyguards).length ? chosenBy(bodyguards) : chosenBy(picks)
     if (hosts.length !== 1) continue
     for (const member of picks) if (member !== hosts[0] && member.attachedTo === undefined) member.attachedTo = units.indexOf(hosts[0]!)
   }

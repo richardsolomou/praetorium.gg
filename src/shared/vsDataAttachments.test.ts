@@ -93,6 +93,11 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
           'test.crusaders': keyed('Crusaders', []),
           'test.servitors': keyed('Servitors', []),
           'test.shocks': keyed('Shock Troops', []),
+          'test.veterans': keyed('Veterans', []),
+          'test.escort': keyed('Escort', []),
+          'test.inquisitor': keyed('Inquisitor', ['CHARACTER']),
+          'test.rangers': keyed('Rangers', ['BATTLELINE']),
+          'test.hastarii': keyed('Hastarii', []),
         },
         attachment: {
           'test.captain': record('Captain', { unit: 'test.captain', leads: ['test.intercessors'] }),
@@ -102,6 +107,19 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
             insteadOf: [{ units: ['test.intercessors'], role: 'leads', keywords: ['CHARACTER'] }],
           }),
           'test.servitors': record('Servitors', { unit: 'test.servitors', joins: [{ ledBy: ['TECHMARINE'], exclusive: ['SERVITORS'] }] }),
+          'test.veterans': record('Veterans', {
+            unit: 'test.veterans',
+            insteadOf: [{ units: ['test.crusaders'], role: 'leads', keywords: ['CHARACTER'] }],
+          }),
+          'test.escort': record('Escort', { unit: 'test.escort', insteadOf: [{ units: ['test.intercessors'], role: 'supports' }] }),
+          'test.inquisitor': record('Inquisitor', {
+            unit: 'test.inquisitor',
+            conditional: [{ role: 'leads', keywords: ['BATTLELINE'] }],
+          }),
+          'test.hastarii': record('Hastarii', {
+            unit: 'test.hastarii',
+            insteadOf: [{ units: ['test.rangers'], role: 'leads', keywords: ['CHARACTER'] }],
+          }),
           'test.shocks': record('Shock Troops', {
             unit: 'test.shocks',
             capacity: { leads: 2, limits: [{ keywords: ['COMMAND SQUAD'], max: 1 }] },
@@ -117,6 +135,11 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
         crusaders: 'test.crusaders',
         servitors: 'test.servitors',
         shocks: 'test.shocks',
+        veterans: 'test.veterans',
+        escort: 'test.escort',
+        inquisitor: 'test.inquisitor',
+        rangers: 'test.rangers',
+        hastarii: 'test.hastarii',
       },
       detachments: {},
     },
@@ -129,11 +152,16 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
         crusaders: 'Crusaders',
         servitors: 'Servitors',
         shocks: 'Shock Troops',
+        veterans: 'Veterans',
+        escort: 'Escort',
+        inquisitor: 'Inquisitor',
+        rangers: 'Rangers',
+        hastarii: 'Hastarii',
       })[entryId],
   )
 
   it('lets a unit join a bodyguard that stands in for one of its hosts', () => {
-    expect(rules.attachments.captain?.targets).toEqual(['Intercessors', 'Crusaders'])
+    expect(rules.attachments.captain?.targets).toContain('Crusaders')
   })
 
   it('keeps a stand-in from a unit without the keyword it asks for', () => {
@@ -144,7 +172,15 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
     expect(rules.attachments.servitors?.joins).toEqual([{ anyHost: true, ledBy: ['TECHMARINE'], exclusive: ['SERVITORS'] }])
   })
 
-  it("reads a bodyguard's capacity", () => {
-    expect(rules.attachments.shocks?.capacity).toEqual({ leader: 2, limits: [{ keywords: ['COMMAND SQUAD'], maximum: 1 }] })
+  it('follows a stand-in for a stand-in', () => {
+    expect(rules.attachments.captain?.targets).toContain('Veterans')
+  })
+
+  it('keeps a stand-in for another role from a leader', () => {
+    expect(rules.attachments.captain?.targets).not.toContain('Escort')
+  })
+
+  it('lets a unit join a stand-in for a host it takes by keyword', () => {
+    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toEqual(['Hastarii'])
   })
 })

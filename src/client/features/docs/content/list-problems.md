@@ -16,7 +16,7 @@ A greyed card tells you why: "An army can include only one … detachment". If t
 
 Nothing in the list or the book can take that attachment. Support units still need a Bodyguard. Some detachments narrow it further: in Pactbound Zealots, a Character only joins a unit with the same Mark of Chaos.
 
-Some units, such as Cryptothralls or Servitors, join a unit as part of it rather than as its Leader or Support unit. They need the Leader their rule names already attached there, and only one of each kind joins a unit.
+Some units, such as Cryptothralls or Servitors, join a unit as part of it rather than as its Leader or Support unit. They need the character their rule names, such as a Cryptek, already attached there, and only one of each kind joins a unit.
 
 ### "Your latest changes have not been saved."
 

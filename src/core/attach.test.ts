@@ -1208,7 +1208,7 @@ describe("VS Data's attachment rules", () => {
       ],
     }),
     attachments: {
-      cryptek: { kind: 'leader' as const, targets: ['Necron Warriors'], named: ['Necron Warriors'] },
+      cryptek: { kind: 'support' as const, targets: ['Necron Warriors'], named: ['Necron Warriors'] },
       overlord: { kind: 'leader' as const, targets: ['Necron Warriors', 'Plague Marines'], named: ['Necron Warriors', 'Plague Marines'] },
       thralls: { targets: [], named: [], joins: [{ anyHost: true as const, ledBy: ['CRYPTEK'], exclusive: ['CRYPTOTHRALLS'] }] },
       crawlers: { targets: [], named: [], joins: [{ anyHost: true as const, ledBy: ['CRYPTEK'], exclusive: ['CRYPTOTHRALLS'] }] },
@@ -1234,7 +1234,7 @@ describe("VS Data's attachment rules", () => {
     ).map((error) => `${error.entryName}: ${error.message}`)
   const at = (entryId: string, host?: number) => ({ entryId, ...(host === undefined ? {} : { attachedTo: host }) })
 
-  it('lets a unit join any unit its leader leads', () => {
+  it('lets a unit join any unit the character its rule names is attached to', () => {
     expect(messages([at('warriors'), at('cryptek', 0), at('thralls', 0)], { cryptek: ['Cryptek'] })).toEqual([])
   })
 

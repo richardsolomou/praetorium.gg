@@ -32,6 +32,17 @@ export function vsLinksIndex(
   const namesOf = (unit: string) => [...new Set((entriesOf.get(unit) ?? []).flatMap((entryId) => nameOf(entryId) ?? []))]
   const resolved = new Map<string, VsAttachment | null>()
   const standIns = standInsOf(definitions)
+  const unitKeywords = definitions
+    .all('unit')
+    .map(({ id, data }) => ({ id, keywords: data.keywords.map((keyword) => keyword.toUpperCase()) }))
+  const holdingKeywords = (keywords: readonly string[], excluded: readonly string[] = []) =>
+    unitKeywords
+      .filter(
+        (unit) =>
+          keywords.every((keyword) => unit.keywords.includes(keyword.toUpperCase())) &&
+          !excluded.some((keyword) => unit.keywords.includes(keyword.toUpperCase())),
+      )
+      .map((unit) => unit.id)
   const attachmentOf = (data: AttachmentData): VsAttachment | null => {
     const capacity = data.capacity && {
       ...(data.capacity.leads ? { leader: data.capacity.leads } : {}),
@@ -65,12 +76,10 @@ export function vsLinksIndex(
     const targets = [...new Set(units.flatMap(namesOf))]
     // A condition no list can meet here is left out, and its hosts with it, so the catalogue's reading of them stands.
     const conditional = (data.conditional ?? []).flatMap((entry) => {
-      const read = condition(
-        { ...entry, units: entry.units && [...entry.units, ...instead(entry.units, entry.role)] },
-        namesOf,
-        entriesOf,
-        detachmentsOf,
-      )
+      // A host taken by its keywords brings the bodyguards that stand in for it, as named hosts do.
+      const stoodIn = [...(entry.units ?? []), ...(entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords) : [])]
+      const units = [...(entry.units ?? []), ...instead(stoodIn, entry.role)]
+      const read = condition({ ...entry, ...(units.length ? { units } : {}) }, namesOf, entriesOf, detachmentsOf)
       return read.requires?.some((group) => !group.length) ? [] : [read]
     })
     const besideAnother = (data.withAnotherLeader ?? []).map((entry) => {

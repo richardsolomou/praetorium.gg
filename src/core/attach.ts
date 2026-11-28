@@ -288,7 +288,9 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): 
   // The catalogue's order first, as its datasheets print their hosts, then the hosts only VS Data gives.
   const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)) || granted.has(normalizedName(target)))
   return {
-    kind: vsData.kind ?? read?.kind ?? conditional[0]!.kind,
+    // The catalogue's role stands where VS Data gives another, as Legends datasheets VS Data reads as Leaders that the
+    // catalogue fields as Support units: taking a Leader's place could make a legal list illegal.
+    kind: read?.kind ?? vsData.kind ?? conditional[0]!.kind,
     targets: uniqueNormalizedNames([...kept, ...vsData.targets]),
     ...(read?.keywords ? { keywords: read.keywords } : {}),
     ...(read?.requiresLeader ? { requiresLeader: true as const } : {}),
@@ -671,17 +673,19 @@ function joinRefusals<T extends AttachmentParty>(
   joins: readonly AttachmentJoin[],
   joiner: AttachmentParty,
   host: AttachmentParty,
+  occupants: readonly T[],
   companions: readonly AttachmentParty[],
 ): AttachmentRefusal<T>[] {
   const fitting = joins.filter((join) => admitsHost({ kind: 'support', targets: [], joins: [join] }, host.name, host.keywords))
   if (!fitting.length) return [{ rule: 'host' }]
-  const leaders = companions.filter((other) => other.attachment?.kind === 'leader' && !other.attachment.joins)
+  // "Led by a CRYPTEK model" is met by whatever attached character holds the keywords, a Cryptek being a Support unit.
+  const attached = companions.filter((other) => other.attachment && !other.attachment.joins)
   const led = fitting.filter(
-    (join) => !join.ledBy || leaders.some((leader) => join.ledBy!.every((keyword) => holdsKeyword(leader, keyword))),
+    (join) => !join.ledBy || attached.some((leader) => join.ledBy!.every((keyword) => holdsKeyword(leader, keyword))),
   )
   if (!led.length) return [{ rule: 'leaderless' }]
-  // Only a unit known to hold an exclusive keyword shuts another out.
-  const joined = companions.filter((other) => other !== joiner && other.attachment?.joins && other.keywords)
+  // Only a unit already joined, and known to hold an exclusive keyword, shuts another out, so a clash is said once.
+  const joined = occupants.filter((other) => other !== joiner && other.attachment?.joins && other.keywords)
   const clashOf = (join: AttachmentJoin) => joined.find((other) => (join.exclusive ?? []).some((keyword) => holdsKeyword(other, keyword)))
   if (led.some((join) => !clashOf(join))) return []
   return [{ rule: 'exclusive', holder: clashOf(led[0]!) as T }]
@@ -705,7 +709,7 @@ export function attachmentRefusals<T extends AttachmentParty>(
   // A unit that joins another as part of it takes no place among its leader and support units.
   if (attachment.joins)
     return [
-      ...joinRefusals<T>(attachment.joins, joiner, host, companions),
+      ...joinRefusals<T>(attachment.joins, joiner, host, occupants, companions),
       ...(joiner.unattachable ? [{ rule: 'unattachable' as const }] : []),
     ]
   const refusals: AttachmentRefusal<T>[] = []
@@ -811,7 +815,7 @@ export function attachmentErrors(
     const companions = parties.filter((_, at) => at !== position && units[at]!.attachedTo === unit.attachedTo)
     const refusals = attachmentRefusals(joiner, host, already, companions)
     for (const refusal of refusals) error(errorMessage(refusal, attachment, host.name, index))
-    if (refusals.some((refusal) => refusal.rule === 'full' || refusal.rule === 'category')) return
+    if (refusals.some((refusal) => refusal.rule === 'full' || refusal.rule === 'category' || refusal.rule === 'exclusive')) return
     occupants.set(unit.attachedTo, [...already, joiner])
   })
   return errors
