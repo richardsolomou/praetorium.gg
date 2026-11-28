@@ -5,15 +5,24 @@ import { attachedUnitList } from '../../../core/attachedUnits'
 import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
 import { catalogueEditionId, rulesVersionLabel } from '../../../core/catalogueEdition'
 import type { RosterPick } from '../../../core/roster'
+import { frozenUnits } from '../../../core/rosterSnapshot'
+import { routeSlug } from '../../../core/slug'
 import { stratagemTiming } from '../../../core/reminders'
 import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
-import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
-import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
+import { enforces, fieldedUnits, pickedOptionalRules, pointsBudgetOf, startingEmbarks, waivedFormatRules } from '../../../core/battle'
+import {
+  factionQuery,
+  detachmentDetailQuery,
+  detachmentRulesQuery,
+  loadoutDatasheetsQuery,
+  priceQuery,
+  unitBattleDetailsQuery,
+} from '../../queries'
 import { ruleAbilitySummariesQuery, ruleUnitsQuery } from '../../queries/references'
 import { DatasheetUnit, datasheetUnit, detachmentRulesOwner } from '../../components/UnitFromVsData'
 import type { priceRoster } from '../../functions'
-import { RuleText, SummaryById } from '../../components/RuleText'
+import { RuleText, SummaryById, SummaryByName } from '../../components/RuleText'
 import { useVsDataSummaries } from '../../components/UnitFromVsData'
 import { useRuleSummariesSettled } from '../../ruleSummaries'
 import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
@@ -62,7 +71,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         signal.throwIfAborted()
         const detail = await client.query({ ...detachmentDetailQuery(input.catalogueId, detachment!.slug), staleTime: 0 })
         if (!detail) throw new Error('A selected detachment reference is unavailable.')
-        detachments.push({ ...detail, owner: detachmentRulesOwner(input.catalogueId, faction.slug, detachment!.slug) })
+        detachments.push({
+          ...detail,
+          id: detachment!.id,
+          owner: detachmentRulesOwner(input.catalogueId, faction.slug, detachment!.slug),
+        })
       }
       const cards = await client.query({
         ...detachmentRulesQuery(
@@ -84,13 +97,33 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               staleTime: 0,
             })
             if (!sheets?.selected || !sheets.available) throw new Error(`The reference for ${unit.name} is unavailable.`)
-            return { ...unit, attachedTo: pick?.attachedTo, sheets }
+            return { ...unit, attachedTo: pick?.attachedTo, sheets, specials: printSpecials(unit) }
           }),
         )
         units.push(...batch)
       }
       if (units.length !== input.picks.length)
         throw new Error('Some roster selections could not be built. Review the roster before printing.')
+      const groups = attachedUnitList(units)
+      const embarks = new Map<number, { name: string; key: number; number: number }>()
+      if (input.picks.some((pick) => pick.embarkedIn !== undefined)) {
+        const details = await client.query({
+          ...unitBattleDetailsQuery(
+            input.catalogueId,
+            picks.map((pick) => pick.entryId),
+          ),
+          staleTime: 0,
+        })
+        if (!details?.length) throw new Error('Starting transports could not be checked.')
+        const fielded = startingEmbarks(fieldedUnits(frozenUnits(input.picks, units, details)))
+        const keys = new Map(fielded.map((unit, at) => [unit.key, units[at]!.key]))
+        const printed = new Map(groups.map(({ host }, at) => [host.key, { name: host.name, key: host.key, number: at + 1 }]))
+        for (const unit of fielded) {
+          if (!unit.embarkedIn) continue
+          const transport = printed.get(keys.get(unit.embarkedIn)!)
+          if (transport) embarks.set(keys.get(unit.key)!, transport)
+        }
+      }
       signal.throwIfAborted()
       const checked = await client.query({
         ...priceQuery(
@@ -107,7 +140,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       })
       if (!checked || checked.revision !== input.price.revision || checked.points !== input.price.points)
         throw new Error('The army data changed while preparing the pack. Return to the roster and print again.')
-      return { faction, detachments, cards, groups: attachedUnitList(units) }
+      return { faction, detachments, cards, groups: groups.map((group) => ({ ...group, transport: embarks.get(group.host.key) })) }
     },
   })
 
@@ -135,13 +168,14 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
   // Every rule the pack draws, so printing can wait until the device has each one's summary.
   const printedTexts = (pack: Pack) => [
     ...pack.groups.flatMap(({ host, joined }) =>
-      [host, ...joined].flatMap(({ sheets }) => [
+      [host, ...joined].flatMap(({ sheets, specials }) => [
         ...sheets.selected!.abilities.flatMap((ability) =>
           ability.kind !== 'core' && ability.kind !== 'faction' && ability.description ? [ability.description] : [],
         ),
         ...ruleProfileSections(sheets.selected!.profiles).flatMap((section) =>
           section.profiles.flatMap((profile) => (weaponShapedProfile(profile) ? [] : profile.values.map((value) => value.value))),
         ),
+        ...specials.flatMap(({ option }) => (option?.description && !option.vsDataId ? [option.description] : [])),
       ]),
     ),
     ...pack.faction.armyRules.map((rule) => rule.description),
@@ -150,8 +184,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     ),
     ...referencedRulesOf(pack).map((rule) => rule.description),
   ]
-  // And every card it prints by VS Data id: its detachment rules and Stratagems.
+  // And every card it prints by VS Data id.
   const printedIds = (pack: Pack) => [
+    ...pack.groups.flatMap(({ host, joined }) =>
+      [host, ...joined].flatMap(({ specials }) => specials.flatMap(({ option }) => (option?.vsDataId ? [option.vsDataId] : []))),
+    ),
     ...pack.detachments.flatMap((detachment) => detachment.rules.flatMap((rule) => (rule.vsDataId ? [rule.vsDataId] : []))),
     ...[...pack.cards.core, ...pack.cards.stratagems].map((stratagem) => currentStratagemId(stratagem.key)),
   ]
@@ -188,10 +225,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
 
   const stratagems = [...data.cards.core, ...data.cards.stratagems]
   const referencedRules = referencedRulesOf(data)
+  const budget = pointsBudgetOf(input)
   const warnings = [
     ...(input.draft ? ['Unsaved draft on this device.'] : []),
     ...(input.price.errors.length ? ['Resolve roster validation messages before playing this list.'] : []),
-    ...(input.price.points > pointsBudgetOf(input) ? ['Over the points limit.'] : []),
+    ...(enforces(input.waivedRules, 'points-limit') && input.price.points > budget ? ['Over the points limit.'] : []),
     ...(input.price.unhandled.length ? ['Some restrictions could not be checked. Read the source rules before playing.'] : []),
     ...waivedFormatRules(input.limit, input.waivedRules, input.pointsBudget).map((rule) => `Waived rule: ${rule.label}`),
     ...pickedOptionalRules(input.limit, input.optionalRules).map((rule) => `Optional rule: ${rule.label}`),
@@ -221,7 +259,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             {input.price.disposition
               ? ` · ${factionDisposition(data.faction, input.price.disposition)?.name ?? input.price.disposition}`
               : ''}{' '}
-            · {countLabel(data.groups.length, 'unit')} ·{' '}
+            · {input.price.points} / {budget} pts · {countLabel(data.groups.length, 'unit')} ·{' '}
             {countLabel(
               input.price.units.reduce((count, unit) => count + unit.size.models, 0),
               'model',
@@ -248,7 +286,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             . Records the army at printing time; reference data can change.
           </p>
         </header>
-        {data.groups.map(({ host, joined }, index) => (
+        {data.groups.map(({ host, joined, transport }, index) => (
           <section className="pack-unit" id={`pack-unit-${host.key}`} key={host.key} data-print-unit={host.name}>
             {[host, ...joined].map((unit) => (
               <article key={unit.key} className="pack-sheet" data-print-datasheet={unit.name}>
@@ -263,6 +301,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                     {unit === host ? '' : ` · ${ATTACHMENT_LABELS[unit.attachment?.kind ?? 'support'].joining} ${title(host)}`}
                   </p>
                 </header>
+                {unit === host && transport ? (
+                  <p className="pack-embark" data-print-embark>
+                    <span>Starts embarked in</span> {title(transport)} (unit {transport.number})
+                  </p>
+                ) : null}
                 {unit.wargear.length ? (
                   <p className="pack-wargear">
                     <span>Wargear</span> {unit.wargear.map((piece) => `${piece.count}× ${piece.name}`).join(', ')}
@@ -274,6 +317,24 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   </p>
                 ) : null}
                 <UnitPrintDatasheet catalogueId={input.catalogueId} sheet={unit.sheets.selected!} />
+                {unit.specials.map(({ name, label, option }) => (
+                  <section key={`${label}:${name}`} className="pack-rule" data-print-special={name}>
+                    <h3>
+                      {name} ({label})
+                    </h3>
+                    <DatasheetUnit.Provider
+                      value={data.detachments.find((detachment) => detachment.id === option?.detachment)?.owner ?? null}
+                    >
+                      {option?.vsDataId ? (
+                        <SummaryById catalogueId={input.catalogueId} id={option.vsDataId} className={PRINTED_RULE} />
+                      ) : option?.description ? (
+                        <RuleText text={option.description} name={name} className={PRINTED_RULE} />
+                      ) : (
+                        <SummaryByName name={name} className={PRINTED_RULE} />
+                      )}
+                    </DatasheetUnit.Provider>
+                  </section>
+                ))}
               </article>
             ))}
           </section>
@@ -358,6 +419,16 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       </div>
     </div>
   )
+}
+
+function printSpecials(unit: Price['units'][number]) {
+  const selected = (kind: 'enhancement' | 'upgrade', label: string, names: readonly string[]) => {
+    const options = unit.choices
+      .filter((choice) => choice.kind === kind)
+      .flatMap((choice) => choice.options.filter((option) => option.count > 0))
+    return names.map((name) => ({ name, label, option: options.find((option) => routeSlug(option.name) === routeSlug(name)) }))
+  }
+  return [...selected('enhancement', 'Enhancement', unit.enhancements), ...selected('upgrade', 'Upgrade', unit.upgrades)]
 }
 
 /** A unit's printed datasheet, its abilities finding their summaries through the unit where their text alone does not. */

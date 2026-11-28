@@ -341,7 +341,7 @@ function vsSpecials(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>): 
   const names = enhancement ? [enhancement.name] : []
   return {
     enhancements: enhancement?.data.type === 'upgrade' ? [] : names,
-    upgrades: enhancement?.data.type === 'upgrade' ? names : [],
+    upgrades: enhancement?.data.type === 'upgrade' ? names.map(withoutUpgrade) : [],
     specialSelections: new Set(names.map(routeSlug)),
   }
 }

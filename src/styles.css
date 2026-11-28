@@ -567,6 +567,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     }
   }
   .pack-kicker,
+  .pack-embark > span,
   .pack-wargear > span,
   .pack-note > span,
   .pack-keywords > span {
@@ -629,6 +630,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     font-size: 8pt;
     text-align: center;
   }
+  .pack-embark,
   .pack-wargear,
   .pack-note,
   .pack-keywords {
