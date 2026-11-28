@@ -400,8 +400,11 @@ for (const [entryId, catalogueId] of listing) {
     }
     takes.forEach((one, at) =>
       takes.slice(at + 1).forEach((other) => {
-        if (one.option === other.option) return
-        const both = vsWithChoice(definitions, one.once, other.option, { [other.choice]: 1 })
+        // Two choices of one option are taken together in it, as a Tankbusta squad's pulsa rokkit beside a busta rokkit launcha.
+        const both =
+          one.option === other.option
+            ? vsWithChoice(definitions, first, one.option, { [one.choice]: 1, [other.choice]: 1 })
+            : vsWithChoice(definitions, one.once, other.option, { [other.choice]: 1 })
         const missing = lost(both, [...one.gives, ...other.gives])
         if (missing.length) changing.push(`${one.choice} with ${other.choice}, which loses ${missing.join(', ')}`)
       }),
