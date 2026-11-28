@@ -46,6 +46,10 @@ it('writes a model’s plural as English does', () => {
       'Lictor Swarm',
       'Scout Sentry',
       'Hunting Wolf',
+      'Deathwing Terminators',
+      'Beast of Nurgle',
+      'Assault Intercessor with Jump Pack',
+      'Fellgor Beastmen',
     ].map(pluralModel),
   ).toEqual([
     'Ork Boys',
@@ -57,5 +61,9 @@ it('writes a model’s plural as English does', () => {
     'Lictor Swarms',
     'Scout Sentries',
     'Hunting Wolves',
+    'Deathwing Terminators',
+    'Beasts of Nurgle',
+    'Assault Intercessors with Jump Packs',
+    'Fellgor Beastmen',
   ])
 })

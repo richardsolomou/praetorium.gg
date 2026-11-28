@@ -27,14 +27,23 @@ export const listed = <T>(items: readonly T[], last = 'or', comma = ','): (T | s
 export const counted = (items: readonly (readonly [string, number])[]) =>
   items.map(([name, count]) => (count === 1 ? name : `${count} × ${name}`))
 
-/** A model's name for more than one of it, as a datasheet writes "5–10 Immortals" or "2 Canoptek Wraiths". */
+/**
+ * A model's name for more than one of it, as a datasheet writes "5–10 Immortals", "3 Beasts of Nurgle" or "4–9 Assault
+ * Intercessors with Jump Packs": the word before an "of", "with" or "on" takes the plural, as does the one thing a "with"
+ * or "on" names, and a word ending in "s" or "en" keeps its spelling, as VS Data writes some names in the plural already.
+ */
 export function pluralModel(name: string) {
-  const [, head = '', last = ''] = /^(.*?)(\S+)$/.exec(name) ?? []
-  if (/(?:man)$/i.test(last)) return `${head}${last.slice(0, -2)}en`
-  if (/[^aeiou]y$/i.test(last)) return `${head}${last.slice(0, -1)}ies`
-  if (/lf$/i.test(last)) return `${head}${last.slice(0, -1)}ves`
-  if (/(?:s|x|z|ch|sh)$/i.test(last)) return `${head}${last}es`
-  return `${name}s`
+  const [, head = '', last = '', joint = '', tail = ''] = /^(.*?)(\S+)(?:( (?:of|with|on) )(.*))?$/.exec(name) ?? []
+  const plural = (word: string) => {
+    if (/(?:s|en)$/i.test(word)) return word
+    if (/man$/i.test(word)) return `${word.slice(0, -2)}en`
+    if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`
+    if (/lf$/i.test(word)) return `${word.slice(0, -1)}ves`
+    if (/(?:x|z|ch|sh)$/i.test(word)) return `${word}es`
+    return `${word}s`
+  }
+  const single = joint !== ' of ' && !/,| and /.test(tail)
+  return `${head}${plural(last)}${joint}${single ? tail.replace(/\S+$/, plural) : tail}`
 }
 
 /**
@@ -45,7 +54,10 @@ export function pluralModel(name: string) {
 export function unitComposition(
   unit: Pick<VsDataUnit, 'sizes' | 'defaultModels'> & { models: readonly Pick<VsDataUnit['models'][number], 'name' | 'min' | 'max'>[] },
 ): Line[] {
-  const lines = unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
+  const lines = unit.models.map((model) => {
+    const name = model.name.replace(/[.,;:]+$/, '')
+    return line(`${range(model.min, model.max)} ${model.max === 1 ? name : pluralModel(name)}`)
+  })
   if (!unit.sizes.length) return lines
   const sizes = [...new Set(unit.sizes)].toSorted((left, right) => left - right)
   const [fewest, most] = [sizes[0]!, sizes.at(-1)!]
