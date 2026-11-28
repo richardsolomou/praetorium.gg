@@ -22,9 +22,9 @@ const bookOf = (catalogueId: string) => catalogueId.slice(catalogueId.indexOf('~
  * files every Space Marine chapter under one, which would name a chapter's list by the whole army.
  */
 function soleVsFaction(loaded: LoadedCatalogue, catalogueId: string) {
-  const books = loaded.vsRoster?.books
-  const id = books?.[bookOf(catalogueId)]
-  return id && loaded.factions.filter((faction) => books[bookOf(faction.id)] === id).length <= 1 ? id : undefined
+  const filed = loaded.vsRoster?.books
+  const id = filed?.[bookOf(catalogueId)]
+  return id && loaded.factions.filter((faction) => filed[bookOf(faction.id)] === id).length <= 1 ? id : undefined
 }
 
 export function vsFactionName(loaded: LoadedCatalogue, catalogueId: string) {
