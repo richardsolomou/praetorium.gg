@@ -56,7 +56,7 @@ it('appends catalogue-only keyword definitions to detachment rule cards', () => 
   expect(detachmentReference(loaded, rules, 'cat', 'armoured-infantry')?.rules).toEqual([
     { name: 'Squadron Command', description: 'Card command.' },
     { name: 'Order', description: 'On My Signal.' },
-    { name: 'Keywords', description: 'Units gain the Armoured Skirmisher keyword.' },
+    { bsdataId: 'keywords', name: 'Keywords', description: 'Units gain the Armoured Skirmisher keyword.' },
   ])
 })
 
@@ -415,4 +415,59 @@ it('shows an enhancement VS Data prices under another name once, by its VS Data 
   expect(detachmentReference(loaded, rules, 'cat', 'black-spear-task-force')?.enhancements).toEqual([
     { name: 'The Thief of Secrets', points: 10, description: null, vsDataId: thief },
   ])
+})
+
+it('prices an Enhancement a VS Data-priced Detachment leaves out at the field manual’s points, before the card’s', () => {
+  const loaded = bookOf({
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [{ id: 'black-spear', name: 'Black Spear Task Force', type: 'upgrade' }],
+          },
+        ],
+      },
+    ],
+  })
+  loaded.vsPoints = {
+    books: {},
+    factions: {},
+    units: {},
+    detachments: { 'black-spear': { faction: 'deathwatch', name: 'Black Spear Task Force', dp: 1, enhancements: [] } },
+  }
+  loaded.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.6',
+        units: [],
+        detachments: [{ name: 'Black Spear Task Force', dp: 1, enhancements: [{ name: 'Thief of Secrets', points: 20 }] }],
+      },
+    ],
+  ])
+  const detail = {
+    id: 'black-spear-task-force',
+    name: 'Black Spear Task Force',
+    points: 1,
+    dispositions: [],
+    rules: [],
+    enhancements: [{ name: 'Thief of Secrets', points: 15, description: null, eligibility: null }],
+    upgrades: [],
+    stratagems: [],
+  }
+  const rules = {
+    attribution: 'Community data',
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map([['test-catalogue', new Map([['black-spear-task-force', detail]])]]),
+    dispositions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'cat', 'black-spear-task-force')?.enhancements[0]?.points).toBe(20)
 })

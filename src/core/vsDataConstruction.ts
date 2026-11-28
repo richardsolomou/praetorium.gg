@@ -24,7 +24,8 @@ export type VsDataConstruction = z.infer<typeof vsDataConstructionSchema>
 /** How many of each wargear ID. */
 export type Counts = Record<string, number>
 /** Holds for a roster of `faction`, with `detachment`, whose units name `warlord`; `allegiance` only for the unit that took it. */
-export type When = { faction?: string; detachment?: string; warlord?: string; allegiance?: string }
+/** `allegiance` and `wargear` hold only in a unit's conditional keywords, for a unit that took that allegiance or carries that wargear. */
+export type When = { faction?: string; detachment?: string; warlord?: string; allegiance?: string; wargear?: string }
 type RosterBounds = { min?: number; max?: number }
 export type UnitLimit = RosterBounds & { keywords: string[]; detachments?: (RosterBounds & { detachment: string })[] }
 export type AllyLimit = { keywords: string[]; battleSize: string; max: number; free?: { keywords: string[]; per: string[] }[] }
@@ -80,7 +81,8 @@ export type OptionGroup = {
 export type UnitData = {
   faction: string
   keywords: string[]
-  conditionalKeywords?: { keywords: string[]; when: When }[]
+  /** Keywords the unit holds where `when` holds, in place of those of its own `keywords` named in `replaces`. */
+  conditionalKeywords?: { keywords: string[]; replaces?: string[]; when: When }[]
   sizes: number[]
   compositions?: Record<string, Bounds>[]
   modelGroups?: (ModelCountBounds & { models: string[] })[]
@@ -150,11 +152,32 @@ export type ConditionalAttachment = {
   role: 'leads' | 'supports'
   units?: string[]
   keywords?: string[]
+  excludedKeywords?: string[]
   when?: { faction?: string; detachment?: string; withoutDetachment?: string; withUnit?: string; withoutUnit?: string }
   shared?: string
 }
-/** The units `unit` may join as a Leader or a support attachment, in any roster or only under `conditional`. */
-export type AttachmentData = { unit: string; leads?: string[]; supports?: string[]; conditional?: ConditionalAttachment[]; gaps?: Gap[] }
+/**
+ * The units `unit` may join as a Leader or a support attachment, in any roster or only under `conditional`; as a
+ * bodyguard, the units it stands in for (`insteadOf`) and the attachments it takes (`capacity`); as a leader, the
+ * bodyguards it leads beside another leader (`withAnotherLeader`); and the units it joins outside those roles (`joins`).
+ */
+export type AttachmentData = {
+  unit: string
+  leads?: string[]
+  supports?: string[]
+  conditional?: ConditionalAttachment[]
+  insteadOf?: { units: string[]; role?: 'leads' | 'supports'; keywords?: string[]; excludedKeywords?: string[] }[]
+  capacity?: {
+    leads?: number
+    supports?: number
+    startingStrength?: number
+    distinct?: true
+    limits?: { keywords: string[]; max: number }[]
+  }
+  withAnotherLeader?: { units: string[]; besideUnits?: string[]; besideKeywords?: string[] }[]
+  joins?: { units?: string[]; keywords?: string[]; ledBy?: string[]; required?: true; exclusive?: string[] }[]
+  gaps?: Gap[]
+}
 /** One allowance of a load: up to `limit` models or units matching any of `selectors`, each a keyword or a run of them. */
 export type TransportPool = { limit: number; count: 'models' | 'units'; selectors: string[]; maxWounds?: number }
 /** The transport's alternative loads, refusals, places a model takes, and pools that replace the first with some wargear. */
@@ -204,7 +227,8 @@ export type DefinitionKind = keyof DataOf
 export type Definition<K extends DefinitionKind = DefinitionKind> = { id: string; name: string; data: DataOf[K] }
 
 type OrUnresolved<T> = T | { unresolved: string }
-export type PointsCost = { models: number; composition?: string; points: OrUnresolved<number> }
+/** A cost row; `mix` gives the count of each model, by model ID, of a row priced by the models it holds. */
+export type PointsCost = { models: number; composition?: string; mix?: Readonly<Record<string, number>>; points: OrUnresolved<number> }
 export type PointsUnit = {
   id: string
   name: string

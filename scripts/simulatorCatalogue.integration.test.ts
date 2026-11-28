@@ -324,7 +324,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
         attacker: offered(gaunts(), warriors, 'attacker'),
         defender: offered(gaunts(), warriors, 'defender'),
         synapse: fight(gaunts('Within Synapse Range'), warriors).melee() > fight(gaunts(false), warriors).melee(),
-      }).toEqual({ attacker: ['Synapse', 'Adrenal Surge'], defender: ['Rapid Regeneration'], synapse: true })
+      }).toEqual({ attacker: ['Synapse', 'Adrenal Surge', 'Hyper-adaptations'], defender: ['Rapid Regeneration'], synapse: true })
     })
 
     it("a Spiritseer's Spirit Mark gives Wraithguard Sustained Hits 1 in both phases, and only as attacker", () => {

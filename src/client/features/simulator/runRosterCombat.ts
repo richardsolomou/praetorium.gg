@@ -77,15 +77,14 @@ export async function runRosterCombat({
     const positions = rosters.map(() => 0)
     return indices.map(({ rosterIndex, pickIndex }): RosterCombatUnit => {
       const roster = rosters[rosterIndex]!
-      const pick = roster.picks[pickIndex]!
       const data = projections[rosterIndex]![positions[rosterIndex]!]!
       positions[rosterIndex]! += 1
       const owner = roster.owner ? { owner: roster.owner } : {}
       try {
         if (!data) throw new Error('This unit could not be loaded under the roster’s selected rules.')
         if ('error' in data) throw new Error(data.error)
-        if (pick.models !== undefined && data.models !== pick.models)
-          throw new Error(`This unit cannot field ${pick.models} models under its selected rules. Use a legal model count.`)
+        if (data.refusedModels !== undefined)
+          throw new Error(`This unit cannot field ${data.refusedModels} models under its selected rules. Use a legal model count.`)
         return {
           rosterIndex,
           pickIndex,

@@ -66,8 +66,10 @@ export type WrittenAbilityGrant =
       linked?: true
       /** The attacks the ability is limited to, as "against Psychic Attacks". */
       condition?: string
+      /** Applies only under a further condition the rule's summary alone states, as a distance. */
+      conditional?: true
     }
-  | { name: string; recipient: 'models'; models: string }
+  | { name: string; recipient: 'models'; models: string; condition?: string; conditional?: true }
 export type AbilityGrantStatement = { matched: boolean; grants: WrittenAbilityGrant[] }
 /**
  * An ability a rule gives up to `count` units the player picks as the battle begins, each matching one of `recipients`

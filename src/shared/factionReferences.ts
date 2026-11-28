@@ -1,4 +1,6 @@
 import { vsDataWithoutDetachments } from './vsDataLegality'
+import { battleSizesOf } from './vsDataBuild'
+import type { BattleSize } from '../core/battleFormat'
 import { offeredDetachments } from './vsDataOffers'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
@@ -167,9 +169,28 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
   return cache.full
 }
 
+/** The battle sizes a rules version records, served with its full factions; optional, as data a device saved before has none. */
+function battleSizesFor(loaded: LoadedCatalogue): { battleSizes?: readonly BattleSize[] } {
+  const battleSizes = battleSizesOf(loaded)
+  return battleSizes.length ? { battleSizes } : {}
+}
+
+/** Each rules version's battle sizes once, by edition id (`''` for a catalogue of none), rather than on every faction. */
+export function battleSizesByEdition(factions: readonly { edition?: { id: string } | null; battleSizes?: readonly BattleSize[] }[]) {
+  const found: Record<string, readonly BattleSize[]> = {}
+  for (const faction of factions) if (faction.battleSizes) found[faction.edition?.id ?? ''] ??= faction.battleSizes
+  return found
+}
+
+function battleSizesIndexOf(loaded: LoadedCatalogue): { battleSizes?: Record<string, readonly BattleSize[]> } {
+  const battleSizes = battleSizesByEdition([{ edition: loaded.edition, ...battleSizesFor(loaded) }])
+  return Object.keys(battleSizes).length ? { battleSizes } : {}
+}
+
 function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, catalogueIds?: ReadonlySet<string>) {
   return {
     revision: loaded.index.revision,
+    ...battleSizesIndexOf(loaded),
     factions: loaded.factions
       .filter((faction) => !catalogueIds || catalogueIds.has(faction.id))
       .map((faction) => factionSummary(loaded, rules, faction).summary),
@@ -199,6 +220,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
           ],
           referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
+          ...battleSizesFor(loaded),
           ...(without
             ? { withoutDetachments: { dispositions: without.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id })) } }
             : {}),

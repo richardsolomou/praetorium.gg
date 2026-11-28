@@ -64,7 +64,7 @@ describe('the picker', () => {
         ],
       })
     const started = book()
-    const construction = pickerConstruction(started, null, 'cat')
+    const construction = pickerConstruction(started, 'cat')
     construction.next()
     construction.next()
     expect(pickerUnitsFor(started, null, 'cat', '')).toEqual(pickerUnitsFor(book(), null, 'cat', ''))
@@ -549,58 +549,6 @@ describe('the picker', () => {
       Missing: 'other',
       Unsupported: 'other',
     })
-  })
-
-  it('omits datasheets excluded by faction rules', () => {
-    const book = bookOf({
-      selectionEntries: [
-        { id: 'allowed', name: 'Intercessor Squad', type: 'unit', costs: points(80) },
-        { id: 'excluded', name: 'Scout Squad', type: 'unit', costs: points(70) },
-      ],
-    })
-    expect(
-      unitsIn(book, 'cat', '', {
-        restrictions: { excludedNames: new Map([['scout squad', null]]), excludedKeywords: new Set() },
-      }).map((unit) => unit.name),
-    ).toEqual(['Intercessor Squad'])
-  })
-
-  it('omits datasheets excluded by a faction keyword rule', () => {
-    const book = bookOf({
-      selectionEntries: [
-        { id: 'marshal', name: 'Marshal', type: 'model', costs: points(80), categoryLinks: categories('Character') },
-        { id: 'librarian', name: 'Librarian', type: 'model', costs: points(90), categoryLinks: categories('Character', 'Psyker') },
-      ],
-    })
-    expect(
-      unitsIn(book, 'cat', '', {
-        restrictions: { excludedNames: new Map(), excludedKeywords: new Set(['psyker']) },
-      }).map((unit) => unit.name),
-    ).toEqual(['Marshal'])
-  })
-
-  it('omits one excluded by a keyword the data grants rather than links', () => {
-    // Legality reads the keywords a unit carries, so the picker has to read the same
-    // ones: offering a datasheet the roster will then refuse is the worse answer.
-    const book = bookOf({
-      categoryEntries: [{ id: 'psyker', name: 'Psyker' }],
-      selectionEntries: [
-        { id: 'marshal', name: 'Marshal', type: 'model', costs: points(80), categoryLinks: categories('Character') },
-        {
-          id: 'librarian',
-          name: 'Librarian',
-          type: 'model',
-          costs: points(90),
-          categoryLinks: categories('Character'),
-          modifiers: [{ type: 'add', field: 'category', value: 'psyker' }],
-        },
-      ],
-    })
-    expect(
-      unitsIn(book, 'cat', '', {
-        restrictions: { excludedNames: new Map(), excludedKeywords: new Set(['psyker']) },
-      }).map((unit) => unit.name),
-    ).toEqual(['Marshal'])
   })
 
   it('prices compulsory detachment upgrades and keeps setup caches separate', () => {

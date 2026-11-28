@@ -86,6 +86,8 @@ export {
   DEFAULT_GAME_LIMIT,
   GAME_SIZES,
   isGameSize,
+  type BattleSize,
+  battleSizeOf,
   detachmentPointBudget,
   isKotcLimit,
   POINTS_BUDGET_MIN,

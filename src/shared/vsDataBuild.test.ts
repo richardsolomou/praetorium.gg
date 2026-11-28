@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import type { RosterPick } from '../core/roster'
-import { buildPick } from './vsDataBuild'
+import { buildPick, vsPickKeywords } from './vsDataBuild'
+import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import { vsRosterData } from './vsDataLegality'
 
 const bounded = (min: number, max: number) => [
@@ -39,7 +40,10 @@ const vsRoster = vsRosterData(
     definitions: {
       faction: { host: record('Host', {}) },
       unit: { 'host.mob': record('Mob', { faction: 'host', keywords: ['INFANTRY'], sizes: [10, 20] }) },
-      model: { 'host.mob.grunt': record('Grunt', { unit: 'host.mob', min: 10, max: 20, wargear: {} }) },
+      model: {
+        'host.mob.grunt': record('Grunt', { unit: 'host.mob', min: 10, max: 20, wargear: {} }),
+        'host.mob.boss': record('Boss', { unit: 'host.mob', min: 0, max: 1, wargear: {}, keywords: ['CHARACTER'] }),
+      },
     },
   },
   { books: { 'bs-host': 'host' }, detachments: {}, units: { 'bs-mob': 'host.mob' }, enhancements: {} },
@@ -68,4 +72,35 @@ describe('a VS pick moved into this rules version', () => {
 
   it('builds by its catalogue choices where the version no longer holds them', () =>
     expect(built(undefined, { models: { 'host.mob.ghost': 10 }, options: {} })!.vs).toBeUndefined())
+})
+
+describe('a VS pick’s keywords', () => {
+  const keywordsOf = (models: Record<string, number>) =>
+    vsPickKeywords(
+      { index, vsRoster } as LoadedCatalogue,
+      { catalogueId: 'bs-host', detachmentIds: [], limit: 2000 },
+      [{ entryId: 'bs-mob', vs: built(undefined, { models, options: {} })!.vs }],
+      0,
+    )
+
+  it('take a fielded model’s own', () => expect(keywordsOf({ 'host.mob.grunt': 9, 'host.mob.boss': 1 })).toContain('Character'))
+
+  it('leave out those of a model it does not field', () => expect(keywordsOf({ 'host.mob.grunt': 10 })).not.toContain('Character'))
+})
+
+describe('a roster unit asked for a size', () => {
+  const fielded = (pick: RosterPick) =>
+    rosterDatasheetSelections({ index, vsRoster, detachments: new Map() } as unknown as LoadedCatalogue, {
+      catalogueId: 'bs-host',
+      detachmentIds: [],
+      picks: [pick],
+    }).unitSelections[0]
+
+  it('does not refuse a VS pick its saved catalogue size disagrees with', () =>
+    expect(
+      fielded({ entryId: 'bs-mob', models: 10, vs: { models: { 'host.mob.grunt': 20 }, options: {} } })?.refusedModels,
+    ).toBeUndefined())
+
+  it('refuses a size its catalogue build does not field', () =>
+    expect(fielded({ entryId: 'bs-mob', models: 15, vs: { models: { 'host.mob.ghost': 15 }, options: {} } })?.refusedModels).toBe(15))
 })

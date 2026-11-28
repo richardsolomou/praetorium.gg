@@ -7,8 +7,17 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
 import { vsMfmDetachment } from './vsDataPoints'
-import { enhancementKey, isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
+import {
+  enhancementKey,
+  fieldManualPricesEnhancement,
+  isUpgrade,
+  mfmAttribution,
+  mfmDetachmentFor,
+  mfmEnhancementPoints,
+  withoutUpgrade,
+} from './mfm'
 import { factionContentOf } from './factionNames'
+import { reminderIn } from './textFacts'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
@@ -19,12 +28,6 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
   const mfm = mfmDetachmentFor(loaded, catalogueId, option.name)
   const attribution = factionContentOf(loaded, faction.name)?.attribution
-  const sourceAttribution = [
-    attribution ? null : 'Catalogue data from BSData/wh40k-11e',
-    mfm && !vsMfmDetachment(loaded.vsPoints, option.id) ? mfmAttribution(loaded.mfm) : null,
-  ]
-    .filter(Boolean)
-    .join('. ')
   const reference = detachmentNamed(rules.detachmentReferences.get(rulesId), option.name)
   const cardEnhancements = detail?.enhancements ?? []
   const cardUpgrades = detail?.upgrades ?? []
@@ -57,7 +60,12 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     enhancements: allEnhancements,
     upgrades: allUpgrades,
   })
-  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail?.rules ?? [], detail?.absentRules)
+  // A rule only the catalogue prints carries its BSData id, by which VS Data's alias names its record.
+  const detachmentRuleCards: { name: string; description: string | null; vsDataId?: string; bsdataId?: string }[] = mergeDetachmentRules(
+    catalogueDetail?.rules ?? [],
+    detail?.rules ?? [],
+    detail?.absentRules,
+  )
   const enhancements = [
     ...allEnhancements.map((enhancement) => ({
       name: enhancement.name,
@@ -69,6 +77,20 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
       (forced) => !allEnhancements.some((enhancement) => enhancementKey(enhancement.name) === enhancementKey(forced.name)),
     ) ?? []),
   ].toSorted((left, right) => left.name.localeCompare(right.name))
+  const fieldManualPriced =
+    Boolean(mfm) &&
+    (!vsMfmDetachment(loaded.vsPoints, option.id) ||
+      [...allEnhancements, ...allUpgrades].some(
+        (card) =>
+          !priced.some((entry) => card.vsDataId !== undefined && entry.vsDataId === card.vsDataId) &&
+          fieldManualPricesEnhancement(mfm!, card.name),
+      ))
+  const sourceAttribution = [
+    attribution ? null : 'Catalogue data from BSData/wh40k-11e',
+    fieldManualPriced ? mfmAttribution(loaded.mfm) : null,
+  ]
+    .filter(Boolean)
+    .join('. ')
   const upgrades = allUpgrades.map((upgrade) => ({
     name: upgrade.name,
     points: pointsOf(upgrade),
@@ -82,7 +104,11 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     dispositions: (detail?.dispositions ?? (option.disposition ? [option.disposition] : [])).map(
       (disposition) => rules.dispositions?.get(disposition) ?? disposition,
     ),
-    rules: detachmentRuleCards,
+    // An alert for a rule suggests when VS Data says it acts, as a datasheet ability's does.
+    rules: detachmentRuleCards.map((rule) => {
+      const reminder = rule.description ? reminderIn(rule.description, loaded.index.textFacts) : undefined
+      return reminder ? { ...rule, reminder } : rule
+    }),
     enhancements,
     upgrades,
     stratagems: detail?.stratagems ?? [],

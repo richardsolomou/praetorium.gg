@@ -124,7 +124,7 @@ export const datasheetOfferedBy = createServerFn({ method: 'GET' })
       const offers = await Promise.all(
         data.catalogueIds.map(async (id) => {
           const loaded = await instance.catalogueFor(id)
-          return loaded ? booksOffering(loaded, await instance.rulesFor(id), data.entryId, [id]) : []
+          return loaded ? booksOffering(loaded, data.entryId, [id]) : []
         }),
       )
       return offers.flat()

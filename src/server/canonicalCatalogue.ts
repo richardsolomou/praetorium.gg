@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor, vsDataPriced } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 46 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 49 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -159,7 +159,9 @@ const canonicalDetachmentSchema = z.object({
   name: z.string(),
   points: z.number().nullable(),
   dispositions: z.array(z.string()),
-  rules: z.array(z.object({ name: z.string(), description: z.string().nullable(), vsDataId: z.string().optional() })),
+  rules: z.array(
+    z.object({ name: z.string(), description: z.string().nullable(), vsDataId: z.string().optional(), bsdataId: z.string().optional() }),
+  ),
   enhancements: z.array(
     z.object({ name: z.string(), points: z.number().nullable(), description: z.string().nullable(), vsDataId: z.string().optional() }),
   ),

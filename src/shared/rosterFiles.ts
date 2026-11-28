@@ -27,6 +27,7 @@ import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
 import { hasWarlordToggle, unitChoices, unitToggles, type UnitToggle } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
+import { wargearKey } from '../core/wargearNames'
 import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { nicknamedUnit } from '../core/unitNotes'
 import { battleScribeRoster } from './battleScribeRoster'
@@ -43,7 +44,7 @@ import {
 } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
-import { NO_IMPORT_NAMES, storedNames, type ImportNames } from './importNames'
+import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
   attachmentReason,
@@ -62,8 +63,10 @@ import {
   factionOfDatasheets,
   chapterOfDatasheets,
   enhancementDetachment,
+  vsEnhancementOption,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
+import { ARTICLE, SPELLINGS } from './wargearSpellings'
 import { datacardOf } from './datasheetJoin'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
@@ -402,6 +405,39 @@ const slug = (value: string) =>
 
 type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames; dataBuild?: number }
 
+/**
+ * Where each unit of a group that does not say which is its bodyguard goes: to the one other unit it can join, or of
+ * several, the one that joins nothing itself, as an Ogryn Bodyguard joins its Command Squad while the squad leads its
+ * regiment's troops. A unit that can join none joins the group's one bodyguard, and legality then judges it.
+ */
+export function groupHosts<T>(members: readonly T[], joins: (member: T, host: T) => boolean): Map<T, T> {
+  const candidates = new Map(members.map((member) => [member, members.filter((host) => host !== member && joins(member, host))]))
+  const roots = members.filter((member) => !candidates.get(member)!.length)
+  const hosts = new Map<T, T>()
+  for (const [member, found] of candidates) {
+    const host = found.length === 1 ? found[0] : onlyOne(found.filter((candidate) => roots.includes(candidate)))
+    if (host !== undefined) hosts.set(member, host)
+  }
+  const rootOf = (member: T) => {
+    const seen = new Set<T>()
+    let at = member
+    while (hosts.has(at)) {
+      if (seen.has(at)) return undefined
+      seen.add(at)
+      at = hosts.get(at)!
+    }
+    return at
+  }
+  const reached = new Set([...hosts.keys()].map(rootOf))
+  // Two units that each join only the other leave the group as it was written.
+  if (reached.has(undefined)) return new Map()
+  const bodyguard = reached.size === 1 ? [...reached][0] : undefined
+  if (bodyguard !== undefined) for (const root of roots) if (root !== bodyguard) hosts.set(root, bodyguard)
+  return hosts
+}
+
+const onlyOne = <T>(found: readonly T[]) => (found.length === 1 ? found[0] : undefined)
+
 function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[], spellings: Spellings) {
   const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
@@ -475,11 +511,12 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       : unit.name
   // A datasheet answers to every name BSData gave it, which New Recruit prints, as frozen; the official app's names are read
   // through VS Data below.
-  const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) => {
-    const definition = loaded.index.definitions.get(id)
-    const own = storedNames(appNames.datasheetNames, loaded, id) ?? (definition ? [nameOf(definition, loaded.index.definitions)] : [])
-    return own.map((name) => ({ id, name: normalized(name) }))
-  })
+  const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) =>
+    frozenNames(appNames.datasheetNames, loaded, id, () => {
+      const definition = loaded.index.definitions.get(id)
+      return definition ? [nameOf(definition, loaded.index.definitions)] : []
+    }).map((name) => ({ id, name: normalized(name) })),
+  )
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
   // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
   // A list can also name it after its faction, as 40k.app's "Chaos Warhound Titan" is a Chaos army's "Warhound Titan".
@@ -565,7 +602,6 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   takeEnhancementsOnce(units, loaded.index, detachmentSelections)
   assumeWarlord(units)
   attachTextUnits(parsed.units, units, sourceToImported)
-  // A group that does not say which unit is its bodyguard joins the one unit of it another can join; legality then judges the rest.
   const joins = (member: { entryId: string }, host: { entryId: string }) => {
     const leader = loaded.index.definitions.get(member.entryId)
     const bodyguard = loaded.index.definitions.get(host.entryId)
@@ -579,9 +615,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const grouped = [...sourceToImported].filter(([source]) => parsed.units[source]!.group !== undefined)
   for (const members of groupBy(grouped, ([source]) => parsed.units[source]!.group).values()) {
     const picks = members.map(([, imported]) => units[imported]!)
-    const hosts = picks.filter((host) => picks.some((member) => member !== host && joins(member, host)))
-    if (hosts.length !== 1) continue
-    for (const member of picks) if (member !== hosts[0] && member.attachedTo === undefined) member.attachedTo = units.indexOf(hosts[0]!)
+    for (const [member, host] of groupHosts(picks, joins)) if (member.attachedTo === undefined) member.attachedTo = units.indexOf(host)
   }
   // Omitted units shift saved positions, so attachments are resolved after matching.
   const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))
@@ -796,20 +830,26 @@ function detachmentsNamed<T extends { id: string; name: string }>(
   appNames: ImportNames,
   loaded: LoadedCatalogue,
 ): T[] {
+  const english = new Map(options.map((option) => [option, frozenNames(appNames.detachmentNames, loaded, option.id, () => [option.name])]))
+  // A Detachment answers to the names BSData gave its stored ID, as frozen, and to VS Data's names of the Detachment that ID stands for.
   const names = new Map(
     options.map((option) => [
       option,
       [
         ...new Set(
-          (storedNames(appNames.detachmentNames, loaded, option.id) ?? [option.name])
-            .flatMap(detachmentNameVariants)
-            .flatMap((name) => [...translationsOf(name, translations), ...(appNames.detachments.get(normalized(name)) ?? [])])
-            .map(normalized),
+          [
+            ...english
+              .get(option)!
+              .flatMap(detachmentNameVariants)
+              .flatMap((name) => translationsOf(name, translations)),
+            ...(appNames.detachments.get(option.id) ?? []),
+          ].map(normalized),
         ),
       ],
     ]),
   )
-  const candidates = options.toSorted((left, right) => normalized(right.name).length - normalized(left.name).length)
+  const longest = (option: T) => Math.max(0, ...english.get(option)!.map((name) => normalized(name).length))
+  const candidates = options.toSorted((left, right) => longest(right) - longest(left))
   const visit = (remaining: string, available: readonly T[]): T[] | null => {
     for (const candidate of available) {
       for (const name of names.get(candidate)!) {
@@ -941,6 +981,20 @@ function textRosterPick(
   // Lines no model holds, which are the only ones that can name a body: a Terminator Champion's "Paired accursed weapons" is not a Terminator.
   const statedLines = new Map<string, number>()
   const respelled = respelledNames(entryId, loaded.index)
+  // The official app prints some wargear as VS Data spells it, as a Corsair Voidscarred's "Channeller Stones" for the
+  // catalogue's "Channeler stones": the one of this unit's names the reviewed spellings give that spelling. A spelling
+  // that is only the name in another number, as Termagants' "Termagant spinefists", is left unread, since reading it
+  // changes how the squad divides.
+  const vsSpelled = (label: string) => {
+    const key = wargearKey(label).replace(ARTICLE, '')
+    const names = [...new Set(respelled.values())].filter(
+      (name) =>
+        name !== null &&
+        !nameVariants(name).includes(normalized(label)) &&
+        [SPELLINGS[wargearKey(name).replace(ARTICLE, '')] ?? []].flat().includes(key),
+    )
+    return names.length === 1 ? names[0] : undefined
+  }
   const models = modelNames(entryId, loaded.index)
   // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle",
   // and the official app prefixes a model with a keyword of its unit, as a Cultist Mob's "Chaos Cultist" or a "World Eaters Terminator Champion".
@@ -982,6 +1036,13 @@ function textRosterPick(
     return undefined
   }
   const context = { primaryCatalogueId: catalogueId, roster }
+  // The official app can spell an Enhancement or upgrade otherwise, as Path of the Outcast's "Assassins' Eye" is BSData's
+  // "Assassin's Eye"; VS Data names it by the catalogue option it stands for.
+  const appEnhancement = (label: string) => {
+    const option = loaded.index.definitions.get(vsEnhancementOption(label, loaded, detachmentIds) ?? '')
+    const name = option && normalized(nameOf(option, loaded.index.definitions))
+    return name && (respelled.get(spellingKey(name)) ?? name)
+  }
   let manualNames: ReadonlyMap<string, string> | undefined
   const modelFor = new Map<string, string>()
   const defaultMelee = new Map<string, string | null>()
@@ -996,7 +1057,8 @@ function textRosterPick(
       (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
-      loadoutModel(label)
+      loadoutModel(label) ??
+      appEnhancement(label)
     )
   }
   // A list exported in another language names its wargear and enhancements in it, as the Spanish "Talismán del tormento".
@@ -1019,7 +1081,7 @@ function textRosterPick(
     resolved(label, enhancement) ??
     translated(label, enhancement) ??
     printed(label, enhancement) ??
-    normalized(printedAs(label)[0]?.[0] ?? label)
+    normalized(printedAs(label)[0]?.[0] ?? vsSpelled(label) ?? label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)

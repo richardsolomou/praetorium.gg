@@ -14,14 +14,14 @@ describe('the books that offer a datasheet', () => {
   )
 
   it('are the ones whose picker lists it', () => {
-    expect(booksOffering(shelf, null, 'squad', ['cat', 'cat-1'])).toEqual(['cat'])
+    expect(booksOffering(shelf, 'squad', ['cat', 'cat-1'])).toEqual(['cat'])
   })
 
   it('include the book of a Legends datasheet, whose page adds it like any other', () => {
-    expect(booksOffering(shelf, null, 'old', ['cat', 'cat-1'])).toEqual(['cat'])
+    expect(booksOffering(shelf, 'old', ['cat', 'cat-1'])).toEqual(['cat'])
   })
 
   it('exclude a book the catalogue does not hold', () => {
-    expect(booksOffering(shelf, null, 'squad', ['retired'])).toEqual([])
+    expect(booksOffering(shelf, 'squad', ['retired'])).toEqual([])
   })
 })

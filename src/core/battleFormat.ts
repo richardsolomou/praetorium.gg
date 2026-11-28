@@ -16,18 +16,38 @@ const KOTC_LIMITS = [600] as const
  * its owner cannot rebuild.
  */
 const RETIRED_KOTC_LIMITS = [500] as const
+/**
+ * The Enhancements a King of the Colosseum roster may hold. No official source states it, so Praetorium follows Play On
+ * Tabletop's guidance to play the format's construction by the Incursion rules, which allow 2.
+ */
+export const KOTC_ENHANCEMENTS = 2
 export const DEFAULT_GAME_LIMIT = 2000
 
 /** The matched-play game sizes, smallest first; saved rosters and battle commands store these limits, so mission-pack size records never replace them. */
 export const GAME_SIZES = [
-  ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
-  { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
-  { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
-  { name: 'Onslaught', limit: 3000, detachmentPoints: 3 },
+  ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit })),
+  { name: 'Incursion', limit: 1000 },
+  { name: 'Strike Force', limit: 2000 },
+  { name: 'Onslaught', limit: 3000 },
 ] as const
 
 export const isGameSize = (limit: number | null) => GAME_SIZES.some((size) => size.limit === limit)
-export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
+
+/** What a battle size allows, as a rules version's VS Data `battle-size` record states it. */
+export type BattleSize = { points: number; detachmentPoints?: number; enhancements?: number }
+
+/** What a size allows where the list's rules version has no record of it, or the caller has none to read. */
+const UNRECORDED_SIZES: readonly BattleSize[] = [
+  { points: 1000, detachmentPoints: 2 },
+  { points: 2000, detachmentPoints: 3 },
+  { points: 3000, detachmentPoints: 3 },
+]
+
+/** The battle size a list of `limit` points is played at: its rules version's record, else the unrecorded allowances. */
+export const battleSizeOf = (limit: number, sizes: readonly BattleSize[] = []): BattleSize | undefined =>
+  sizes.find((size) => size.points === limit) ?? UNRECORDED_SIZES.find((size) => size.points === limit)
+
+export const detachmentPointBudget = (limit: number, sizes?: readonly BattleSize[]) => battleSizeOf(limit, sizes)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean =>
   limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
 
@@ -90,6 +110,7 @@ export const FORMAT_RULE_IDS = [
   'warlord',
   'kotc-infantry',
   'kotc-warlord',
+  'kotc-enhancements',
   'kotc-epic-heroes',
   'kotc-toughness',
   'kotc-datasheet-copies',
@@ -115,7 +136,7 @@ export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
   hasUnitKeyword(keywords, 'battleline') || hasUnitKeyword(keywords, 'dedicated transport')
 
 /** What this battle size restricts, in the order a player reads it. */
-export function formatRules(limit: number | null, pointsBudget?: number | null): FormatRule[] {
+export function formatRules(limit: number | null, pointsBudget?: number | null, sizes?: readonly BattleSize[]): FormatRule[] {
   if (limit === null) return []
   const pointsLimit: FormatRule = {
     id: 'points-limit',
@@ -128,6 +149,7 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
       { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
       { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
       { id: 'kotc-warlord', label: 'Character Warlord', hint: 'Exactly one Character unit is named as the Warlord' },
+      { id: 'kotc-enhancements', label: 'Two Enhancements', hint: `The roster holds at most ${KOTC_ENHANCEMENTS} Enhancements` },
       { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
       { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
       {
@@ -138,7 +160,7 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
     ]
   }
   const warlord: FormatRule = { id: 'warlord', label: 'Warlord', hint: 'Exactly one Character unit is named as the Warlord' }
-  const budget = detachmentPointBudget(limit)
+  const budget = detachmentPointBudget(limit, sizes)
   return budget === null
     ? [pointsLimit, warlord]
     : [
@@ -160,7 +182,8 @@ export const waivedFormatRules = (
   limit: number | null,
   waived: readonly string[] | undefined,
   pointsBudget?: number | null,
-): FormatRule[] => formatRules(limit, pointsBudget).filter((rule) => !enforces(waived, rule.id))
+  sizes?: readonly BattleSize[],
+): FormatRule[] => formatRules(limit, pointsBudget, sizes).filter((rule) => !enforces(waived, rule.id))
 
 export function kotcUnitExclusions(
   unit: { keywords: readonly string[]; toughness: number | null },

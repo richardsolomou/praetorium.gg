@@ -18,7 +18,7 @@ import {
 } from './canonicalCatalogue'
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from '../shared/datacards'
 import type { SelectionEntry } from '../core/catalogue'
-import { type LoadedRules, RULES_DATA_ATTRIBUTION } from '../shared/rules'
+import type { LoadedRules } from '../shared/rules'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
 
@@ -189,7 +189,7 @@ describe('canonical catalogue', () => {
     const sheet = compileCanonicalCatalogue(loaded, revisions, rules).datasheets[0]
 
     expect(sheet?.provenance.fields.abilities.sources).toEqual(['definitions', 'datacards'])
-    expect(sheet?.attribution).toBe(RULES_DATA_ATTRIBUTION)
+    expect(sheet?.attribution).toBe(DATACARDS_ATTRIBUTION)
   })
 
   it('reports uncertain joins and fields rather than guessing', () => {
