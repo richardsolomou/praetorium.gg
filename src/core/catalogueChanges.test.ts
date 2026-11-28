@@ -465,6 +465,20 @@ describe('the changes that reach a saved list', () => {
     expect(kinds(changesTouching(list(), 100, [replacement]))).toEqual(['datasheet-points'])
   })
 
+  const pantheon = recorded(
+    200,
+    source([sheet({ costs: [row('5', '80'), row('5', '100', { detachment: 'Pantheon of Woe' })] })]),
+    source([sheet({ costs: [row('5', '80'), row('5', '120', { detachment: 'Pantheon of Woe' })] })]),
+  )
+
+  it('ignores a points row for a Detachment the list does not hold', () => {
+    expect(changesTouching(list({ detachments: ['Gladius Task Force'] }), 100, [pantheon])).toEqual([])
+  })
+
+  it('reports a points row for a Detachment the list holds', () => {
+    expect(kinds(changesTouching(list({ detachments: ['Pantheon of Woe'] }), 100, [pantheon]))).toEqual(['datasheet-points'])
+  })
+
   it('ignores changes recorded before the list was last saved', () => {
     expect(changesTouching(list(), 200, [repriced])).toEqual([])
   })

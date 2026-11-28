@@ -44,7 +44,7 @@ import {
 } from '../core/battle'
 import { catalogueFactionName, factionDisplayName, vsFactionOf } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
-import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
+import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
   attachmentReason,
@@ -67,8 +67,10 @@ import {
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { ARTICLE, SPELLINGS } from './wargearSpellings'
-import { type ImportVsMaps, withImportedVsPicks } from './importedVsPicks'
+import { type ImportVsMaps, vsFixedWargearNames, withImportedVsPicks } from './importedVsPicks'
 import { datacardOf } from './datasheetJoin'
+import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
+import { vsDataEnhancementOptions } from './vsDataLegality'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
@@ -183,8 +185,8 @@ export function importRosterCatalogueId(file: string) {
   return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
-/** What a text's faction is matched against: a book's catalogue name, and the VS Data faction it plays where it has one. */
-export type ImportFactionNames = { name: string; vsFaction?: { name: string } | null }
+/** What a text's faction is matched against: a book's frozen BSData names, and the VS Data faction it plays where it has one. */
+export type ImportFactionNames = { bookNames: readonly string[]; vsFaction?: { name: string } | null }
 
 /**
  * Whether a text's faction names this book: any name of the VS Data faction it plays, as "Heretic Astartes" and "Chaos Space
@@ -193,7 +195,7 @@ export type ImportFactionNames = { name: string; vsFaction?: { name: string } | 
  * still read too, as does a book whose VS Data faction is its parent's, as an earlier rules version's Salamanders book.
  */
 export function matchesImportFaction(stated: string, book: ImportFactionNames, translations: CatalogueTranslations = NO_TRANSLATIONS) {
-  if (matchesCatalogueName(stated, book.name, translations)) return true
+  if (book.bookNames.some((name) => matchesBookName(stated, name, translations))) return true
   if (!book.vsFaction) return false
   const wanted = new Set([stated, stated.split(' - ').at(-1)!].map(unaccented))
   // A faction's names are grouped together in the translations, and the community's translate each of them.
@@ -202,7 +204,7 @@ export function matchesImportFaction(stated: string, book: ImportFactionNames, t
     .some((name) => wanted.has(unaccented(name)))
 }
 
-function matchesCatalogueName(stated: string, name: string, translations: CatalogueTranslations) {
+function matchesBookName(stated: string, name: string, translations: CatalogueTranslations) {
   const wanted = new Set([stated, catalogueFactionName(stated)].map(unaccented))
   const leaf = name.split(' - ').at(-1) ?? ''
   return [...translationsOf(name, translations), ...translationsOf(leaf, translations)].some((candidate) =>
@@ -218,7 +220,7 @@ export const UNSUPPORTED_ARMY_TEXT = 'it is not a supported army-text export'
 export function importRosterFile(
   data: ImportRosterInput,
   loaded: LoadedCatalogue | null,
-  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  factionNames?: readonly string[],
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
@@ -248,7 +250,7 @@ export function matchParsedRoster(
   parsed: TextRoster,
   loaded: LoadedCatalogue | null,
   {
-    factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+    factionNames,
     translations = NO_TRANSLATIONS,
     removed = NO_REMOVALS,
     names = NO_IMPORT_NAMES,
@@ -274,7 +276,7 @@ export function importParsedRoster(
   parsed: TextRoster,
   format: RosterTextFormat,
   loaded: LoadedCatalogue | null,
-  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  factionNames?: readonly string[],
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
@@ -467,12 +469,19 @@ export function groupHosts<T>(members: readonly T[], joins: (member: T, host: T)
 
 const onlyOne = <T>(found: readonly T[]) => (found.length === 1 ? found[0] : undefined)
 
-function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[], spellings: Spellings) {
+function importTextRoster(
+  parsed: TextRoster,
+  loaded: LoadedCatalogue | null,
+  offeredNames: readonly string[] | undefined,
+  spellings: Spellings,
+) {
   const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
   const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
+  const bookNames = (book: LoadedCatalogue['factions'][number]) => frozenBookNames(appNames.bookNames, book.id, () => [book.name])
+  const factionNames = offeredNames ?? loaded?.factions.flatMap((book) => bookNames(book).slice(-1)) ?? []
   const stated = loaded?.factions.find((candidate) =>
-    matchesImportFaction(parsed.faction, { name: candidate.name, vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
+    matchesImportFaction(parsed.faction, { bookNames: bookNames(candidate), vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
   )
   // A list can state a chapter's parent faction, whose units then name the chapter.
   const names = parsed.units.map((unit) => unit.name)
@@ -552,7 +561,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
   // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
   // A list can also name it after its faction, as 40k.app's "Chaos Warhound Titan" is a Chaos army's "Warhound Titan".
-  const factionWords = new Set(normalized(faction.name).split(/[\s-]+/))
+  const factionWords = new Set(bookNames(faction).flatMap((name) => normalized(name).split(/[\s-]+/)))
   const spelled = (name: string) => name.replaceAll('defence', 'defense')
   // A retired datasheet can keep the current one's name, hidden until it moves to Legends, as the 200-point Marneus Calgar does.
   const shownFirst = (matches: typeof datasheets) =>
@@ -631,7 +640,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     return [read.pick]
   })
 
-  takeEnhancementsOnce(units, loaded.index, detachmentSelections)
+  takeEnhancementsOnce(units, loaded, detachmentIds, detachmentSelections)
   assumeWarlord(units)
   attachTextUnits(parsed.units, units, sourceToImported)
   const joins = (member: { entryId: string }, host: { entryId: string }) => {
@@ -675,7 +684,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   return {
     name: title,
     catalogueId: faction.id,
-    catalogueName: faction.name,
+    catalogueName: bookNames(faction).at(-1) ?? null,
     detachmentIds,
     disposition,
     limit,
@@ -777,11 +786,30 @@ export function assumeWarlord<T extends Crowned>(picks: readonly T[], errors?: (
  * An army takes each enhancement once, so a second character naming one another detachment also offers under that name,
  * as Exhibition of Slaughter and Spectacle of Spite both offer a Periapt of Torments, takes that detachment's.
  */
-function takeEnhancementsOnce(picks: readonly RosterPick[], index: LoadedCatalogue['index'], roster: readonly Selection[]) {
+function takeEnhancementsOnce(
+  picks: readonly RosterPick[],
+  loaded: LoadedCatalogue,
+  detachmentIds: readonly string[],
+  roster: readonly Selection[],
+) {
+  const { index } = loaded
+  // An option VS Data files as an Enhancement, not an Upgrade, of one of the list's Detachments is one; in a Detachment
+  // VS Data does not record, an option the catalogue prices as one.
+  const definitions = vsDefinitionsOf(loaded)
+  const upgrade = (option: string) =>
+    detachmentIds.some((id) => {
+      const vsId = loaded.vsRoster && loaded.vsRoster.enhancements[`${loaded.vsRoster.detachments[id]}/${option}`]
+      return vsId !== undefined && definitions?.get('enhancement', vsId)?.data.type === 'upgrade'
+    })
+  const filed = new Set([...vsDataEnhancementOptions(loaded.vsRoster, detachmentIds)].filter((option) => !upgrade(option)))
+  const unrecorded = detachmentIds.some((id) => !loaded.vsRoster?.detachments[id])
   const enhancementType = [...index.costTypes.values()].find((cost) => cost.name === ENHANCEMENT_COST)?.id
   const isEnhancement = (id: string) => {
+    if (filed.has(id)) return true
     const definition = index.definitions.get(id)
-    return Boolean(definition && resolve(definition, index).costs?.some((cost) => cost.typeId === enhancementType && cost.value > 0))
+    return Boolean(
+      unrecorded && definition && resolve(definition, index).costs?.some((cost) => cost.typeId === enhancementType && cost.value > 0),
+    )
   }
   const taken = new Set<string>()
   for (const pick of picks) {
@@ -946,8 +974,6 @@ const spellingKey = (name: string) =>
     .replaceAll('&', 'and')
     .replaceAll(/\s+with\s+/g, 'w/')
     .replaceAll(/[\s-]/g, '')
-// The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
-const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
 // The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
 const GENERIC_MELEE = spellingKey('close combat weapon')
 const CHAOS_GODS = ['khorne', 'nurgle', 'slaanesh', 'tzeentch']
@@ -965,7 +991,7 @@ function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalog
   const respelled = respelledNames(entryId, index)
   const known = (name: string) => {
     const key = spellingKey(normalized(name))
-    return respelled.has(key) || respelled.has(powerWeaponKey(key)) || key === GENERIC_MELEE
+    return respelled.has(key) || key === GENERIC_MELEE
   }
   const selections = unit.selections.flatMap((selection) => {
     // A piece can carry its own count, as "Dual Caestus Fists and 2x Twin Neutronium Cascade Projectors".
@@ -1088,10 +1114,10 @@ function textRosterPick(
     const key =
       [spellingKey(normalized(label)), spellingKey(normalized(withoutQualifier(label)))].find((candidate) => respelled.has(candidate)) ??
       spellingKey(normalized(label))
-    const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
+    const known = respelled.has(key)
     if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
     return (
-      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
+      (respelled.has(key) ? respelled.get(key) : (unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
       loadoutModel(label) ??
@@ -1560,11 +1586,18 @@ function textRosterPick(
       ? opened
       : buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
-  // What the datasheet's card says every model starts with is carried where the catalogue names it nowhere, as a
-  // Solitaire's flip belt; a piece the catalogue does name was placed or lost with its option.
-  for (const group of datacardOf(loaded, catalogueId, entryId)?.details.wargearGroups ?? [])
-    if (/^default wargear$/i.test(group.instruction))
-      for (const option of group.options) if (!respelled.has(spellingKey(normalized(option)))) carried.add(withoutArticle(option))
+  // What VS Data's unit carries that no option takes away, else what the datasheet's card says every model starts with,
+  // is carried where the catalogue names it nowhere, as a Solitaire's flip belt; a piece the catalogue does name was
+  // placed or lost with its option.
+  const vsUnit = vsUnitIdOf(loaded, catalogueId, entryId)
+  const definitions = vsDefinitionsOf(loaded)
+  const startsWith =
+    vsUnit && definitions
+      ? vsFixedWargearNames(definitions, vsUnit)
+      : (datacardOf(loaded, catalogueId, entryId)?.details.wargearGroups ?? []).flatMap((group) =>
+          /^default wargear$/i.test(group.instruction) ? group.options : [],
+        )
+  for (const option of startsWith) if (!respelled.has(spellingKey(normalized(option)))) carried.add(withoutArticle(option))
   const unplaced = [...stated.keys()]
     .filter(
       (name) =>
@@ -2042,9 +2075,9 @@ function countsForChoice(
 }
 
 /**
- * The catalogue's name for each enhancement the Munitorum Field Manual spells differently,
- * as its "Biomorph Adaptation" is BSData's "Biomorph Adaption": the one option this unit is
- * offered that the manual names nowhere in the list's detachments, at the same points.
+ * The catalogue's name for each enhancement the Munitorum Field Manual spells differently in a Detachment VS Data does
+ * not record, as its "Biomorph Adaptation" is BSData's "Biomorph Adaption": the one option this unit is offered that the
+ * manual names nowhere in the list's detachments, at the same points. VS Data's own spellings are read by their IDs.
  */
 function enhancementRespellings(
   entryId: string,
@@ -2054,15 +2087,18 @@ function enhancementRespellings(
   context: { primaryCatalogueId: string; roster: readonly Selection[] },
 ) {
   const names = new Map<string, string>()
-  const detachments = loaded.detachments.get(catalogueId)?.options.filter((option) => detachmentIds.includes(option.id)) ?? []
+  const detachments =
+    loaded.detachments
+      .get(catalogueId)
+      ?.options.filter((option) => detachmentIds.includes(option.id) && !loaded.vsRoster?.detachments[option.id]) ?? []
   const manual = detachments.flatMap(
     (detachment) =>
       fieldManualDetachment(loaded, catalogueId, detachment.name)?.enhancements?.filter((entry) => !isUpgrade(entry.name)) ?? [],
   )
   const built = buildUnit(entryId, loaded.index, undefined, {}, context)
   if (!manual.length || !built) return names
-  const inManual = (name: string) => manual.some((entry) => normalized(entry.name) === normalized(name))
   const offered = unitChoices(entryId, built.selection, loaded.index, context).flatMap((choice) => choice.options)
+  const inManual = (name: string) => manual.some((entry) => normalized(entry.name) === normalized(name))
   for (const entry of manual) {
     if (offered.some((option) => normalized(option.name) === normalized(entry.name))) continue
     const unnamed = offered.filter((option) => !inManual(option.name) && option.points === entry.points)

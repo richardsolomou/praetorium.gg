@@ -6,9 +6,10 @@ import rawDetachmentIds from '../../catalogue/legacy-ids/detachments.json' with 
 import rawDatasheets from '../../catalogue/legacy-ids/datasheet-names.json' with { type: 'json' }
 import rawDetachments from '../../catalogue/legacy-ids/detachment-names.json' with { type: 'json' }
 import rawEntries from '../../catalogue/legacy-ids/entry-names.json' with { type: 'json' }
+import rawBooks from '../../catalogue/legacy-ids/book-names.json' with { type: 'json' }
 
 /**
- * The names BSData gave each datasheet and Detachment, by the ID a saved roster holds, frozen when the catalogue last
+ * The names BSData gave each book, datasheet and Detachment, by the ID a saved roster holds, frozen when the catalogue last
  * read BSData. New Recruit prints them, so imports read its lists by them. Names are only added.
  */
 export const legacyNamesSchema = z.object({
@@ -33,6 +34,7 @@ export const legacyImportIds: LegacyImportIds = {
   datasheetNames: namesOf(rawDatasheets),
   detachmentNames: namesOf(rawDetachments),
   entryNames: new Map(Object.entries(entries.names)),
+  bookNames: namesOf(rawBooks),
 }
 
 /** The BSData entries that are models, by ID, the same in every rules version. */

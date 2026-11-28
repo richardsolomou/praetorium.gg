@@ -17,6 +17,8 @@ export type ImportNames = {
   detachmentNames: ReadonlyMap<string, readonly string[]>
   /** The names BSData gave every other entry a list can name, as a model, a piece of wargear or an Enhancement, by its ID. */
   entryNames: ReadonlyMap<string, readonly string[]>
+  /** The names BSData gave each book, which New Recruit prints as a list's faction, by stored ID. */
+  bookNames: ReadonlyMap<string, readonly string[]>
 }
 
 export const NO_IMPORT_NAMES: ImportNames = {
@@ -26,6 +28,7 @@ export const NO_IMPORT_NAMES: ImportNames = {
   datasheetNames: new Map(),
   detachmentNames: new Map(),
   entryNames: new Map(),
+  bookNames: new Map(),
 }
 
 /** The names BSData gave a stored ID in the loaded rules version, which an earlier version keeps under its own key. */
@@ -42,6 +45,13 @@ export const frozenNames = (
   id: string,
   own: () => readonly string[],
 ) => (frozen.size ? (storedNames(frozen, loaded, id) ?? []) : own())
+
+/**
+ * The names BSData gave a book, as frozen, newest last, by its catalogue ID, which a rules version's book carries prefixed. Rules
+ * carrying none, as a download from an earlier release or a list read without rules, read the catalogue's own names.
+ */
+export const frozenBookNames = (frozen: ReadonlyMap<string, readonly string[]>, catalogueId: string, own: () => readonly string[]) =>
+  frozen.size ? (frozen.get(catalogueId) ?? frozen.get(catalogueId.slice(catalogueId.indexOf('~') + 1)) ?? []) : own()
 
 /** Every group of spellings a release's names hold, each its English one first. */
 export const spellingGroups = (names: VsDataNames | undefined): readonly (readonly string[])[] =>
@@ -62,6 +72,7 @@ export type LegacyImportIds = {
   datasheetNames: ReadonlyMap<string, readonly string[]>
   detachmentNames: ReadonlyMap<string, readonly string[]>
   entryNames: ReadonlyMap<string, readonly string[]>
+  bookNames: ReadonlyMap<string, readonly string[]>
 }
 
 /** Each VS Data ID's stored IDs in one rules version, whose own `<rules version>~<ID>` keys stand for that ID there. */
@@ -110,5 +121,6 @@ export function importNamesOf(
     datasheetNames: legacy.datasheetNames,
     detachmentNames: legacy.detachmentNames,
     entryNames: legacy.entryNames,
+    bookNames: legacy.bookNames,
   }
 }

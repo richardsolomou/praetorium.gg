@@ -96,13 +96,27 @@ export function factsKey(text: string) {
   return tokens.length === 1 && withoutText(text) === '' ? textKey(tokens[0]!) : `+${tokens.map(textKey).join('+')}`
 }
 
-/** What one text says, read from its words or, where it holds tokens, from the facts recorded for it. Unrecorded, it says nothing. */
+/**
+ * Where a text's facts are recorded for the one rule or profile holding it, by its id: only where the rules or profiles
+ * holding the same words are records that read differently, as two datasheets printing alike for different rules.
+ */
+export const heldFactsKey = (key: string, holder: string) => `${key}@${holder}`
+
+/** The text a `heldFactsKey` records facts for, or the key itself. */
+export const textOfFactsKey = (key: string) => key.split('@')[0]!
+
+/**
+ * What one text says, read from its words or, where it holds tokens, from the facts recorded for it: for the rule or
+ * profile `holder` where the text's facts are recorded for it alone. Unrecorded, it says nothing.
+ */
 export function readText<T>(
   text: string,
   facts: TextFactsByKey | undefined,
   read: (words: string) => T,
   recorded: (facts: TextFacts) => T,
+  holder?: string,
 ): T {
   if (!hasTextTokens(text)) return read(text)
-  return recorded(facts?.get(factsKey(text)) ?? {})
+  const key = factsKey(text)
+  return recorded((holder === undefined ? undefined : facts?.get(heldFactsKey(key, holder))) ?? facts?.get(key) ?? {})
 }

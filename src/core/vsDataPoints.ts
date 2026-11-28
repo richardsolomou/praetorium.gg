@@ -89,7 +89,8 @@ function betweenRows(costs: readonly PointsCost[], models: number): PointsCost |
 export const circumstance = (composition: string | undefined) =>
   composition !== undefined &&
   (composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as '))
-const sameName = (left: string, right: string) =>
+/** Whether two names are the same once case, spacing and punctuation are set aside. */
+export const sameName = (left: string, right: string) =>
   left.toLowerCase().replace(/[^a-z0-9]/g, '') === right.toLowerCase().replace(/[^a-z0-9]/g, '')
 
 /** Whether two mixes give each model the same count, a model missing from either counting as zero. */

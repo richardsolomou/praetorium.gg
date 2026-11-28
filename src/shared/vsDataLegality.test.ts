@@ -10,14 +10,18 @@ const data = vsRosterData(
     points: [],
     definitions: {
       faction: {
-        host: record('Host', {}),
+        host: record('Host', { allies: [{ units: ['other.scout'], points: [{ battleSize: 'small', max: 100 }] }] }),
         other: record('Other', {}),
         titan: record('Titan', {}),
         engines: record('Engines', { withoutDetachments: { warlords: [], dispositions: ['pack.take-and-hold'] } }),
         relics: record('Relics', { withoutDetachments: { warlords: [], dispositions: [] } }),
       },
       'battle-size': { small: record('Small', { points: 1000, enhancements: 1 }) },
-      detachment: { 'host.guard': record('Guard', { faction: 'host' }), 'other.raid': record('Raid', { faction: 'other' }) },
+      detachment: {
+        'host.guard': record('Guard', { faction: 'host', group: 'SHIELD HOST' }),
+        'host.watch': record('Watch', { faction: 'host', group: 'SHIELD HOST' }),
+        'other.raid': record('Raid', { faction: 'other' }),
+      },
       allegiance: { 'host.mark.fire': record('Fire', {}) },
       unit: {
         'host.mob': record('Mob', { faction: 'host', keywords: ['INFANTRY'], sizes: [10, 20] }),
@@ -37,6 +41,7 @@ const data = vsRosterData(
           uniformOptions: [['host.squad.trooper-carbines', 'host.squad.sergeant-carbine']],
         }),
         'other.agent': record('Agent', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
+        'other.scout': record('Scout', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
       },
       'roster-option': {
         'host.squad.guns': record('Trooper guns', {
@@ -103,7 +108,7 @@ const data = vsRosterData(
   },
   {
     books: { 'bs-host': 'host', 'bs-titan': 'titan', 'bs-engines': 'engines', 'bs-relics': 'relics' },
-    detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
+    detachments: { 'bs-guard': 'host.guard', 'bs-watch': 'host.watch', 'bs-raid': 'other.raid' },
     units: {
       'bs-mob': 'host.mob',
       'bs-lord': 'host.lord',
@@ -112,6 +117,7 @@ const data = vsRosterData(
       'bs-walker': 'engines.walker',
       'bs-squad': 'host.squad',
       'bs-agent': 'other.agent',
+      'bs-scout': 'other.scout',
     },
     enhancements: {
       'host.guard/bs-crown': 'host.guard.crown',
@@ -128,6 +134,7 @@ const data = vsRosterData(
       'bs-walker': 'Walker',
       'bs-squad': 'Squad',
       'bs-agent': 'Agent [Crucible]',
+      'bs-scout': 'Scout',
     })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
@@ -169,6 +176,22 @@ describe('vsDataErrors', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 10, min: 10, max: 20 } })], [])).toEqual([
       { entryId: 'army', entryName: 'Army', message: 'needs one to three Detachments' },
     ])
+  })
+
+  it('refuses allies costing more than their points limit, at what each costs the list', () => {
+    expect(errors([unit({ entryId: 'bs-scout', points: 60 }), unit({ entryId: 'bs-scout', points: 60 })])).toContainEqual({
+      entryId: 'army',
+      entryName: 'Army',
+      message: 'allied Other units cost at most 100 points, cost 120',
+    })
+  })
+
+  it('names the group two Detachments share', () => {
+    expect(errors([], ['bs-guard', 'bs-watch'])).toContainEqual({
+      entryId: 'army',
+      entryName: 'Army',
+      message: 'Watch cannot be taken with Guard, as both are SHIELD HOST',
+    })
   })
 
   it('refuses a Detachment to a faction that takes none', () => {
