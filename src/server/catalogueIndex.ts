@@ -170,7 +170,7 @@ export function* loadCatalogueSteps(
             }
           : undefined,
       ),
-      ...(vsRoster ? { attachments: vsRoster.attachments } : {}),
+      ...(vsRoster ? { attachments: vsRoster.attachments, attachmentHosts: vsRoster.attachmentHosts } : {}),
     },
     definitions: shown,
     factionContents: shownCards.factions,

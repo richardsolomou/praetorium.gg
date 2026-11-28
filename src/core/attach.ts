@@ -67,6 +67,8 @@ export type VsAttachment = {
   joins?: AttachmentJoin[]
   /** As a bodyguard, the attachments it takes beyond the core one leader and one support unit. */
   capacity?: VsCapacity
+  /** The catalogue's hosts VS Data does not name stay, where VS Data's hosts for this joiner are known wrong or unsettled. */
+  catalogueHosts?: true
 }
 
 /**
@@ -251,10 +253,11 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   const caches = cachesOf(index)
   const attachment = textAttachmentOf(definition, index)
   const vsData = vsAttachmentOf(definition, index)
-  if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
+  const hosts = vsHostsOf(index)
+  if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData, hosts))
 
   const associated = attachmentFromAssociations(definition, selection, index)
-  if (!associated) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
+  if (!associated) return remember(caches.merged, definition, () => withVsData(attachment, vsData, hosts))
   return withVsData(
     {
       kind: attachment?.kind ?? associated.kind,
@@ -264,6 +267,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
       ...(attachment?.swap ? { swap: attachment.swap } : {}),
     },
     vsData,
+    hosts,
   )
 }
 
@@ -276,20 +280,26 @@ const textAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
 const vsAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
   index.attachments?.[definition.id] ?? index.attachments?.[targetOf(definition, index.definitions).id]
 
-/** The catalogue's reading with VS Data's record laid over it: VS Data's hosts, then the catalogue's for hosts it never names. */
-function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): Attachment | null {
+const vsHostCache = new WeakMap<CatalogueIndex, ReadonlySet<string>>()
+const vsHostsOf = (index: CatalogueIndex) => remember(vsHostCache, index, () => new Set((index.attachmentHosts ?? []).map(normalizedName)))
+
+/**
+ * The catalogue's reading with VS Data's record laid over it: VS Data alone decides the hosts it defines, `hosts`, and
+ * the catalogue's reading stands for the rest, as datasheets VS Data has no unit for yet.
+ */
+function withVsData(read: Attachment | null, vsData: VsAttachment | undefined, hosts: ReadonlySet<string>): Attachment | null {
   const conditional = vsData?.conditional ?? []
   // A unit that joins others as part of them takes neither role. The catalogue's hosts VS Data never names stay, under
   // the record's exclusivity, as the leader and support readings keep theirs.
   if (vsData?.joins) {
-    const deferred = new Set(vsData.named.map(normalizedName))
+    const deferred = deferredOf(vsData, hosts)
     const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)))
     const exclusive = [...new Set(vsData.joins.flatMap((join) => join.exclusive ?? []))]
     const catalogue = kept.length ? [{ targets: kept, ...(exclusive.length ? { exclusive } : {}) }] : []
     return { kind: 'support', targets: [], joins: [...vsData.joins, ...catalogue] }
   }
   if (!vsData || (!vsData.targets.length && !conditional.length)) return read
-  const deferred = new Set(vsData.named.map(normalizedName))
+  const deferred = deferredOf(vsData, hosts)
   const granted = new Set(vsData.targets.map(normalizedName))
   // The catalogue's order first, as its datasheets print their hosts, then the hosts only VS Data gives.
   const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)) || granted.has(normalizedName(target)))
@@ -303,6 +313,9 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): 
     ...(vsData.besideAnother ? { besideAnother: vsData.besideAnother } : {}),
   }
 }
+
+const deferredOf = (vsData: VsAttachment, hosts: ReadonlySet<string>) =>
+  vsData.catalogueHosts ? new Set(vsData.named.map(normalizedName)) : new Set([...vsData.named.map(normalizedName), ...hosts])
 
 /**
  * The attachment a datasheet page shows: its ability text, or failing that its unselected associations, with every host

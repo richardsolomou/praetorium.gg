@@ -7,6 +7,25 @@ import { idsIn, type VsDataIds } from './vsDataPoints'
 const ROLE = { leads: 'leader', supports: 'support' } as const
 
 /**
+ * Joiners whose VS Data hosts are known wrong or still unsettled, which keep the catalogue's hosts VS Data does not name:
+ * the Regimental Attachés' join and the Crisis Commander's misprinted host until vs-data-tools#144 releases, and the
+ * Deathwatch leaders while which units their Legends hosts map to is open.
+ */
+const CATALOGUE_HOSTS = new Set([
+  'astra-militarum.regimental-attaches',
+  'tau-empire.commander-in-crisis-battlesuit',
+  'imperial-agents.watch-master',
+  'imperial-agents.watch-captain-artemis',
+  'imperial-agents.inquisitor-eisenhorn',
+  'imperial-agents.inquisitor-in-terminator-armour',
+])
+
+/** Hosts whose joiners a rules version's VS Data release predates, which keep the catalogue's reading there. */
+const STALE_HOSTS: Readonly<Record<string, readonly string[]>> = {
+  'legacy-marine-old': ['space-marines.sternguard-veteran-squad', 'space-marines.terminator-squad'],
+}
+
+/**
  * Who each datasheet may join in one rules version, from VS Data's attachment records, by the BSData entry IDs saved
  * lists hold. A host is named as every catalogue datasheet of its VS Data unit is, and a unit none stands for is left
  * out; a condition's Detachments and units become the catalogue's IDs a list holds. A record VS Data could not type a
@@ -102,9 +121,23 @@ export function vsAttachmentsIndex(
     if (!record) continue
     if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
     const found = resolved.get(unit)
-    if (found) attachments[entryId] = found
+    if (found) attachments[entryId] = CATALOGUE_HOSTS.has(unit) ? { ...found, catalogueHosts: true } : found
   }
   return attachments
+}
+
+/** The names of the datasheets VS Data defines a unit for in one rules version, which it alone decides as hosts of its joiners. */
+export function vsAttachmentHosts(
+  definitions: VsDataDefinitions,
+  units: Readonly<Record<string, string>>,
+  edition: string | null,
+  nameOf: (entryId: string) => string | undefined,
+): string[] {
+  const stale = new Set(STALE_HOSTS[edition ?? ''] ?? [])
+  const names = [...datasheetUnits(units, edition)].flatMap(([entryId, unit]) =>
+    fielded(definitions, unit) && !stale.has(unit) ? (nameOf(entryId) ?? []) : [],
+  )
+  return [...new Set(names)].sort()
 }
 
 /** What each transport carries in one rules version, from VS Data's records; one whose capacity has no printed shape stays with its printed rule. */
