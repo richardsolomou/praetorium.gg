@@ -22,10 +22,10 @@ import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { copiedAtOf, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
 import { rulesVersionOf, SAVED_PICKS_RUN, savedPicksRunSchema } from './lib/savedPicksRun'
-import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf } from './lib/vsDataRosters'
+import { catalogueUnitErrors, legacyIds, modelsByName, specialOf } from './lib/vsDataRosters'
 import { vsModels } from '../src/shared/importedVsPicks'
 import { modelsNamed, same, words } from '../src/shared/vsDataModelNames'
-import { vsSpelling } from '../src/shared/wargearSpellings'
+import { leaves, vsSpelling } from '../src/shared/wargearSpellings'
 
 /**
  * Every saved pick in a local production copy (`scripts/fetchProductionCopy.ts`) of a backup that records when it captured

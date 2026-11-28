@@ -1,3 +1,4 @@
+import { remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { type LegacyOptions, legacyOptionSelections } from '../core/legacyIds'
 import { buildUnit, type RosterPick, type VsPick } from '../core/roster'
@@ -11,7 +12,7 @@ import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import { same } from './vsDataModelNames'
 import { isVsNative } from './vsDataPicks'
 import { inBook } from './vsDataPoints'
-import { ARTICLE, vsSpelling } from './wargearSpellings'
+import { ARTICLE, vsKnownWargear, vsSpelling } from './wargearSpellings'
 
 /** The frozen per-choice map and the allegiance each datasheet implies (`units.json`), which turn a BSData pick into VS Data's. */
 export type ImportVsMaps = { options: LegacyOptions; allegiances: Readonly<Record<string, string>> }
@@ -20,23 +21,35 @@ type Price = NonNullable<ReturnType<typeof calculateRosterPrice>>
 type PricedUnit = Price['units'][number]
 type List = { catalogueId: string; detachmentIds: readonly string[] }
 
-const vsKeysOf = new WeakMap<VsDataDefinitions, Set<string>>()
+const knownOf = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
 
 /**
- * A priced unit's wargear as VS Data spells it, through the reviewed spellings for a catalogue pick, without its
- * allegiance: what stays the same when a unit moves onto VS Data.
+ * A priced unit's wargear as VS Data spells it, through the reviewed spellings against its VS Data unit's own wargear
+ * for a catalogue pick, without its allegiance: what stays the same when a unit moves onto VS Data.
  */
-export function vsSpelledWargear(loaded: LoadedCatalogue, unit: PricedUnit, pick: RosterPick, allegiance: string | null | undefined) {
+export function vsSpelledWargear(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  unit: PricedUnit,
+  pick: RosterPick,
+  allegiance: string | null | undefined,
+) {
   const definitions = vsDefinitionsOf(loaded)
-  if (definitions && !vsKeysOf.has(definitions))
-    vsKeysOf.set(definitions, new Set(definitions.all('wargear').map((wargear) => wargearKey(wargear.name).replace(ARTICLE, ''))))
-  const vsKeys = (definitions && vsKeysOf.get(definitions)) ?? new Set<string>()
+  const id = vsUnitIdOf(loaded, catalogueId, unit.entryId)
+  const known =
+    definitions && id
+      ? remember(
+          remember(knownOf, definitions, () => new Map()),
+          id,
+          () => vsKnownWargear(definitions, id),
+        )
+      : new Set<string>()
   const named = allegiance && same(definitions?.get('allegiance', allegiance)?.name ?? allegiance)
   const wargear = new Map<string, number>()
   for (const piece of unit.wargear) {
     // An allegiance is no wargear, though a VS pick's roster line names it beside its wargear, as BSData names a mark.
     if (named && same(piece.name).endsWith(named)) continue
-    const key = pick.vs ? wargearKey(piece.name).replace(ARTICLE, '') : vsSpelling(piece.name, vsKeys)
+    const key = pick.vs ? wargearKey(piece.name).replace(ARTICLE, '') : vsSpelling(piece.name, known)
     wargear.set(key, (wargear.get(key) ?? 0) + piece.count)
   }
   return [...wargear].map(([key, count]) => `${count}x ${key}`).toSorted()
@@ -77,6 +90,23 @@ export function vsModels(definitions: VsDataDefinitions, unit: string, named: Re
   return Object.fromEntries(bounds.map((model) => [model.id, model === variable[0] ? total - fixed : model.min]))
 }
 
+/** The model that holds a VS pick's Warlord: the unit's Character model, else its one model of a kind, as VS Data's checker reads it. */
+function vsWarlordModel(definitions: VsDataDefinitions, unit: string) {
+  const kinds = definitions.modelsOf(unit)
+  return (
+    kinds.find((model) => model.data.keywords?.some((keyword) => keyword.toUpperCase() === 'CHARACTER')) ??
+    kinds.find((model) => model.data.max === 1) ??
+    kinds[0]
+  )?.id
+}
+
+/** The Warlord model of a VS pick of `entryId` in a list of `catalogueId`. */
+export function vsWarlordOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  const definitions = vsDefinitionsOf(loaded)
+  const unit = vsUnitIdOf(loaded, catalogueId, entryId)
+  return definitions && unit ? vsWarlordModel(definitions, unit) : undefined
+}
+
 /**
  * A catalogue pick of a datasheet the builder adds by VS Data, read through the frozen maps, with the catalogue choices
  * that arm its tree less its Enhancement, which `vs` holds; undefined where the maps can't read it.
@@ -112,26 +142,22 @@ function translated<T extends RosterPick>(
     if (!Object.keys(chosen).length) delete options[option]
   }
   if (vsUnitProblems(definitions, { unit: id, models, options }).length) return undefined
-  // Each Enhancement or upgrade the unit holds is one VS Data files under one of the list's Detachments.
+  // Each Enhancement or upgrade the unit holds is the one VS Data files under the list's Detachments; an option two of
+  // them file apart is no one Enhancement, as pricing reads it.
   const detachments = list.detachmentIds.flatMap((detachment) => loaded.vsRoster?.detachments[detachment] ?? [])
   const specials = unit.choices.flatMap((choice) =>
     choice.kind
       ? choice.options
           .filter((option) => option.count > 0)
-          .map((option) => detachments.map((detachment) => loaded.vsRoster?.enhancements[`${detachment}/${option.id}`]).find(Boolean))
+          .map((option) => {
+            const filed = new Set(detachments.flatMap((detachment) => loaded.vsRoster?.enhancements[`${detachment}/${option.id}`] ?? []))
+            return filed.size === 1 ? [...filed][0] : undefined
+          })
       : [],
   )
   if (specials.length > 1 || specials.some((found) => !found)) return undefined
   const allegiance = read.allegiance ?? inBook(maps.allegiances, list.catalogueId, pick.entryId)
-  // The Warlord is the unit's Character model, else its one model of a kind, as VS Data's checker reads it.
-  const kinds = definitions.modelsOf(id)
-  const warlord = hasWarlordToggle(unit.toggles)
-    ? (
-        kinds.find((model) => model.data.keywords?.some((keyword) => keyword.toUpperCase() === 'CHARACTER')) ??
-        kinds.find((model) => model.data.max === 1) ??
-        kinds[0]
-      )?.id
-    : undefined
+  const warlord = hasWarlordToggle(unit.toggles) ? vsWarlordModel(definitions, id) : undefined
   const vs: VsPick = {
     models,
     options,
@@ -143,22 +169,23 @@ function translated<T extends RosterPick>(
   return { ...rest, ...(choices && Object.keys(choices).length ? { choices } : {}), vs } as T
 }
 
-const facts = (loaded: LoadedCatalogue, unit: PricedUnit | undefined, pick: RosterPick, allegiance: string | undefined) =>
+const facts = (loaded: LoadedCatalogue, list: List, unit: PricedUnit | undefined, pick: RosterPick, allegiance: string | undefined) =>
   unit &&
   JSON.stringify([
     unit.points,
     unit.size.models,
     unit.enhancements.length + unit.upgrades.length,
-    vsSpelledWargear(loaded, unit, pick, allegiance),
+    vsSpelledWargear(loaded, list.catalogueId, unit, pick, allegiance),
   ])
 
 /**
  * An import's picks as the builder would add them: each of a datasheet it adds by VS Data (`isVsNative`) on the current
  * rules version as a VS pick, read through the frozen per-choice map, where VS Data's checker accepts it and it prices
  * to the same points, models, Enhancement and wargear as the catalogue pick; any other stays as the catalogue reads it.
+ * The picks themselves come back where none comes in as a VS pick.
  */
 export function withImportedVsPicks<T extends RosterPick>(
-  picks: readonly T[],
+  picks: (T & { vs?: VsPick })[],
   list: List,
   loaded: LoadedCatalogue,
   maps: ImportVsMaps,
@@ -166,7 +193,7 @@ export function withImportedVsPicks<T extends RosterPick>(
   price: (units: readonly RosterPick[]) => Price | null,
 ): (T & { vs?: VsPick })[] {
   const definitions = vsDefinitionsOf(loaded)
-  if (!definitions || catalogueEditionId(list.catalogueId)) return [...picks]
+  if (!definitions || catalogueEditionId(list.catalogueId)) return picks
   const built = new Map(priced.units.map((unit) => [unit.key, unit]))
   let next: (T & { vs?: VsPick })[] = picks.map((pick, key) => {
     const unit = built.get(key)
@@ -174,16 +201,17 @@ export function withImportedVsPicks<T extends RosterPick>(
   })
   // Copies count across the whole list, so a unit is kept as VS Data prices it beside the others it was read with.
   for (let round = 0; round < 3; round++) {
-    if (next.every((pick, key) => pick === picks[key])) return next
+    if (next.every((pick, key) => pick === picks[key])) return picks
     const vsPriced = new Map(price(next)?.units.map((unit) => [unit.key, unit]))
     const kept = next.map((pick, key) =>
       pick === picks[key] ||
-      facts(loaded, vsPriced.get(key), pick, pick.vs?.allegiance) === facts(loaded, built.get(key), picks[key]!, pick.vs?.allegiance)
+      facts(loaded, list, vsPriced.get(key), pick, pick.vs?.allegiance) ===
+        facts(loaded, list, built.get(key), picks[key]!, pick.vs?.allegiance)
         ? pick
         : picks[key]!,
     )
     if (kept.every((pick, key) => pick === next[key])) return next
     next = kept
   }
-  return [...picks]
+  return picks
 }

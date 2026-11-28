@@ -76,7 +76,7 @@ import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } fr
 import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
 import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
-import type { RosterPick } from '../core/roster'
+import type { RosterPick, VsPick } from '../core/roster'
 
 /** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
 export type RosterTextFormat =
@@ -720,20 +720,25 @@ function note(found: Map<number, Map<string, string>>, unit: number, choices: re
   found.set(unit, named)
 }
 
-type Crowned = { toggles?: Record<string, number> }
+type Crowned = { toggles?: Record<string, number>; vs?: VsPick }
 
 /**
  * Marks a Warlord on a list that names none: the one unit that can be or, given `errors`, the one leaving the list fewest,
  * first listed on a tie, since a list that placed at a tournament had one even where the text it was published as leaves
- * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way.
+ * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way. A VS pick
+ * holds it on the model `vsWarlord` names.
  */
-export function assumeWarlord(picks: readonly Crowned[], errors?: () => number) {
-  if (picks.some((pick) => Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
+export function assumeWarlord<T extends Crowned>(picks: readonly T[], errors?: () => number, vsWarlord?: (pick: T) => string | undefined) {
+  if (picks.some((pick) => pick.vs?.warlord || Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
   const candidates = picks.filter((pick) => Object.keys(pick.toggles ?? {}).length)
   if (!candidates.length || (candidates.length > 1 && !errors)) return
-  const crown = (pick: Crowned, count: number) => {
+  const crown = (pick: T, count: number) => {
     const [key] = Object.keys(pick.toggles!)
     pick.toggles = { ...pick.toggles, [key!]: count }
+    if (!pick.vs) return
+    const { warlord: _warlord, ...vs } = pick.vs
+    const model = count ? vsWarlord?.(pick) : undefined
+    pick.vs = model ? { ...vs, warlord: model } : vs
   }
   let best = candidates[0]!
   let fewest = Number.POSITIVE_INFINITY

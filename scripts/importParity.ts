@@ -116,7 +116,7 @@ if (command === 'record') {
           points: unit.points,
           enhancements: enhancements.toSorted(),
           allegiance,
-          wargear: vsSpelledWargear(catalogue, unit, pick, allegiance),
+          wargear: vsSpelledWargear(catalogue, catalogueId, unit, pick, allegiance),
           ...(pick.vs ? { vs: { models: pick.vs.models, options: pick.vs.options } } : {}),
         }
       }),
