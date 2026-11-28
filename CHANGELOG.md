@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.280.26 (2026-11-28)
+
+### Patch Changes
+
+- 2092004: [rosters] A Falcon now starts with a scatter laser, as the app does.
+- e3fb97c: [rosters] A unit that must choose a god no longer starts sworn to Khorne: a god's own Soul Grinder starts with its weapon, and the others ask for their god.
+- 2092004: [rosters] A Kroot Lone-spear now starts with a Kroot long gun, as the app does.
+- 2092004: [rosters] A Kroot War Shaper now starts with a dart-bow and tri-blade, as the app does.
+- 2092004: [rosters] 98 more datasheets, among them Tomb Blades, Aggressor Squads, the Heretic Astartes Daemon Prince and the Soul Grinder, are now built as the official app prints them, and a datasheet whose wargear changes its characteristics or abilities now shows the ones its chosen wargear gives.
+
 ## 0.280.25 (2026-11-28)
 
 ### Patch Changes
