@@ -254,7 +254,8 @@ const ownOf = (selection: Selection | OwnSelections, index: CatalogueIndex): Own
 /**
  * A unit's own selections read from its datasheet and the names of what it holds, as a VS pick's allegiance, the keywords
  * that allegiance gives and its Enhancement: a condition on one of its selections holds where that selection's catalogue
- * entry or keyword bears one of `names`.
+ * entry or keyword bears one of `names`. Names are compared across the whole index, so a keyword or allegiance that ever
+ * shares an upgrade's name would hold that upgrade too.
  */
 export function ownByName(definition: Definition, index: CatalogueIndex, names: Iterable<string>, models: number): OwnSelections {
   const held = new Set([...names].map(ownName))
