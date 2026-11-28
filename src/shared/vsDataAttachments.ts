@@ -15,14 +15,18 @@ const AGENTS_LEGENDS_SQUADS = [
 
 /**
  * Joiners whose VS Data hosts are known wrong or unsettled, which keep the catalogue's reading of every host VS Data does
- * not name, or of these: the Regimental Attachés' join, the Crisis Commander's misprinted host and the Watch Masters'
- * Legends squads, until richardsolomou/vs-data#228 releases.
+ * not name, or of these: the Regimental Attachés' join, the Crisis Commander's misprinted host, the Watch Masters'
+ * Legends squads, and the codex Fortis Kill Team that Judiciar Xacharus and Chaplain Kastiel take by a keyword VS Data
+ * does not give it. VS Data's fix for all of them is richardsolomou/vs-data#228, so the list comes out with the pin of the
+ * release that carries it.
  */
 const CATALOGUE_HOSTS: Readonly<Record<string, true | readonly string[]>> = {
   'astra-militarum.regimental-attaches': true,
   'tau-empire.commander-in-crisis-battlesuit': true,
   'imperial-agents.watch-master': AGENTS_LEGENDS_SQUADS,
   'imperial-agents.watch-captain-artemis': AGENTS_LEGENDS_SQUADS,
+  'space-marines.judiciar-xacharus': ['deathwatch.fortis-kill-team'],
+  'space-marines.chaplain-kastiel': ['deathwatch.fortis-kill-team'],
 }
 
 /**
@@ -71,7 +75,9 @@ export function vsAttachmentsIndex(
     const host = capacity ? { capacity } : {}
     if (data.joins?.length) {
       const joins = data.joins.map((join): AttachmentJoin => {
-        const targets = (join.units ?? []).flatMap(namesOf)
+        // A host joined by its keywords is named too, as a condition's are.
+        const holders = join.keywords?.length ? holdingKeywords(join.keywords).filter((unit) => unit !== data.unit) : []
+        const targets = [...new Set([...(join.units ?? []), ...holders].flatMap(namesOf))]
         return {
           ...(targets.length ? { targets } : {}),
           ...(join.keywords?.length ? { keywords: join.keywords } : {}),
