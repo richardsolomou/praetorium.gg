@@ -871,10 +871,7 @@ export function combatRuleDefences(
             effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
             attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
         ),
-        wounds: Math.max(
-          1,
-          setStat(effects, 'wounds', group.wounds) + effects.reduce((total, effect) => total + (effect.wounds ?? 0), 0),
-        ),
+        wounds: Math.max(1, setStat(effects, 'wounds', group.wounds) + effects.reduce((total, effect) => total + (effect.wounds ?? 0), 0)),
       }
     }),
     ...unit,
@@ -884,13 +881,19 @@ export function combatRuleDefences(
 
 /** A unit characteristic as the last effect setting it leaves it, before any addition. */
 const setStat = (effects: readonly CombatRuleEffect[], kind: 'toughness' | 'wounds', printed: number) =>
-  effects.reduce((value, effect) => (effect.unitStat?.kind === kind && effect.unitStat.set !== undefined ? effect.unitStat.set : value), printed)
+  effects.reduce(
+    (value, effect) => (effect.unitStat?.kind === kind && effect.unitStat.set !== undefined ? effect.unitStat.set : value),
+    printed,
+  )
 
 /** The best re-roll of saving throws the unit's rules give it. */
 function saveRerollOf(rules: readonly ActiveCombatRule[], printed: CombatInput['target']['saveReroll']) {
   const best = rules
     .flatMap((rule) => rule.effects)
-    .reduce((roll, effect) => (effect.saveReroll && rerollRank[effect.saveReroll] > rerollRank[roll] ? effect.saveReroll : roll), printed ?? 'none')
+    .reduce(
+      (roll, effect) => (effect.saveReroll && rerollRank[effect.saveReroll] > rerollRank[roll] ? effect.saveReroll : roll),
+      printed ?? 'none',
+    )
   return best === 'none' ? {} : { saveReroll: best }
 }
 
@@ -1119,7 +1122,11 @@ export function combatRuleWeapons(
           if (effect[field]) next[field] = true
         if (effect.allHitsCritical) next.allHitsCritical = true
         if (effect.unmodifiedSix) next.unmodifiedSix = effect.unmodifiedSix
-        if (effect.condition === 'critical-wound' && typeof effect.characteristic?.add === 'number' && effect.characteristic.kind === 'armour-penetration')
+        if (
+          effect.condition === 'critical-wound' &&
+          typeof effect.characteristic?.add === 'number' &&
+          effect.characteristic.kind === 'armour-penetration'
+        )
           next.criticalAp = (next.criticalAp ?? 0) + effect.characteristic.add
         if (effect.condition === 'stronger')
           next.strongerWoundModifier = (next.strongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
@@ -1127,7 +1134,8 @@ export function combatRuleWeapons(
           next.notStrongerWoundModifier = (next.notStrongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
         if (effect.condition === 'double-strength')
           next.doubleStrengthWoundModifier = (next.doubleStrengthWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
-        if (effect.condition || (!scopedOptions && !weaponScoped(effect) && !effect.targetKeywords && !effect.excludedTargetKeywords)) continue
+        if (effect.condition || (!scopedOptions && !weaponScoped(effect) && !effect.targetKeywords && !effect.excludedTargetKeywords))
+          continue
         for (const field of ['hitModifier', 'woundModifier'] as const) next[field] = (next[field] ?? 0) + (effect.options?.[field] ?? 0)
         next.positiveHitModifier = (next.positiveHitModifier ?? 0) + Math.max(0, effect.options?.hitModifier ?? 0)
         next.positiveWoundModifier = (next.positiveWoundModifier ?? 0) + Math.max(0, effect.options?.woundModifier ?? 0)

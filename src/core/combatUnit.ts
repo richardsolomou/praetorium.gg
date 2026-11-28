@@ -154,7 +154,9 @@ function limitedDefences(member: CombatMember) {
     effects: rule.effects.flatMap((effect) => {
       const models =
         effect.role === 'defender' &&
-        (GROUP_DEFENCES.some((field) => effect[field] !== undefined) || effect.unitStat?.kind === 'toughness' || effect.unitStat?.kind === 'wounds')
+        (GROUP_DEFENCES.some((field) => effect[field] !== undefined) ||
+          effect.unitStat?.kind === 'toughness' ||
+          effect.unitStat?.kind === 'wounds')
           ? effectModels(effect, rule, member)
           : undefined
       if (!models) return [effect]

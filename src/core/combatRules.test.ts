@@ -261,7 +261,12 @@ describe('combat rule effects', () => {
     })
   })
   it('adds dice to a weapon’s Damage', () => {
-    const active = [{ name: 'Buff', effects: [{ ...attack, characteristic: { kind: 'damage' as const, add: { dice: 1, sides: 3 as const, bonus: 0 } } }] }]
+    const active = [
+      {
+        name: 'Buff',
+        effects: [{ ...attack, characteristic: { kind: 'damage' as const, add: { dice: 1, sides: 3 as const, bonus: 0 } } }],
+      },
+    ]
     expect(combatWeapons(combatRuleProfiles(weapons(), active, 'attacker'), [], 'ranged')[0]?.weapon?.damage).toEqual({
       dice: 1,
       sides: 3,
@@ -290,14 +295,18 @@ describe('combat rule effects', () => {
     const both: CombatPhase[] = ['ranged', 'melee']
     const active = [{ name: 'Buff', effects: [{ ...attack, phases: both, keyword: 'Lethal Hits', lacksWeaponKeyword: 'Torrent' }] }]
     expect(
-      combatRuleProfiles(sheet, active, 'attacker').profiles.map((profile) => profile.values.find((value) => value.name === 'Keywords')!.value),
+      combatRuleProfiles(sheet, active, 'attacker').profiles.map(
+        (profile) => profile.values.find((value) => value.name === 'Keywords')!.value,
+      ),
     ).toEqual(['Torrent', 'Lethal Hits'])
   })
   it('re-rolls the hits of only the weapons a rule names by their ability', () => {
     const sheet = weapons()
     sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Assault'
     const carried = [{ weapon: combatWeapons(sheet, [], 'ranged')[0]!.weapon, count: 1, profile: sheet.profiles[0]! }]
-    const active = [{ name: 'Racks', effects: [{ ...attack, requiresWeaponKeyword: 'Assault', options: { hitReroll: 'failed' as const } }] }]
+    const active = [
+      { name: 'Racks', effects: [{ ...attack, requiresWeaponKeyword: 'Assault', options: { hitReroll: 'failed' as const } }] },
+    ]
     expect(combatRuleWeapons(sheet, carried, active, 'attacker', 'ranged', [])[0]?.hitReroll).toBe('failed')
   })
   it('sets a model’s Wounds before adding to them', () => {
