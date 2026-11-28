@@ -248,10 +248,10 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData n
   it('name every datasheet and Detachment of the current rules version', () => {
     const { catalogue } = sharedSnapshot(source)
     const unnamed = [
-      ...catalogue!.factions.flatMap(({ id }) =>
-        [...(catalogue!.index.datasheets.get(id) ?? [])].filter((entry) => !legacyImportIds.datasheetNames.has(entry)),
+      ...catalogue.factions.flatMap(({ id }) =>
+        [...(catalogue.index.datasheets.get(id) ?? [])].filter((entry) => !legacyImportIds.datasheetNames.has(entry)),
       ),
-      ...[...catalogue!.detachments.values()].flatMap(({ options }) =>
+      ...[...catalogue.detachments.values()].flatMap(({ options }) =>
         options.filter((option) => !legacyImportIds.detachmentNames.has(option.id)).map((option) => option.id),
       ),
     ]
