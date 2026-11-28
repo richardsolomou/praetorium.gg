@@ -25,11 +25,12 @@ export function vsAttachmentsIndex(
   const namesOf = (unit: string) => [...new Set((entriesOf.get(unit) ?? []).flatMap((entryId) => nameOf(entryId) ?? []))]
   const resolved = new Map<string, VsAttachment | null>()
   const standIns = standInsOf(definitions)
-  const unitKeywords = definitions
-    .all('unit')
-    .map(({ id, data }) => ({ id, keywords: data.keywords.map((keyword) => keyword.toUpperCase()) }))
+  // Read only for a condition that takes hosts by keyword, as most rules versions' lists never need it.
+  let unitKeywords: { id: string; keywords: string[] }[] | undefined
   const holdingKeywords = (keywords: readonly string[], excluded: readonly string[] = []) =>
-    unitKeywords
+    (unitKeywords ??= definitions
+      .all('unit')
+      .map(({ id, data }) => ({ id, keywords: data.keywords.map((keyword) => keyword.toUpperCase()) })))
       .filter(
         (unit) =>
           keywords.every((keyword) => unit.keywords.includes(keyword.toUpperCase())) &&
@@ -96,7 +97,8 @@ export function vsAttachmentsIndex(
   }
   const attachments: Record<string, VsAttachment> = {}
   for (const [entryId, unit] of units) {
-    const record = fielded(definitions, unit) && definitions.get('attachment', unit)
+    // A copied or Legends datasheet's attachment record publishes before its roster definition, which may not exist yet.
+    const record = !definitions.unavailable.has(unit) && definitions.get('attachment', unit)
     if (!record) continue
     if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
     const found = resolved.get(unit)

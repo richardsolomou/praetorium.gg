@@ -248,8 +248,8 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
  * dropped rather than guessed at.
  */
 export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection): Attachment | null {
-  const caches = remember(attachmentCache, index, () => ({ read: new WeakMap(), merged: new WeakMap() }))
-  const attachment = remember(caches.read, definition, () => findAttachment(definition, index))
+  const caches = cachesOf(index)
+  const attachment = textAttachmentOf(definition, index)
   const vsData = vsAttachmentOf(definition, index)
   if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
 
@@ -266,6 +266,12 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
     vsData,
   )
 }
+
+const cachesOf = (index: CatalogueIndex) => remember(attachmentCache, index, () => ({ read: new WeakMap(), merged: new WeakMap() }))
+
+/** Who the datasheet's own Leader or Support text says it may join, before associations or VS Data. */
+const textAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
+  remember(cachesOf(index).read, definition, () => findAttachment(definition, index))
 
 const vsAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
   index.attachments?.[definition.id] ?? index.attachments?.[targetOf(definition, index.definitions).id]
@@ -304,9 +310,10 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): 
  * the printed datasheet does not.
  */
 export function referenceAttachmentOf(definition: Definition, index: CatalogueIndex): Attachment | null {
-  const read = attachmentOf(definition, index)
-  // A joining unit's catalogue hosts come from its associations, which only a selection reads.
-  const attachment = (!read || read.joins ? attachmentOf(definition, index, { id: definition.id }) : read) ?? read
+  // A datasheet without ability text reads its hosts from its associations, which only a selection reads.
+  const attachment = textAttachmentOf(definition, index)
+    ? attachmentOf(definition, index)
+    : attachmentOf(definition, index, { id: definition.id })
   if (!attachment?.conditional && !attachment?.joins) return attachment
   return {
     ...attachment,

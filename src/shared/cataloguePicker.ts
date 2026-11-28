@@ -360,7 +360,7 @@ export type VsCheckedRoster = { definitions: VsDataDefinitions; roster: VsRoster
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null, checked: VsCheckedRoster) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
-  const read = currentVsRoster(loaded, checked)
+  const read = vsLimitsRoster(checked)
   const key = read ? `vs:${read.roster.battleSize}:${read.roster.detachments.join(',')}` : `catalogue:${battleSize?.id ?? ''}`
   return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${key}`, () => {
     const vs = vsAllowanceOf(loaded, catalogueId, entryId, read)
@@ -375,12 +375,11 @@ const emptyVsRoster = (loaded: LoadedCatalogue, catalogueId: string, list: { bat
   vsDataCheck(loaded.vsRoster, { catalogueId, detachmentIds: list.detachmentIds, limit: list.battleSize ?? 0 }, [])
 
 /**
- * The checked list VS Data's limits are read from: none in an earlier rules version, whose release is not yet checked
- * against its app build's limits. A list whose points name no battle size, as King of the Colosseum's or a faction page
- * with none, is read at the largest, as the catalogue's limits are.
+ * The checked list VS Data's limits are read from. A list whose points name no battle size, as King of the Colosseum's
+ * or a faction page with none, is read at the largest, as the catalogue's limits are.
  */
-function currentVsRoster(loaded: LoadedCatalogue, checked: VsCheckedRoster): VsCheckedRoster {
-  if (!checked || (loaded.edition && !loaded.edition.default)) return null
+function vsLimitsRoster(checked: VsCheckedRoster): VsCheckedRoster {
+  if (!checked) return null
   if (checked.roster.battleSize) return checked
   const largest = checked.definitions.all('battle-size').toSorted((left, right) => right.data.points - left.data.points)[0]
   return { ...checked, roster: { ...checked.roster, ...(largest ? { battleSize: largest.id } : {}) } }
@@ -419,7 +418,7 @@ export function contextualUnitLimit(
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return { limit: 0, unlockedBy: null }
   const allowance =
-    vsAllowanceOf(loaded, catalogueId, entryId, currentVsRoster(loaded, checked)) ??
+    vsAllowanceOf(loaded, catalogueId, entryId, vsLimitsRoster(checked)) ??
     rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
   if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)

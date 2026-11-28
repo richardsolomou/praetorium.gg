@@ -47,6 +47,16 @@ import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslatio
 import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
+  appSpellingsOf,
+  datasheetName,
+  exportRuleset,
+  vsDatasheetName,
+  vsDetachmentName,
+  vsEnhancementName,
+  vsFactionName,
+  vsWargearNames,
+} from './vsDataNames'
+import {
   attachmentReason,
   normalized,
   type UnmatchedName,
@@ -72,7 +82,7 @@ import { datacardOf } from './datasheetJoin'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import { vsDataEnhancementOptions } from './vsDataLegality'
 import { keywordsIn } from './catalogue'
-import { fieldManualDetachment, isUpgrade } from './mfm'
+import { fieldManualDetachment, isUpgrade, withoutUpgrade } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
 import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
@@ -101,8 +111,15 @@ export type RosterTextFormat =
 let lastRead: { file: string; found: ReturnType<typeof readImport> } | undefined
 
 function parsedImport(file: string) {
-  if (lastRead?.file !== file) lastRead = { file, found: readImport(file) }
+  if (lastRead?.file !== file) lastRead = { file, found: spelledBy(readImport(file)) }
   return lastRead.found
+}
+
+/** A list whose footer gives the official app's data version, as the app's and Warscribe's do, or that Praetorium wrote, as spelled in the app's names. */
+function spelledBy(found: ReturnType<typeof readImport>) {
+  return found && (found.parsed.dataVersion !== undefined || found.format === 'praetorium')
+    ? { ...found, parsed: { ...found.parsed, spelling: 'app' as const } }
+    : found
 }
 
 /**
@@ -381,10 +398,10 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
   })
   const roster = { ...exchange, detachmentIds, units: exchange.picks }
   const resolved = new Set(calculateRosterPrice(roster, loaded, rules)?.units.map((unit) => unit.key) ?? [])
-  const name = (pick: RosterPick, at: number) => {
-    const definition = loaded.index.definitions.get(pick.entryId)
-    return definition ? `${nameOf(definition, loaded.index.definitions)} (entry ${at + 1})` : `Entry ${at + 1}`
-  }
+  const name = (pick: RosterPick, at: number) =>
+    loaded.index.definitions.has(pick.entryId)
+      ? `${datasheetName(loaded, exchange.catalogueId, pick.entryId) ?? pick.entryId} (entry ${at + 1})`
+      : `Entry ${at + 1}`
   const kept = exchange.picks.flatMap((pick, at) => {
     if (resolved.has(at)) return [{ pick, at }]
     unknown.push({ name: name(pick, at), reason: 'this datasheet is not in the selected rules version' })
@@ -434,7 +451,14 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames; dataBuild?: number }
+type Spellings = {
+  translations: CatalogueTranslations
+  removed: RemovedNames
+  names: ImportNames
+  dataBuild?: number
+  /** Reads wargear in the official app's spellings before the catalogue's, for a list the app's names spell. */
+  appFirst?: boolean
+}
 
 /**
  * Where each unit of a group that does not say which is its bodyguard goes: to the one other unit it can join, or of
@@ -626,7 +650,7 @@ function importTextRoster(
       detachmentIds,
       detachmentSelections,
       loaded,
-      spellings,
+      { ...spellings, appFirst: parsed.spelling === 'app' },
     )
     const allegiance = guessed
       ? [
@@ -1036,7 +1060,7 @@ function textRosterPick(
   detachmentIds: readonly string[],
   roster: readonly Selection[],
   loaded: LoadedCatalogue,
-  { translations, removed, names: appNames }: Spellings,
+  { translations, removed, names: appNames, appFirst }: Spellings,
 ) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
@@ -1046,8 +1070,7 @@ function textRosterPick(
   const respelled = respelledNames(entryId, loaded.index)
   // The official app prints some wargear as VS Data spells it, as a Corsair Voidscarred's "Channeller Stones" for the
   // catalogue's "Channeler stones": the one of this unit's names the reviewed spellings give that spelling. A spelling
-  // that is only the name in another number, as Termagants' "Termagant spinefists", is left unread, since reading it
-  // changes how the squad divides.
+  // that is only the name in another number, as Termagants' "Termagant spinefists", is left to `appSpelled` below.
   const vsSpelled = (label: string) => {
     const key = wargearKey(label).replace(ARTICLE, '')
     const names = [...new Set(respelled.values())].filter(
@@ -1140,10 +1163,24 @@ function textRosterPick(
       .find(Boolean)
   // A name only the card knows reads as its English one, so a French "Chef de Meute de Cavalerie sur Loups Tonnerre" is
   // the "Thunderwolf Cavalry Pack Leader" its datasheet titles.
+  // What the text export writes for each of the unit's wargear, which an app-spelled list reads first and any list reads
+  // last, so either spelling imports: an app export's "Bolt pistol*" is the catalogue's "Bolt pistol".
+  const appSpellings = appSpellingsOf(
+    loaded,
+    catalogueId,
+    entryId,
+    new Set([...respelled.values()].filter((name): name is string => name !== null)),
+  )
+  const appSpelled = (label: string, enhancement: boolean) => {
+    const name = appSpellings.get(normalized(label))
+    return name ? (resolved(name, enhancement) ?? name) : undefined
+  }
   const nameFor = (label: string, enhancement = false) =>
+    (appFirst ? appSpelled(label, enhancement) : undefined) ??
     resolved(label, enhancement) ??
     translated(label, enhancement) ??
     printed(label, enhancement) ??
+    appSpelled(label, enhancement) ??
     normalized(printedAs(label)[0]?.[0] ?? vsSpelled(label) ?? label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
@@ -2178,11 +2215,13 @@ function combinedCounts(
 type ExportPrice = {
   points: number
   disposition: string | null
-  detachments: { name: string; points: number | null }[]
+  detachments: { id: string; name: string; points: number | null }[]
   units: {
     key: number
+    entryId: string
     size: { models: number }
     name: string
+    choices: readonly { kind?: 'enhancement' | 'upgrade'; options: readonly { name: string; count: number; vsDataId?: string }[] }[]
     points: number
     group: UnitGroup
     attachment: Attachment | null
@@ -2210,7 +2249,8 @@ export function exportRosterFile(
     text:
       data.format === 'ros'
         ? battleScribeRoster(data, loaded, rules, priced)
-        : toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
+        : toGwText(readableRoster(data, loaded, priced, dispositionNames), version) +
+          gwTextVersionLines(loaded.edition, exportRuleset(loaded, data.catalogueId)),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
     /** Saved detachments and options of printed units the current data no longer offers, which the text leaves out. */
@@ -2220,9 +2260,41 @@ export function exportRosterFile(
   }
 }
 
-/** A priced list by name, points, loadout and attachment, as the readable export prints it. */
-export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue, priced: ExportPrice, dispositionNames: string[]) {
+/** A priced unit by the English names VS Data gives its datasheet, Enhancements and wargear, the catalogue's where it gives none. */
+function vsNamedUnit<T extends ExportPrice['units'][number]>(unit: T, loaded: LoadedCatalogue, catalogueId: string): T {
+  const enhancements = new Map(
+    unit.choices
+      .filter((choice) => choice.kind)
+      .flatMap((choice) =>
+        choice.options.flatMap((option) => {
+          const name = option.count > 0 && option.vsDataId ? vsEnhancementName(loaded, option.vsDataId) : undefined
+          // The list names an upgrade under its own heading, as the catalogue's upgrade names are written.
+          return name ? [[option.name, choice.kind === 'upgrade' ? withoutUpgrade(name) : name] as const] : []
+        }),
+      ),
+  )
+  const enhancement = (name: string) => enhancements.get(name) ?? name
+  const wargear = vsWargearNames(loaded, catalogueId, unit.entryId)
+  return {
+    ...unit,
+    name: vsDatasheetName(loaded, catalogueId, unit.entryId) ?? unit.name,
+    enhancements: unit.enhancements.map(enhancement),
+    upgrades: unit.upgrades.map(enhancement),
+    wargear: unit.wargear.map((piece) => ({ ...piece, name: wargear(piece.name) })),
+  }
+}
+
+/** A priced list by name, points, loadout and attachment, as the readable export prints it, in VS Data's English names. */
+export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue, price: ExportPrice, dispositionNames: string[]) {
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
+  const priced = {
+    ...price,
+    detachments: price.detachments.map((detachment) => ({
+      ...detachment,
+      name: vsDetachmentName(loaded, detachment.id) ?? detachment.name,
+    })),
+    units: price.units.map((unit) => vsNamedUnit(unit, loaded, data.catalogueId)),
+  }
   const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
   const unitsByPick = data.units.map((pick, index) => {
     const unit = priced.units.find((candidate) => candidate.key === index)
@@ -2230,7 +2302,7 @@ export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue,
   })
   return {
     name: data.name,
-    faction: factionDisplayName(faction),
+    faction: vsFactionName(loaded, data.catalogueId) ?? factionDisplayName(faction),
     detachments: priced.detachments.map(({ name, points }) => ({ name, points })),
     dispositions: dispositionNames,
     size: battleSizeTitle(data.limit),
