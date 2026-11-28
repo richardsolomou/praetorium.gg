@@ -89,7 +89,14 @@ export function vsDataTextFacts(
       : []
     const card = agreed(held)
     if (card) return { record: card, by: 'card' }
-    if (keys.length !== 1) return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    if (keys.length !== 1) {
+      // A card printing a catalogue text's paragraphs between its own strings is the record every part is alone.
+      const parts = keys.map(join)
+      const [first] = parts
+      if (first?.record && parts.every((part) => part.record === first.record))
+        return { record: first.record, by: parts.some((part) => part.by === 'id') ? 'id' : 'card' }
+      return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    }
     // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it are, on the
     // datasheet each is held within where the frozen map files a profile several datasheets share under each.
     const holders = definitions.holders?.(factsKey) ?? []
