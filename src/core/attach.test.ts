@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf } from './attach'
+import { attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf, vsDecidesHost } from './attach'
 import { attachedUnit } from './attachedUnits'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
@@ -1317,6 +1317,26 @@ describe('a joiner VS Data has a record for', () => {
 
   it("keeps the catalogue's hosts for a joiner whose VS Data hosts are not settled", () => {
     expect(captain({ catalogueHosts: true })).toEqual(['TACTICAL SQUAD', 'ASSAULT SQUAD', 'Intercessor Squad'])
+  })
+})
+
+describe('whether VS Data decides a host', () => {
+  const index = {
+    ...indexOf({ sharedSelectionEntries: [{ id: 'captain', name: 'Captain', type: 'model' }] }),
+    attachments: { captain: { kind: 'leader' as const, targets: ['Intercessor Squad'], named: ['Intercessor Squad'] } },
+    attachmentHosts: ['Intercessor Squad', 'Assault Squad'],
+  }
+
+  it('admits a host VS Data names', () => {
+    expect(vsDecidesHost(index, 'captain', 'Intercessor Squad', [])).toBe(true)
+  })
+
+  it('refuses a host VS Data defines and does not name', () => {
+    expect(vsDecidesHost(index, 'captain', 'Assault Squad', [])).toBe(false)
+  })
+
+  it('leaves the catalogue a host VS Data has no unit for', () => {
+    expect(vsDecidesHost(index, 'captain', 'Tactical Squad', [])).toBeUndefined()
   })
 })
 
