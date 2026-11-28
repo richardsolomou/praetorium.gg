@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import type { RuleSummary, RuleSummaryBlock } from '../../contracts/rules'
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import { canonicalDetachmentName } from '../../core/detachmentName'
 import { routeSlug } from '../../core/slug'
 import type { VsDataInvulnerableSave, VsDataUnit, VsDataUnits } from '../../shared/vsData'
 import { ruleUnitsQuery } from '../queries/references'
-import { abilitySummaryIn, datasheetAbilitySummary } from '../../shared/vsDataAbilities'
+import { abilitySummaryIn, datasheetAbilitySummary, unitsInBook } from '../../shared/vsDataAbilities'
 import { useRuleSummaries } from '../ruleSummaries'
 import { bold, counted, line, type Line, listed } from '../../shared/vsDataUnitLines'
 
@@ -15,7 +15,11 @@ export function useVsDataUnit(catalogueId: string, entryId: string, enabled = tr
   return unitIn(useVsDataUnits(catalogueId, enabled), entryId)
 }
 
-const useVsDataUnits = (catalogueId: string, enabled: boolean) => useEditionUnits(catalogueEditionId(catalogueId), enabled)
+/** The VS Data units of the rules version `catalogueId` is of, as its book reads them (`unitsInBook`). */
+function useVsDataUnits(catalogueId: string, enabled: boolean): VsDataUnits | null | undefined {
+  const units = useEditionUnits(catalogueEditionId(catalogueId), enabled)
+  return useMemo(() => (units ? unitsInBook(units, catalogueId) : units), [units, catalogueId])
+}
 
 /** A rules version's VS Data units and abilities, the current one's where `edition` is null. */
 function useEditionUnits(edition: string | null, enabled: boolean): VsDataUnits | null | undefined {
@@ -54,16 +58,15 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
 }
 
 /**
- * The summary of a rule a datasheet or detachment around it prints, by `datasheetAbilitySummary`: its owner's own record
- * first, then the record its printed text names. Undefined while asked for, null where there is none.
+ * The summary of a rule a datasheet or detachment around it prints, by `datasheetAbilitySummary`: the record its BSData
+ * id is, then the record its printed text names. Undefined while asked for, null where there is none.
  */
 export function useDatasheetAbilitySummary(text: string, name: string | undefined, id?: string): RuleSummary | null | undefined {
-  const { pending, recordOf } = useRuleSummaries([text])
+  const { pending, recordsOf } = useRuleSummaries([text])
   const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
   const units = useVsDataUnits(catalogueId, Boolean(subject && name))
   if (pending || units === undefined) return undefined
-  const printed = recordOf(text, name)
-  return name ? datasheetAbilitySummary(units, subject, name, id, printed) : (printed?.summary ?? null)
+  return datasheetAbilitySummary(units, subject, id, recordsOf(text), name)
 }
 
 /**

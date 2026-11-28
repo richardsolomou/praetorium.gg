@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.280.10 (2026-11-28)
+
+### Patch Changes
+
+- 841bce4: [reference] The Library Titans in Chaos books show the Chaos Titan's datasheet details and ability summaries, not the Imperial Titan's.
+- 49f8596: [reference] Datasheet abilities show their own rule's summary instead of another unit's rule of the same name, and hundreds more abilities show one.
+- 49f8596: [reference] Detachment rules the official cards don't print show their summaries on Detachment pages and in print packs.
+- 7e6f3f1: [simulator] A unit built from VS Data now shows, beside each weapon option in its loadout, the odds the unit would have with that option, as other units do.
+
 ## 0.280.9 (2026-11-28)
 
 ### Patch Changes

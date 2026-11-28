@@ -57,7 +57,12 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     enhancements: allEnhancements,
     upgrades: allUpgrades,
   })
-  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail?.rules ?? [], detail?.absentRules)
+  // A rule only the catalogue prints carries its BSData id, by which VS Data's alias names its record.
+  const detachmentRuleCards: { name: string; description: string | null; vsDataId?: string; bsdataId?: string }[] = mergeDetachmentRules(
+    catalogueDetail?.rules ?? [],
+    detail?.rules ?? [],
+    detail?.absentRules,
+  )
   const enhancements = [
     ...allEnhancements.map((enhancement) => ({
       name: enhancement.name,
