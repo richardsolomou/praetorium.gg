@@ -48,7 +48,10 @@ function kindsOf(unit: PricedUnit) {
     unit.choices.find((choice) => choice.key === choiceKey)?.options.find((option) => option.id === optionId)?.count ?? 0
   const kinds = new Map<string, number>()
   for (const kind of unit.models) {
-    const n = kind.members.reduce((total, member) => total + (member.choiceKey ? countOf(member.choiceKey, member.id) : member.baseCount), 0)
+    const n = kind.members.reduce(
+      (total, member) => total + (member.choiceKey ? countOf(member.choiceKey, member.id) : member.baseCount),
+      0,
+    )
     if (n > 0) kinds.set(same(kind.name), (kinds.get(same(kind.name)) ?? 0) + n)
   }
   return kinds
@@ -174,7 +177,8 @@ export function withImportedVsPicks<T extends RosterPick>(
     if (next.every((pick, key) => pick === picks[key])) return next
     const vsPriced = new Map(price(next)?.units.map((unit) => [unit.key, unit]))
     const kept = next.map((pick, key) =>
-      pick === picks[key] || facts(loaded, vsPriced.get(key), pick, pick.vs?.allegiance) === facts(loaded, built.get(key), picks[key]!, pick.vs?.allegiance)
+      pick === picks[key] ||
+      facts(loaded, vsPriced.get(key), pick, pick.vs?.allegiance) === facts(loaded, built.get(key), picks[key]!, pick.vs?.allegiance)
         ? pick
         : picks[key]!,
     )
