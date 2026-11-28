@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.31 (2026-11-28)
+
+### Patch Changes
+
+- 2248aa7: [rosters] A unit is no longer offered an Enhancement the list check would refuse it, such as Standard of the Emperor Ascendant on a Librarian.
+
 ## 0.280.30 (2026-11-28)
 
 ### Patch Changes
