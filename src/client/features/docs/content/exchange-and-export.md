@@ -10,7 +10,7 @@ A code carries units, custom names, model counts, equipment, attachments, units 
 
 ## Exporting a list
 
-Open a roster's menu and choose **Export**, then **Copy text** or, in the browser, **Download text**. Other builders can read it and Praetorium can import it back.
+Open a roster's menu and choose **Export**, then **Copy text** or, in the browser, **Download text**. Other builders can read it and Praetorium can import it back. Faction, units, detachments, enhancements and wargear are named as the official app names them.
 
 ![The Export roster dialog showing the roster as text, with Download text and Copy text.](screenshot:import-a-roster-export-text 'Copy text')
 

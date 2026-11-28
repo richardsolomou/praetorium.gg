@@ -1,4 +1,4 @@
-import { byId, groupBy } from './collections'
+import { byId } from './collections'
 import { csv, parseCsv } from './csv'
 import { countsAsList, MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS, type CollectionEntry } from './collection'
 
@@ -10,7 +10,8 @@ const COLLECTION_CSV_COLUMNS = ['faction', 'datasheet', 'datasheet_id', 'models'
 /** Separates the datasheet ids in `counts_as_ids`, which a comma would split into cells. */
 const LINK_SEPARATOR = ';'
 
-type Sheet = { id: string; name: string; faction: string }
+/** A datasheet a file can name: by the catalogue's name, or by the official app's where VS Data's differs. */
+type Sheet = { id: string; name: string; appName?: string; faction: string }
 
 export type CollectionCsvRow = {
   entryId: string
@@ -65,7 +66,10 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
   if (records.length > MAX_COLLECTION_DATASHEETS)
     return { error: `A collection holds up to ${MAX_COLLECTION_DATASHEETS.toLocaleString('en')} datasheets.` }
   const sheetsById = byId(sheets)
-  const byName = groupBy(sheetsById.values(), (sheet) => normalise(sheet.name))
+  const byName = new Map<string, Sheet[]>()
+  for (const sheet of sheetsById.values())
+    for (const spelling of new Set([sheet.name, sheet.appName ?? sheet.name].map(normalise)))
+      byName.set(spelling, [...(byName.get(spelling) ?? []), sheet])
   const value = (record: string[], column: string) => {
     const index = columns.get(column)
     return index === undefined ? undefined : record[index]
@@ -114,7 +118,14 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
     if (seen.has(entryId)) return { line, name, status: 'duplicate', reason: 'An earlier row already lists this datasheet.' }
     seen.add(entryId)
     const countsAs = countsAsList(entryId, links)
-    return { line, name: candidates[0]!.name, status: 'recognised', entryId, ...valid, ...(countsAs.length ? { countsAs } : {}) }
+    return {
+      line,
+      name: candidates[0]!.appName ?? candidates[0]!.name,
+      status: 'recognised',
+      entryId,
+      ...valid,
+      ...(countsAs.length ? { countsAs } : {}),
+    }
   })
   return { rows }
 }

@@ -1,5 +1,5 @@
 import type { RosterPick } from '../core/roster'
-import { removedNamesOf, unmatchedDetachmentReason } from '../shared/importMismatch'
+import { removedNamesOf, unmatchedDetachmentReason, unplacedChoiceReason } from '../shared/importMismatch'
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
@@ -16,7 +16,7 @@ import {
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import type { LoadedRules } from '../shared/rules'
-import { importNamesOf, type ImportNames } from '../shared/importNames'
+import { importNamesOf, NO_IMPORT_NAMES, type ImportNames } from '../shared/importNames'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -1114,8 +1114,10 @@ describe('roster export', () => {
         units: [
           {
             key: 0,
+            entryId: 'lord',
             size: { models: 1 },
             name: 'Lokhust Lord',
+            choices: [],
             points: 100,
             group: 'character',
             attachment: { kind: 'leader', targets: ['Immortals'] },
@@ -1126,8 +1128,10 @@ describe('roster export', () => {
           },
           {
             key: 1,
+            entryId: 'immortals',
             size: { models: 5 },
             name: 'Immortals',
+            choices: [],
             points: 200,
             group: 'other',
             attachment: null,
@@ -1678,6 +1682,14 @@ Exported with BattleBase, Data Version: v20260812`,
     ])
   })
 
+  it('knows wargear the faction has by the name BSData gave it, frozen, over the catalogue’s', () => {
+    const names = { ...NO_IMPORT_NAMES, entryNames: new Map([['hull-lascannon', ['Hull lascannon']]]) }
+
+    expect(unplacedChoiceReason('Hull lascannon', { loaded, catalogueId: 'necrons', detachmentIds: [], names })).toBe(
+      'this datasheet does not offer it',
+    )
+  })
+
   it('names the faction a datasheet belongs to instead', () => {
     const imported = importRosterFile(
       {
@@ -1828,7 +1840,7 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
         },
       },
       { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
-      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map(), bookNames: new Map() },
+      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map(), entryNames: new Map(), bookNames: new Map() },
     )
     const imported = importRosterFile(
       {
@@ -2009,7 +2021,7 @@ Exported with BattleBase, Data Version: v20260812`
         },
       },
     ]
-    expect(unmatchedDetachmentReason('Pantheon of Doom', 'mfm-1-6~necrons', loaded, removedNamesOf(history))).toBe(
+    expect(unmatchedDetachmentReason('Pantheon of Doom', 'mfm-1-6~necrons', loaded, NO_IMPORT_NAMES, removedNamesOf(history))).toBe(
       'removed in the 30 Sept 2026 data update',
     )
   })
@@ -2376,8 +2388,10 @@ describe('Praetorium roster import', () => {
         units: [
           {
             key: 0,
+            entryId: 'lord',
             size: { models: 1 },
             name: 'Lokhust Lord',
+            choices: [],
             points: 100,
             group: 'character',
             attachment: { kind: 'leader', targets: ['Immortals'] },
@@ -2388,8 +2402,10 @@ describe('Praetorium roster import', () => {
           },
           {
             key: 1,
+            entryId: 'immortals',
             size: { models: 5 },
             name: 'Immortals',
+            choices: [],
             points: 200,
             group: 'other',
             attachment: null,
@@ -2518,8 +2534,10 @@ Created with newrecruit.eu v35.51`,
 describe('custom unit names in text', () => {
   const immortals = (key: number) => ({
     key,
+    entryId: 'immortals',
     size: { models: 5 },
     name: 'Immortals',
+    choices: [],
     points: 200,
     group: 'other' as const,
     attachment: null,

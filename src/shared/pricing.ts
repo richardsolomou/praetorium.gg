@@ -319,12 +319,15 @@ const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltU
  * A VS pick's Enhancement as the list shows it, where the catalogue's tree holds none: one of a Detachment the list does
  * not take still costs its points, so it is named, and VS Data's checker refuses it.
  */
-function withVsEnhancement(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>, specials: ReturnType<typeof selectedSpecials>) {
+/** A VS pick's Enhancement or Upgrade, as VS Data names the one it takes. */
+function vsSpecials(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>): ReturnType<typeof selectedSpecials> {
   const enhancement = vs.unit.enhancement ? vsDefinitionsOf(loaded)?.get('enhancement', vs.unit.enhancement) : undefined
-  if (!enhancement || specials.enhancements.length || specials.upgrades.length) return specials
-  return enhancement.data.type === 'upgrade'
-    ? { ...specials, upgrades: [enhancement.name] }
-    : { ...specials, enhancements: [enhancement.name] }
+  const names = enhancement ? [enhancement.name] : []
+  return {
+    enhancements: enhancement?.data.type === 'upgrade' ? [] : names,
+    upgrades: enhancement?.data.type === 'upgrade' ? names : [],
+    specialSelections: new Set(names.map(routeSlug)),
+  }
 }
 
 /**
@@ -574,6 +577,7 @@ function calculateRoster(
     ),
   ]
   const purchased = chosen.map((option) => ({
+    id: option.id,
     name: option.name,
     points: detachmentPoints(loaded, data.catalogueId, option.id, referenceFor(option)),
   }))
@@ -735,18 +739,24 @@ function calculateRoster(
   )
   // Keywords and Toughness are only inputs to King of the Colosseum's construction rules.
   // Projecting every contextual datasheet for an ordinary roster would revisit the whole roster once per unit.
+  const vsUnits = vsUnitsOf(data, picked)
   const constructionUnits = isKotcLimit(data.limit)
     ? picked.map((unit) => {
         const catalogueId = catalogueOfUnit(unit)
-        const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
-          selections,
-          unitSelectionIndex: selectionIndex.get(catalogueTreeOf(unit)),
-          keywordIds: keywordsFor(catalogueId, selectionIndex.get(catalogueTreeOf(unit)) ?? -1),
-        })
+        // A VS pick's keywords are VS Data's, given by its Detachment as the War Dogs' BATTLELINE in a Houndpack Lance;
+        // its Toughness is the datasheet's printed one either way.
+        const vsKeywords = unit.vs ? vsPickKeywords(loaded, data, vsUnits, unit.key) : null
+        const sheet = vsKeywords
+          ? datasheetIn(loaded, catalogueId, unit.entryId)
+          : datasheetIn(loaded, catalogueId, unit.entryId, {
+              selections,
+              unitSelectionIndex: selectionIndex.get(catalogueTreeOf(unit)),
+              keywordIds: keywordsFor(catalogueId, selectionIndex.get(catalogueTreeOf(unit)) ?? -1),
+            })
         return {
           entryId: unit.entryId,
           name: unit.name,
-          keywords: sheet?.keywords ?? [],
+          keywords: vsKeywords ?? sheet?.keywords ?? [],
           toughness: toughnessOf(sheet?.profiles ?? []),
           warlord: hasWarlordToggle(unit.toggles),
         }
@@ -781,15 +791,20 @@ function calculateRoster(
   })
   const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
   const specialsByKey = new Map(
-    picked.map((unit) => {
-      const specials = selectedSpecials(
-        unit.choices,
-        enhancementNames.size ? wargearOf(catalogueTreeOf(unit), loaded.index) : [],
-        upgradeNames,
-        enhancementNames,
-      )
-      return [unit.key, unit.vs ? withVsEnhancement(loaded, unit.vs, specials) : specials] as const
-    }),
+    picked.map((unit) => [
+      unit.key,
+      // VS Data records no Enhancement a Detachment requires, as Pantheon of Woe's Singularity Matrix on the C'tan Shard of
+      // the Deceiver, so a VS pick taking none of its own still shows the one its catalogue tree is forced to take. Goes
+      // once a reader of richardsolomou/vs-data#232's required Enhancements lands.
+      unit.vs?.unit.enhancement
+        ? vsSpecials(loaded, unit.vs)
+        : selectedSpecials(
+            unit.choices,
+            enhancementNames.size ? wargearOf(catalogueTreeOf(unit), loaded.index) : [],
+            upgradeNames,
+            enhancementNames,
+          ),
+    ]),
   )
   // Core rules: no unit, attached units included, has more than one enhancement, and an upgrade is one.
   const enhancementsPerUnitErrors = [...attachedByHost].flatMap(([host, keys]) => {
@@ -901,7 +916,6 @@ function calculateRoster(
 
   // The units a rule lets the player pick as the battle begins for its deployment ability, which battle setup offers: a
   // chosen detachment's rule, or one of a unit's own abilities, wargear or Enhancements.
-  const vsUnits = vsUnitsOf(data, picked)
   const offeredPicks = uniqueBy(
     [
       ...detachmentSpecials.flatMap(({ detail }) =>
@@ -977,8 +991,13 @@ function calculateRoster(
       const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(catalogueTreeOf(unit))
+      // A VS pick takes the keyword naming its datasheet from the printed datasheet, which needs no catalogue tree.
       const unitKeywords = unit.vs
-        ? vsKeywordsWithName(unit, vsPickKeywords(loaded, data, vsUnits, unit.key), keywordNamesOf(unit))
+        ? vsKeywordsWithName(
+            unit,
+            vsPickKeywords(loaded, data, vsUnits, unit.key),
+            datasheetIn(loaded, catalogueId, unit.entryId)?.keywords ?? [],
+          )
         : keywordNamesOf(unit)
       const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
@@ -1001,7 +1020,6 @@ function calculateRoster(
           !(deployment.formationOptions as readonly string[]).includes(pick.ability) &&
           !(deployment.prebattleRules as readonly string[]).includes(pick.ability),
       )
-      const catalogued = wargearOf(catalogueTreeOf(unit), loaded.index)
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
       const vsDefinitions = unit.vs ? vsDefinitionsOf(loaded) : null
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
@@ -1068,9 +1086,10 @@ function calculateRoster(
       const allegiance = unit.vs?.unit.allegiance && vsDefinitions?.get('allegiance', unit.vs.unit.allegiance)?.name
       const wargear = unit.vs
         ? [...unit.vs.wargear, ...(allegiance ? [{ name: allegiance, count: 1 }] : [])]
-        : heldWargear(models, choices, catalogued)
+        : heldWargear(models, choices, wargearOf(catalogueTreeOf(unit), loaded.index))
+      // A VS pick's wargear is VS Data's, which holds no Enhancement, so only a catalogue pick's needs sorting.
       const specialWargear = new Set(
-        unit.choices.flatMap((choice) =>
+        (unit.vs ? [] : unit.choices).flatMap((choice) =>
           specialKind(choice, upgradeNames)
             ? choiceOptionsForPricing(choice)
                 .filter((option) => option.count > 0)
