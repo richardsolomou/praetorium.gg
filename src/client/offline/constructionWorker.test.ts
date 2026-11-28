@@ -53,7 +53,12 @@ let worker: typeof import('./constructionWorker')
 const download = (revision: string) => ({
   download: {
     revision,
-    construction: { catalogue: `/assets/construction-${revision}.bin`, rules: '/assets/construction-r.bin', editions: {} },
+    construction: {
+      catalogue: `/assets/construction-${revision}.bin`,
+      rules: '/assets/construction-r.bin',
+      vs: '/assets/construction-v.bin',
+      editions: {},
+    },
   },
 })
 const DOWNLOAD = download('a')
@@ -115,6 +120,7 @@ it('starts preparing an unanswered unit read from the published download’s par
         parts: {
           catalogue: 'https://praetorium.gg/assets/construction-a.bin',
           rules: 'https://praetorium.gg/assets/construction-r.bin',
+          vs: 'https://praetorium.gg/assets/construction-v.bin',
           editions: {},
         },
       },
