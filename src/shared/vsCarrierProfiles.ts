@@ -94,11 +94,14 @@ const printedAs = (printed: readonly Profile[], line: WeaponLine) =>
 function modified(kind: keyof VsStatValues, value: string, catalogue: Profile['values'][number] | undefined) {
   if (catalogue?.baseValue === undefined || catalogue.baseValue === catalogue.value) return { value }
   const sources = catalogue.modifiers ? { modifiers: catalogue.modifiers } : {}
-  if (kind !== 'keywords') return valueKey(catalogue.baseValue) === valueKey(value) ? { value: catalogue.value, baseValue: value, ...sources } : { value }
+  if (kind !== 'keywords')
+    return valueKey(catalogue.baseValue) === valueKey(value) ? { value: catalogue.value, baseValue: value, ...sources } : { value }
   const held = (list: string) => new Set(splitWeaponKeywords(list).map((keyword) => keyword.toLowerCase()))
   const base = held(catalogue.baseValue)
   const own = held(value)
-  const added = splitWeaponKeywords(catalogue.value).filter((keyword) => !base.has(keyword.toLowerCase()) && !own.has(keyword.toLowerCase()))
+  const added = splitWeaponKeywords(catalogue.value).filter(
+    (keyword) => !base.has(keyword.toLowerCase()) && !own.has(keyword.toLowerCase()),
+  )
   return added.length ? { value: [value, ...added].filter(Boolean).join(', '), baseValue: value, ...sources } : { value }
 }
 
@@ -160,11 +163,13 @@ export function vsDataFiring(
   // without, cannot share VS Data's one line, so the unit keeps the catalogue's profiles.
   const printing = (profile: Profile) => JSON.stringify(profile.values.map(({ name, value }) => [name, value]))
   const split = [...standsFor.values()].some((profiles) => new Set(profiles.map(printing)).size > 1)
-  const unread = split || catalogueFiring.some((carrier, at) =>
-    carrier.weapons.some(
-      (weapon, step) => (weapon.profileIds?.length && !firing[at]![step]!.length) || firing[at]![step]!.some((id) => targetless.has(id)),
-    ),
-  )
+  const unread =
+    split ||
+    catalogueFiring.some((carrier, at) =>
+      carrier.weapons.some(
+        (weapon, step) => (weapon.profileIds?.length && !firing[at]![step]!.length) || firing[at]![step]!.some((id) => targetless.has(id)),
+      ),
+    )
   if (unread) return null
   const carriers = catalogueFiring.map((carrier, at) => ({
     ...carrier,
@@ -174,7 +179,9 @@ export function vsDataFiring(
     }),
   }))
   return {
-    weapons: inOrderOf(catalogueProfiles, lines).map((line) => profileOf(line, standsFor.get(line.id)?.[0] ?? printedAs(catalogueProfiles, line))),
+    weapons: inOrderOf(catalogueProfiles, lines).map((line) =>
+      profileOf(line, standsFor.get(line.id)?.[0] ?? printedAs(catalogueProfiles, line)),
+    ),
     carriers,
   }
 }

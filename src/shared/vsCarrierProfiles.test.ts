@@ -38,7 +38,14 @@ it('finds the catalogue carrier of a model one source names in the plural', () =
   expect(fires(carrying('Blade'), [profile('trooper', 'Blade'), profile('superior', 'Blade')], catalogue)).toEqual([['trooper']])
 })
 
-const blade = { id: 'vs-blade', name: 'Blade', melee: true, keys: ['blade', 'blademelee'], wargear: 'vs-wargear', values: { keywords: 'Lethal Hits' } }
+const blade = {
+  id: 'vs-blade',
+  name: 'Blade',
+  melee: true,
+  keys: ['blade', 'blademelee'],
+  wargear: 'vs-wargear',
+  values: { keywords: 'Lethal Hits' },
+}
 const index: VsProfilesIndex = { units: { entry: 'unit' }, lines: { unit: { models: [], unit: [], weapons: [blade] } } }
 const printed = (id: string, keywords: string, baseValue?: string) => ({
   id,
@@ -51,7 +58,9 @@ const holding = (...ids: string[]): CombatCarrier[] =>
 
 it('gives a VS Data weapon what the catalogue adds to the profile it stands for', () => {
   const fired = vsDataFiring(index, 'book', 'entry', holding('trooper'), [printed('trooper', 'Lethal Hits, Lance', 'Lethal Hits')])
-  expect(fired?.weapons[0]?.values).toEqual([{ name: 'Keywords', value: 'Lethal Hits, Lance', baseValue: 'Lethal Hits', modifiers: ['Ability'] }])
+  expect(fired?.weapons[0]?.values).toEqual([
+    { name: 'Keywords', value: 'Lethal Hits, Lance', baseValue: 'Lethal Hits', modifiers: ['Ability'] },
+  ])
 })
 
 it('leaves a unit to the catalogue where its models print one VS Data weapon differently', () => {
