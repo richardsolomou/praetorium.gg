@@ -129,6 +129,7 @@ export function* loadCatalogueSteps(
   // cards stand in for the catalogue's, which a card text's record is chosen by.
   let holding: Pick<DefinitionTexts, 'holders'> = texts
   const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, { holders: (key) => holding.holders?.(key) ?? [] })
+  if (vsRoster && effects) vsRoster.facts = effects.records()
   const twins = cardTwins(ownTexts, effects)
   yield
   // Readers load a rule's words from the cards wherever they print it, and from the catalogue only where they do not.

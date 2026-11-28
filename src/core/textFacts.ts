@@ -6,6 +6,12 @@ import type { UnitGeneration } from './rosterGrades'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from './sourceText'
 
 /**
+ * VS Data's reading of each rule record of a rules version, by record key (`ability:<id>`, `core-ability:<id>`,
+ * `weapon-ability:<id>`), as `textFactsOfVsData` turns the record's effect blocks into the catalogue's `TextFacts`.
+ */
+export type VsRecordFacts = Readonly<Record<string, TextFacts>>
+
+/**
  * What the roster rules read from a rules text, kept beside its token.
  *
  * The server and a reader's device both price and judge rosters, and neither holds a
