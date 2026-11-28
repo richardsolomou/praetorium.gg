@@ -45,8 +45,9 @@ type Carrier = Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'
  * load grows while its Tidewall Defence Platform stands.
  */
 function equipmentOf(transport: Carrier) {
+  if (!transport.wargear && !transport.modelLines) return undefined
   const models = (transport.modelLines ?? []).map((line, at) => ({ name: line.name, count: transport.lines?.[at]?.alive ?? line.models }))
-  return [...transport.wargear, ...models]
+  return [...(transport.wargear ?? []), ...models]
 }
 
 /** What a transport holds if these passengers ride in it, or why they cannot. */
