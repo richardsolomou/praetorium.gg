@@ -1,5 +1,5 @@
 import type { CombatInput, CombatPhase } from './combat'
-import { combatSchema } from './combat'
+import { combatSchema, rerollRank } from './combat'
 import type { CombatAttacker } from './combatScenario'
 import { combatTarget } from './combatProfiles'
 import type { CombatCarrier } from './combatLoadout'
@@ -11,6 +11,7 @@ import {
   type ActiveCombatRule,
   type CombatRuleEffect,
 } from './combatRules'
+import { combatTextKey } from './combatRuleCompiler'
 import { datasheetCharacteristicKind } from './datasheetStructure'
 
 export type CombatMember = Omit<CombatAttacker, 'companions'> & {
@@ -112,7 +113,10 @@ export function combatUnitTarget(defender: CombatMember, phase?: CombatPhase, at
       damageDivisor: group.damageDivisor ?? part.target!.damageDivisor ?? 1,
     })),
   )
-  const target: CombatInput['target'] = { groups, feelNoPain: null }
+  // The engine re-rolls saves for the whole unit, so a member's re-roll holds only where every member has it.
+  const saveRerolls = built.map((part) => part.target!.saveReroll ?? 'none')
+  const saveReroll = saveRerolls.reduce((weakest, roll) => (rerollRank[roll] < rerollRank[weakest] ? roll : weakest))
+  const target: CombatInput['target'] = { groups, feelNoPain: null, ...(saveReroll === 'none' ? {} : { saveReroll }) }
   const parsed = combatSchema.shape.target.safeParse(target)
   return parsed.success
     ? {
@@ -196,13 +200,23 @@ function limitedDefences(member: CombatMember) {
   return { rules, carriers, marks, effects }
 }
 
-/** A member's rules without the Wounds changes the catalogue already counts in its models' Wounds characteristic. */
+/**
+ * A member's rules without the Wounds changes the catalogue already counts in its models' Wounds characteristic: one it
+ * credits to the rule, or one in a profile it prints for the rule's bearers, as "Assault Terminator w/ Storm Shield".
+ */
 function withoutProjectedWounds(member: CombatMember): readonly ActiveCombatRule[] {
-  const modifiers = member.sheet.profiles.flatMap((profile) =>
+  const lines = member.sheet.profiles.flatMap((profile) =>
+    profile.values.some((value) => datasheetCharacteristicKind(value.name) === 'wounds') ? [profile] : [],
+  )
+  const modifiers = lines.flatMap((profile) =>
     profile.values.flatMap((value) => (datasheetCharacteristicKind(value.name) === 'wounds' ? (value.modifiers ?? []) : [])),
   )
+  const printed = (rule: ActiveCombatRule) =>
+    [rule.name, ...(rule.appliedAs ?? [])].some((name) =>
+      lines.some((profile) => combatTextKey(profile.name).includes(combatTextKey(name))),
+    )
   return (member.rules ?? []).map((rule) =>
-    combatRuleProjected(rule, modifiers)
+    combatRuleProjected(rule, modifiers) || printed(rule)
       ? {
           ...rule,
           effects: rule.effects.flatMap((effect) => {

@@ -344,12 +344,14 @@ const ROLLED = new Set(['attacks', 'damage'])
 
 /**
  * Whether an effect changes something the simulator cannot apply: Wounds a model regains, mortal wounds outside the
- * attacks, dice or multiplying for a characteristic other than Attacks and Damage, or Toughness or Wounds changed through
- * a unit characteristic rather than their own fields. Its reading is not calculated rather than calculated without that part.
+ * attacks, a save re-roll for some models alone (the engine re-rolls a whole unit's saves), dice or multiplying for a
+ * characteristic other than Attacks and Damage, or Toughness or Wounds changed through a unit characteristic rather than
+ * their own fields. Its reading is not calculated rather than calculated without that part.
  */
-function unappliable({ characteristic, unitStat, regainWounds, mortalWounds }: VsDataEffect) {
+function unappliable({ characteristic, unitStat, regainWounds, mortalWounds, rolls, ...effect }: VsDataEffect) {
   return (
     regainWounds !== undefined ||
+    Boolean(rolls?.saveReroll && (effect.modelKeywords || effect.excludedModelKeywords || effect.bearerOnly)) ||
     mortalWounds?.timing === 'outside-attacks' ||
     (characteristic !== undefined &&
       !ROLLED.has(characteristic.name) &&

@@ -1138,7 +1138,9 @@ function checkedCombat(scenario: CombatInput) {
     throw new Error('Shared Feel No Pain source changes during separate mortal-wound abilities are not yet supported.')
   if (input.target.groups.some((group, index) => (group.damage ?? 0) + (index === 0 ? (input.target.damage ?? 0) : 0) >= group.wounds))
     throw new Error('The wounded model must have at least one wound remaining.')
-  if ((input.options.commandReroll || input.options.singleRerolls?.length) && input.weapons.some((weapon) => weapon.unmodifiedSix))
+  // A save is the defender's roll, which no change to an unmodified 6 competes for.
+  const attackRerolls = [...(input.options.singleRerolls ?? []), input.options.commandReroll].filter((kind) => kind && kind !== 'save')
+  if (attackRerolls.length && input.weapons.some((weapon) => weapon.unmodifiedSix))
     throw new Error(
       'A re-roll and a roll changed to an unmodified 6 in the same phase are not calculated together, since which roll each takes is a choice.',
     )
