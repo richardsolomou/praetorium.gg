@@ -528,7 +528,15 @@ function OptionAbilities({
       {matching.map((ability) => (
         <div key={ability.id}>
           {ability.name.toLocaleLowerCase() === option.name.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
-          {ability.description ? <RuleText text={ability.description} rules={rules} className={PROSE} /> : null}
+          {ability.description ? (
+            <RuleText
+              text={ability.description}
+              rules={rules}
+              className={PROSE}
+              // The unit's own ability reads its record by id, as the datasheet's does; an upgrade or granted ability is its detachment's.
+              {...(ability.kind !== 'upgrade' && !ability.source ? { name: ability.name, abilityId: ability.id } : {})}
+            />
+          ) : null}
         </div>
       ))}
     </div>
