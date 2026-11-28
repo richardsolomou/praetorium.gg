@@ -125,6 +125,7 @@ const canonicalDatasheetSchema = z.object({
       faction: z.string().nullable(),
       detachment: z.string().nullable(),
       allied: z.string().optional(),
+      mix: z.string().optional(),
       copies: z.string().transform(mfmCopyLabel).optional(),
     }),
   ),

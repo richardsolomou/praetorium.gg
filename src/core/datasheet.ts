@@ -59,6 +59,8 @@ export type Datasheet = {
     detachment: string | null
     /** The army keyword of another army the unit is taken into at this cost, as Imperium is for an Assassin. */
     allied?: string
+    /** The models the row prices the unit as, by name and count, where a size costs by its mix of models. */
+    mix?: string
     copies?: string
   }[]
   attachments: DatasheetRelationship[]
@@ -99,8 +101,8 @@ export type StructuredDatasheetProfile = Omit<Datasheet['profiles'][number], 'va
 
 type CostRow = Datasheet['costs'][number]
 
-/** What a points row applies under, as a page prints it: a keyword, army, Detachment, army it is taken into, or copies. */
+/** What a points row applies under, as a page prints it: a keyword, army, Detachment, army it is taken into, mix of models or copies. */
 export const costConditions = (cost: CostRow) =>
-  [cost.keyword, cost.faction, cost.detachment, cost.allied ? `as ${cost.allied}` : null, cost.copies].filter(
+  [cost.keyword, cost.faction, cost.detachment, cost.allied ? `as ${cost.allied}` : null, cost.mix, cost.copies].filter(
     (condition): condition is string => Boolean(condition),
   )

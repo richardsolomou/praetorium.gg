@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { vsDataDefinitions } from '../core/vsDataConstruction'
 import { mfmPrice } from './mfm'
-import { vsMfmDetachment, vsMfmUnit, vsPointsIndex } from './vsDataPoints'
+import { vsCostRows, vsMfmDetachment, vsMfmUnit, vsPointsIndex } from './vsDataPoints'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const definitions = vsDataDefinitions({
@@ -16,6 +16,10 @@ const definitions = vsDataDefinitions({
       'host.relic-tank': record('Relic Tank', { faction: 'host', keywords: [], sizes: [1], legends: true }),
       'host.pack': record('Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
       'host.mixed-pack': record('Mixed Pack', { faction: 'host', keywords: [], sizes: [3, 6, 12] }),
+    },
+    model: {
+      'host.mixed-pack.hunter': record('Hunter', { unit: 'host.mixed-pack', min: 3, max: 12, wargear: {} }),
+      'host.mixed-pack.hound': record('Hound', { unit: 'host.mixed-pack', min: 0, max: 3, wargear: {} }),
     },
   },
   points: [
@@ -150,6 +154,12 @@ describe('vsMfmUnit', () => {
 
   it('prices a Warhammer Legends datasheet from VS Data', () => {
     expect(price('bs-host', 'bs-relic')).toBe(200)
+  })
+})
+
+describe('vsCostRows', () => {
+  it('labels a row priced by its mix of models with their names', () => {
+    expect(vsCostRows(index, 'bs-host', 'bs-mixed-pack')?.find((row) => row.cost === '115')?.mix).toBe('3 Hunter, 3 Hound')
   })
 })
 

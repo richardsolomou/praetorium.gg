@@ -4,7 +4,14 @@ import type { MfmUnit } from './mfm'
 
 type Tier = {
   copies: { from: number; to?: number }
-  costs: { models: number; points: number; composition?: string; mix?: Readonly<Record<string, number>> }[]
+  costs: {
+    models: number
+    points: number
+    composition?: string
+    mix?: Readonly<Record<string, number>>
+    /** The models a `mix` holds, by VS Data's names, as "3 Wolf Guard Headtaker, 3 Hunting Wolf". */
+    mixNames?: string
+  }[]
 }
 
 /**
@@ -86,6 +93,11 @@ export function vsPointsIndex(
       .flatMap((snapshot) => snapshot.factions.find((faction) => faction.id === unit.data.faction)?.units ?? [])
       .find((candidate) => candidate.id === id)
     if (!row) return null
+    const mixNames = (mix: Readonly<Record<string, number>>) =>
+      definitions
+        .modelsOf(id)
+        .flatMap((model) => (mix[model.id] ? [`${mix[model.id]} ${model.name}`] : []))
+        .join(', ')
     const tiers = row.tiers.map((tier) => ({
       copies: tier.copies,
       costs: tier.costs.flatMap((cost) => {
@@ -97,7 +109,7 @@ export function vsPointsIndex(
                 models: cost.models,
                 points,
                 ...(cost.composition ? { composition: cost.composition } : {}),
-                ...(cost.mix ? { mix: cost.mix } : {}),
+                ...(cost.mix ? { mix: cost.mix, mixNames: mixNames(cost.mix) } : {}),
               },
             ]
       }),
@@ -213,7 +225,7 @@ export function vsMfmUnit(
 /**
  * A datasheet's VS Data cost rows as its page prints them, for a list of the book `catalogueId`: every size of every
  * copy tier, its `copies` as that tier's range, and a row for one army, Detachment or army it is taken into labelled
- * with VS Data's name for it.
+ * with VS Data's name for it, or for one mix of models with their names (`mix`).
  */
 export function vsCostRows(index: VsPointsIndex | undefined, catalogueId: string, entryId: string) {
   const unit = inBook(index?.units, catalogueId, entryId)
@@ -234,10 +246,11 @@ export function vsCostRows(index: VsPointsIndex | undefined, catalogueId: string
       cost: String(cost.points),
       keyword: null,
       ...labelled(cost.composition),
+      ...(cost.mixNames ? { mix: cost.mixNames } : {}),
       ...(tier.copies.from === 1 && tier.copies.to === undefined ? {} : { copies: rangeOf(tier.copies) }),
     })),
   )
-  // A size priced by the mix of models it holds prints once, as the one price `vsPointsIndex` keeps it for.
+  // Rows a release tells apart only by the models their composition names, which `vsPointsIndex` keeps one price of, print once.
   return [...new Map(rows.map((row) => [JSON.stringify(row), row])).values()]
 }
 
