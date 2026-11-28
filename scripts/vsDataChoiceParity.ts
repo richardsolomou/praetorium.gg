@@ -145,8 +145,8 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'wargear counts',
     units: /^Sword Brethren Squad$/,
-    detail: /^hand-flamer:/,
-    why: 'the app (build 995) gives Sword Brethren 2 hand flamers per 4 models',
+    detail: /^(hand-flamer|plasma-pistol|thunder-hammer):/,
+    why: 'the app (build 995) gives Sword Brethren 2 hand flamers per 4 models, and a plasma pistol and a thunder hammer each per 4',
   },
   {
     check: 'wargear counts',
@@ -174,9 +174,9 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   },
   {
     check: 'wargear counts',
-    units: /^(Reaver Titan|Warbringer Nemesis Titan|Warlord Titan|Warhound Titan|Armiger Moirax|War Dog Moirax)$/,
+    units: /^(Chaos )?(Reaver Titan|Warbringer Nemesis Titan|Warlord Titan|Warhound Titan)$|^(Armiger Moirax|War Dog Moirax)$/,
     detail: /.*/,
-    why: 'the app (build 995) arms each arm with one weapon, the same on both arms allowed',
+    why: 'the app (build 995) arms each arm with one weapon, the same on both arms allowed, and swaps a Warlord Titan’s 2 apocalypse launchers for 2 laser blasters together',
   },
   {
     check: 'wargear',
@@ -236,6 +236,102 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     why: 'the card lets any number of Ridgerunners take each swap, which the catalogue’s one group cannot hold together',
   },
   {
+    check: 'wargear counts',
+    units: /^adeptus-custodes\.contemptor-achillus-dreadnought$/,
+    detail: /^(adrathic-combi-destructor|twin-infernus-incinerator):/,
+    why: 'the app (build 995) swaps the 2 lastrum storm bolters for 2 adrathic combi-destructors or 2 twin infernus incinerators',
+  },
+  {
+    check: 'wargear',
+    units: /^aeldari\.phantom-titan$/,
+    detail: /^only BSData offers 1-phantom-pulsar$/,
+    why: 'the app (build 995) gives the pulsar as a bundle with a wraith glaive, the same loadout BSData shapes otherwise',
+  },
+  {
+    check: 'wargear counts',
+    units: /^aeldari\.phantom-titan$/,
+    detail: /^(wraith-glaive|pulse-laser):/,
+    why: 'the app (build 995) gives a wraith glaive with the D-bombard and the pulsar swaps, and pulse lasers from the starcannon swap and each arm bundle',
+  },
+  {
+    check: 'wargear',
+    units: /^aeldari\.troupe$/,
+    detail: /^only VS Data offers flip-belt$/,
+    why: 'every Troupe model carries a flip belt, as the card prints',
+  },
+  {
+    check: 'wargear counts',
+    units: /^aeldari\.troupe$/,
+    detail: /^(fusion-pistol|neuro-disruptor):/,
+    why: 'the app (build 995) gives a Troupe 2 fusion pistols and 2 neuro-disruptors at 9 models or fewer, 4 of each from 10',
+  },
+  {
+    check: 'enhancements',
+    units: /^astra-militarum\.ratlings$/,
+    detail: /^Abhuman Auxiliaries: only BSData sharpeyeslightfingers only VS Data sharpeyes$/,
+    why: 'the app (build 995) names the Enhancement Sharp Eyes',
+  },
+  {
+    check: 'wargear counts',
+    units: /^(chaos-space-marines|death-guard|emperors-children|world-eaters)\.defiler$/,
+    detail: /^magma-cutters:/,
+    why: 'the app (build 995) swaps the excruciator cannon for 2 magma cutters',
+  },
+  {
+    check: 'wargear',
+    units: /^thousand-sons\.defiler$/,
+    detail: /^only (BSData offers pyraflux-magma-cutter|VS Data offers pyraflux-magma-cutters)$/,
+    why: 'the card prints the Thousand Sons Defiler’s swap as 2 pyraflux magma cutters',
+  },
+  {
+    check: 'sizes',
+    units: /^genestealer-cults\.atalan-jackals$/,
+    detail: /.*/,
+    why: 'the app (build 995) fields 4 to 8 Jackals and 1 or 2 Wolfquads, the second only with 8 Jackals: 5 to 10 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^genestealer-cults\.atalan-jackals$/,
+    detail: /^(mining-laser|atalan-incinerator):/,
+    why: 'any number of Wolfquads may swap their heavy stubber, as the card prints',
+  },
+  {
+    check: 'wargear counts',
+    units: /^imperial-agents\.inquisitorial-chimera$/,
+    detail: /^heavy-flamer:/,
+    why: 'the card lets both the heavy bolter and the multi-laser become a heavy flamer',
+  },
+  {
+    check: 'wargear counts',
+    units: /^space-marines\.lieutenant$/,
+    detail: /^master-crafted-power-weapon:/,
+    why: 'the card lets both the master-crafted bolter and the ceramite fists become a master-crafted power weapon',
+  },
+  {
+    check: 'wargear',
+    units: /^necrons\.triarch-praetorians$/,
+    detail: /^only (BSData offers particle-caster-and-voidblade|VS Data offers (particle-caster|voidblade))$/,
+    why: 'the app (build 995) takes the particle caster and voidblade together for the squad, the same legality BSData shapes as one bundle',
+  },
+  {
+    check: 'sizes',
+    units: /^tau-empire\.tidewall-shieldline$/,
+    detail: /.*/,
+    why: 'the app (build 995) fields the defence platform as a second model',
+  },
+  {
+    check: 'wargear',
+    units: /^tau-empire\.tidewall-shieldline$/,
+    detail: /^only BSData offers tidewall-defence-platform$/,
+    why: 'the app (build 995) fields the defence platform as a model, not wargear',
+  },
+  {
+    check: 'enhancements',
+    units: /^deathwatch\.watch-master$/,
+    detail: /^Deathwatch Support has no BSData Detachment$/,
+    why: 'Deathwatch Support is a Space Marines chapter Detachment in the app (build 995), which BSData has no copy of',
+  },
+  {
     check: 'sizes',
     units:
       /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
@@ -258,7 +354,7 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'simulator',
     units:
-      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers|world-eaters\.chaos-rhino|chaos-space-marines\.havocs|death-guard\.helbrute|(chaos-)?titan-legions\.(chaos-)?(warhound|reaver|warlord|warbringer-nemesis)-titan|imperial-knights\.armiger-moirax|chaos-knights\.war-dog-moirax|tau-empire\.taunar-supremacy-armour)$/,
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers|world-eaters\.chaos-rhino|chaos-space-marines\.havocs|death-guard\.helbrute|(chaos-)?titan-legions\.(chaos-)?(warhound|reaver|warlord|warbringer-nemesis)-titan|space-marines\.victrix-honour-guard|imperial-knights\.armiger-moirax|chaos-knights\.war-dog-moirax|tau-empire\.taunar-supremacy-armour)$/,
     // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
     detail: /^(?!.*\bnone\b)/,
     why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
