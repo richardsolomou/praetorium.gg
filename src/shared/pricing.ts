@@ -62,7 +62,7 @@ import {
   vsDataChecks,
   vsDataEnhancementOptions,
   vsDataEnhancementsRefused,
-  vsDataErrors,
+  vsDataCheck,
   vsDataAllyLimited,
   vsDataUnheld,
   vsDataPlaces,
@@ -722,7 +722,8 @@ function calculateRoster(
   const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
   // VS Data's ally points limits count what each unit costs the list.
   const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: selectionPoints.get(unit.selection) ?? 0 }))
-  const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
+  const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
+  const vsData = vsChecked?.errors ?? null
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
   // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
   // the catalogue's total counts every unit.
@@ -935,7 +936,7 @@ function calculateRoster(
     unitLimits: data.includeUnitLimits
       ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
           id,
-          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections, vsChecked),
           vs: vsFirstPickOf(loaded, data, id),
         }))
       : undefined,
