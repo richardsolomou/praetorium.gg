@@ -134,7 +134,7 @@ it('fails publication on persistent storage errors without treating them as miss
   await expect(publishWebAssets([await assets()], { base: 'https://storage.test/', request }, fetch, undefined, 1)).rejects.toThrow(
     'Web asset storage answered 503',
   )
-  expect(request.mock.calls.map(([, options]) => options?.method)).toEqual(['HEAD', 'HEAD', 'HEAD', 'HEAD'])
+  expect(request.mock.calls.map(([, options]) => options?.method)).toEqual(Array.from({ length: 7 }, () => 'HEAD'))
 })
 it('rejects files without immutable build names', async () => {
   const directory = await assets()
