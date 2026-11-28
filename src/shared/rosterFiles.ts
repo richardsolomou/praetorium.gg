@@ -965,8 +965,6 @@ const spellingKey = (name: string) =>
     .replaceAll('&', 'and')
     .replaceAll(/\s+with\s+/g, 'w/')
     .replaceAll(/[\s-]/g, '')
-// The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
-const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
 // The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
 const GENERIC_MELEE = spellingKey('close combat weapon')
 const CHAOS_GODS = ['khorne', 'nurgle', 'slaanesh', 'tzeentch']
@@ -984,7 +982,7 @@ function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalog
   const respelled = respelledNames(entryId, index)
   const known = (name: string) => {
     const key = spellingKey(normalized(name))
-    return respelled.has(key) || respelled.has(powerWeaponKey(key)) || key === GENERIC_MELEE
+    return respelled.has(key) || key === GENERIC_MELEE
   }
   const selections = unit.selections.flatMap((selection) => {
     // A piece can carry its own count, as "Dual Caestus Fists and 2x Twin Neutronium Cascade Projectors".
@@ -1107,10 +1105,10 @@ function textRosterPick(
     const key =
       [spellingKey(normalized(label)), spellingKey(normalized(withoutQualifier(label)))].find((candidate) => respelled.has(candidate)) ??
       spellingKey(normalized(label))
-    const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
+    const known = respelled.has(key)
     if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
     return (
-      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
+      (respelled.has(key) ? respelled.get(key) : (unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
       loadoutModel(label) ??
