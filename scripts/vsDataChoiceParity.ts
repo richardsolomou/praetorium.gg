@@ -12,6 +12,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
 import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
+import keywordRulings from './vsDataKeywordRulings.json' with { type: 'json' }
 import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
 import type { RosterPick } from '../src/core/roster'
 import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
@@ -98,7 +99,14 @@ function distance(one: string, other: string) {
  * name (any book's) or VS Data unit ID (one book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded
  * (the K1 and K2 settlements of the VS Data gaps).
  */
-const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
+const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegExp; why: string }[] = [
+  {
+    check: 'keywords',
+    // By VS Data unit ID: the datasheets O reviewed, apart from the Cybernetica Datasmith (vs-data#229) and the Daemonic Herald.
+    units: new Set(keywordRulings),
+    detail: /.*/,
+    why: 'VS Data follows the app (build 995): its plural and name keywords stand, and Recon Augury, Harlequin Allies and the categories BSData gives wargear such as Terminator Armour are no keywords any source prints',
+  },
   {
     check: 'warlord',
     units: /^(Company Heroes|Rein and Raus|Ravenwing Command Squad)$/,
@@ -146,6 +154,12 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
     why: 'the card gives Wulfen a death totem, the Solarite the Scourges’ pistol and power weapon, and a Lieutenant a storm shield only with the neo-volkite pistol and master-crafted power weapon',
   },
   {
+    check: 'wargear',
+    units: /^Wulfen with Storm Shields$/,
+    detail: /^only (BSData offers storm-shield|VS Data offers death-totem)$/,
+    why: 'the card gives these Wulfen a death totem and no shield wargear: their 4+ invulnerable save is on the datasheet',
+  },
+  {
     check: 'sizes',
     units:
       /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
@@ -168,7 +182,7 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
   {
     check: 'simulator',
     units:
-      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers)$/,
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers|world-eaters\.chaos-rhino|chaos-space-marines\.havocs|death-guard\.helbrute|titan-legions\.warhound-titan|imperial-knights\.armiger-moirax|chaos-knights\.war-dog-moirax|tau-empire\.taunar-supremacy-armour)$/,
     // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
     detail: /^(?!.*\bnone\b)/,
     why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
@@ -180,7 +194,12 @@ const differences = new Map<string, Map<string, string[]>>()
 /** Each check's differences, by VS Data unit ID; one a ruling settles is filed apart. */
 const differ = (check: string, unit: string, detail: string) => {
   const name = definitions.get('unit', unit)?.name ?? unit
-  const ruled = RULED.some((row) => row.check === check && (row.units.test(name) || row.units.test(unit)) && row.detail.test(detail))
+  const ruled = RULED.some(
+    (row) =>
+      row.check === check &&
+      (row.units instanceof RegExp ? row.units.test(name) || row.units.test(unit) : row.units.has(unit)) &&
+      row.detail.test(detail),
+  )
   const filed = ruled ? `${check}${RULED_SUFFIX}` : check
   const byUnit = differences.get(filed) ?? new Map<string, string[]>()
   differences.set(filed, byUnit)
