@@ -1,4 +1,3 @@
-import { normalized } from './importMismatch'
 import type { VsDataNames } from './vsData'
 
 /**
@@ -10,7 +9,7 @@ export type ImportNames = {
   datasheets: ReadonlyMap<string, readonly string[]>
   /** The spellings of each model and piece of wargear a datasheet holds, keyed as `datasheets`. */
   pieces: ReadonlyMap<string, readonly (readonly string[])[]>
-  /** Each Detachment's names from VS Data, by any of its English names normalized, BSData's included. */
+  /** Each Detachment's names from VS Data, by stored ID, with BSData's names of every stored ID standing for that Detachment. */
   detachments: ReadonlyMap<string, readonly string[]>
   /** The names BSData gave each datasheet, by stored entry ID. */
   datasheetNames: ReadonlyMap<string, readonly string[]>
@@ -29,6 +28,17 @@ export const NO_IMPORT_NAMES: ImportNames = {
 /** The names BSData gave a stored ID in the loaded rules version, which an earlier version keeps under its own key. */
 export const storedNames = (names: ReadonlyMap<string, readonly string[]>, loaded: { edition?: { id: string } }, id: string) =>
   names.get(`${loaded.edition?.id}~${id}`) ?? names.get(id)
+
+/**
+ * The names BSData gave a stored ID, as frozen. Rules carrying none, as a download from an earlier release or a list read
+ * without rules, read the catalogue's own names instead.
+ */
+export const frozenNames = (
+  frozen: ReadonlyMap<string, readonly string[]>,
+  loaded: { edition?: { id: string } },
+  id: string,
+  own: () => readonly string[],
+) => (frozen.size ? (storedNames(frozen, loaded, id) ?? []) : own())
 
 /** Every group of spellings a release's names hold, each its English one first. */
 export const spellingGroups = (names: VsDataNames | undefined): readonly (readonly string[])[] =>
@@ -85,10 +95,9 @@ export function importNamesOf(
   const detachments = new Map<string, readonly string[]>()
   const detachmentEntries = storedBy(legacy.detachments, rulesVersion)
   for (const [detachment, spelled] of Object.entries(names?.detachments ?? {})) {
-    const bsdata = (detachmentEntries.get(detachment) ?? []).flatMap((id) => legacy.detachmentNames.get(id) ?? [])
-    const group = [...new Set([...spelled, ...bsdata])]
-    for (const key of new Set([spelled[0]!, ...bsdata].map(normalized)))
-      detachments.set(key, [...new Set([...(detachments.get(key) ?? []), ...group])])
+    const stored = detachmentEntries.get(detachment) ?? []
+    const group = [...new Set([...spelled, ...stored.flatMap((id) => legacy.detachmentNames.get(id) ?? [])])]
+    for (const id of stored) detachments.set(id, group)
   }
   return { datasheets, pieces, detachments, datasheetNames: legacy.datasheetNames, detachmentNames: legacy.detachmentNames }
 }
