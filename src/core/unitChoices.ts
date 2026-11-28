@@ -665,15 +665,18 @@ function legalMaximum(
           { ...parts[0]!, count: parts.reduce((total, part) => total + (part.count ?? 1), 0) },
         ])
       : selection
-  // The rest of the room goes to whichever other option leaves this one legal: one that lowers this option's limit, as a
-  // bright lance lowers a starcannon's, would otherwise cap it at less than the data allows.
+  // The rest of the room goes to the first other option or, where that one lowers this option's limit as a bright lance
+  // lowers a starcannon's, to another piece of wargear within its own limit. Another model would change the unit's size,
+  // which limits per so many models read.
   const others = siblings.filter((candidate) => candidate.id !== option.id)
+  const substitutes = others.slice(1).filter((other) => resolve(other.definition, index).type !== 'model')
   for (let count = room; count >= 1; count--) {
-    const fillers = others.length ? others : [undefined]
-    const legal = fillers.some((other) => {
+    const legal = [others[0], ...substitutes].some((other) => {
       const counts: Record<string, number> = { [option.id]: count }
       if (other) counts[other.id] = room - count
-      return !candidateErrors(targetId, withSpread(whole, path.join('/'), counts), index, context).length
+      const candidate = withSpread(whole, path.join('/'), counts)
+      if (candidateErrors(targetId, candidate, index, context).length) return false
+      return other === others[0] || !candidateErrors(resolve(other!.definition, index).id, candidate, index, context).length
     })
     if (legal) return count
   }
