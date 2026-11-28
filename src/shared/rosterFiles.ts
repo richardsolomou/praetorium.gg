@@ -27,6 +27,7 @@ import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
 import { hasWarlordToggle, unitChoices, unitToggles, type UnitToggle } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
+import { wargearKey } from '../core/wargearNames'
 import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { nicknamedUnit } from '../core/unitNotes'
 import { battleScribeRoster } from './battleScribeRoster'
@@ -64,6 +65,7 @@ import {
   enhancementDetachment,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
+import { ARTICLE, SPELLINGS } from './wargearSpellings'
 import { datacardOf } from './datasheetJoin'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
@@ -978,6 +980,20 @@ function textRosterPick(
   // Lines no model holds, which are the only ones that can name a body: a Terminator Champion's "Paired accursed weapons" is not a Terminator.
   const statedLines = new Map<string, number>()
   const respelled = respelledNames(entryId, loaded.index)
+  // The official app prints some wargear as VS Data spells it, as a Corsair Voidscarred's "Channeller Stones" for the
+  // catalogue's "Channeler stones": the one of this unit's names the reviewed spellings give that spelling. A spelling
+  // that is only the name in another number, as Termagants' "Termagant spinefists", is left unread, since reading it
+  // changes how the squad divides.
+  const vsSpelled = (label: string) => {
+    const key = wargearKey(label).replace(ARTICLE, '')
+    const names = [...new Set(respelled.values())].filter(
+      (name) =>
+        name !== null &&
+        !nameVariants(name).includes(normalized(label)) &&
+        [SPELLINGS[wargearKey(name).replace(ARTICLE, '')] ?? []].flat().includes(key),
+    )
+    return names.length === 1 ? names[0] : undefined
+  }
   const models = modelNames(entryId, loaded.index)
   // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle",
   // and the official app prefixes a model with a keyword of its unit, as a Cultist Mob's "Chaos Cultist" or a "World Eaters Terminator Champion".
@@ -1056,7 +1072,7 @@ function textRosterPick(
     resolved(label, enhancement) ??
     translated(label, enhancement) ??
     printed(label, enhancement) ??
-    normalized(printedAs(label)[0]?.[0] ?? label)
+    normalized(printedAs(label)[0]?.[0] ?? vsSpelled(label) ?? label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
