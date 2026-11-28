@@ -52,7 +52,12 @@ const construction: VsDataConstruction = {
     },
     unit: {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
-      'host.captain': record('Captain', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
+      'host.captain': record('Captain', {
+        faction: 'host',
+        keywords: ['CHARACTER', 'INFANTRY'],
+        sizes: [1],
+        abilities: ['host.rider.charge'],
+      }),
       'host.hero': record('Hero', { faction: 'host', keywords: ['CHARACTER', 'EPIC HERO', 'INFANTRY'], sizes: [1] }),
       'host.rider': record('Rider', {
         faction: 'host',
@@ -428,6 +433,10 @@ describe('vsHeldAbilities', () => {
 
   it('holds a unit’s own ability that no wargear brings', () => {
     expect(vsHeldAbilities(definitions, rider)).toContain('host.rider.oath')
+  })
+
+  it('holds its own ability though another unit’s wargear brings it, as a copied upgrade gives a printed ability', () => {
+    expect(vsHeldAbilities(definitions, { unit: 'host.captain', models: { 'host.captain.captain': 1 } })).toContain('host.rider.charge')
   })
 
   it('holds an ability some wargear brings only with that wargear, though the unit names it', () => {

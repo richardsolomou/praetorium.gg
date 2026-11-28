@@ -1201,7 +1201,7 @@ function vsHoldingAt(loaded: LoadedCatalogue, context: DatasheetContext, at: num
   const links = loaded.vsRoster?.abilities
   if (!picked || !definitions || !links) return null
   const held = vsHeldAbilities(definitions, picked)
-  const linked = vsLinkedAbilities(definitions)
+  const linked = vsLinkedAbilities(definitions, picked.unit)
   const sheet = context.selections[at]?.id
   const shown = new Set<string>()
   return {
