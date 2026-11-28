@@ -10,7 +10,7 @@ import { listedDatasheets } from './cataloguePicker'
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
-import { factionContentOf, factionDisplayName } from './factionNames'
+import { factionContentOf, factionDisplayName, vsFactionOf } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from '../core/text'
 import { detachmentPoints } from './detachmentPoints'
@@ -113,6 +113,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
       baseCatalogueId: catalogueEditionId(faction.id) ? faction.id.split('~')[1]! : faction.id,
       isDefault: loaded.edition ? loaded.edition.default : true,
       name: faction.name,
+      vsFaction: vsFactionOf(loaded, faction.id),
       displayName,
       icon: rules?.factionIcons?.has(slugId)
         ? process.env.NODE_ENV === 'development'

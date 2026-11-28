@@ -18,6 +18,13 @@ export function factionDisplayName(catalogueName: string, names?: ReadonlyMap<st
   return names?.get(routeSlug(name)) ?? name
 }
 
+/** The VS Data faction a book plays, through the frozen book map, by its ID and English name; none without a VS Data release. */
+export function vsFactionOf(loaded: Pick<LoadedCatalogue, 'vsPoints'>, catalogueId: string): { id: string; name: string } | null {
+  const id = loaded.vsPoints?.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+  const name = id ? loaded.vsPoints?.factions[id]?.name : undefined
+  return id && name ? { id, name } : null
+}
+
 /**
  * The name the catalogues give a faction the rules call something else: a `Faction:`
  * keyword, a Game Datacards file and the Adeptus Astartes book all name the Space

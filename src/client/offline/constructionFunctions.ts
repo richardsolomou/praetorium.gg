@@ -109,7 +109,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   const candidates = statedId
     ? [await savedFaction(statedId, factions)].filter((found) => found !== undefined)
     : factions.filter((found) => found.isDefault)
-  const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate.name, new Map(translations))) : null
+  const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate, new Map(translations))) : null
   return constructionRead(
     'importFile',
     {

@@ -13,7 +13,7 @@ async function importReview(imported: Imported) {
   const faction = imported.catalogueId ? await app().factionFor(imported.catalogueId) : null
   return {
     format: imported.format,
-    faction: imported.catalogueName?.split(' - ').at(-1) ?? null,
+    faction: faction?.vsFaction?.name ?? imported.catalogueName?.split(' - ').at(-1) ?? null,
     rulesVersion: faction ? rulesVersionLabel(faction) : null,
     matchedEntries: imported.units.length,
     sourceEntries: imported.sourceUnitCount,
