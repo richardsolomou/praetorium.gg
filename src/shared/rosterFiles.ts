@@ -63,6 +63,7 @@ import {
   factionOfDatasheets,
   chapterOfDatasheets,
   enhancementDetachment,
+  vsEnhancementOption,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { ARTICLE, SPELLINGS } from './wargearSpellings'
@@ -1035,6 +1036,13 @@ function textRosterPick(
     return undefined
   }
   const context = { primaryCatalogueId: catalogueId, roster }
+  // The official app can spell an Enhancement or upgrade otherwise, as Path of the Outcast's "Assassins' Eye" is BSData's
+  // "Assassin's Eye"; VS Data names it by the catalogue option it stands for.
+  const appEnhancement = (label: string) => {
+    const option = loaded.index.definitions.get(vsEnhancementOption(label, loaded, detachmentIds) ?? '')
+    const name = option && normalized(nameOf(option, loaded.index.definitions))
+    return name && (respelled.get(spellingKey(name)) ?? name)
+  }
   let manualNames: ReadonlyMap<string, string> | undefined
   const modelFor = new Map<string, string>()
   const defaultMelee = new Map<string, string | null>()
@@ -1049,7 +1057,8 @@ function textRosterPick(
       (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
-      loadoutModel(label)
+      loadoutModel(label) ??
+      appEnhancement(label)
     )
   }
   // A list exported in another language names its wargear and enhancements in it, as the Spanish "Talismán del tormento".

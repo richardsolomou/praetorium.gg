@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
-import { descriptionKey } from '../shared/datacards'
 import {
   exportRosterFile,
   importRosterExchange,
@@ -830,7 +829,7 @@ const loaded: LoadedCatalogue = {
   datacards: {
     factions: new Map(),
     detachmentRules: new Map(),
-    enhancements: new Map([[descriptionKey('Skyshroud Spearhead', 'Veil of Darkness'), 'Vanishes.']]),
+    enhancements: new Map(),
     stratagemTexts: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
@@ -853,6 +852,32 @@ const loaded: LoadedCatalogue = {
     ],
   ]),
   factionContents: new Map(),
+}
+
+/** The catalogue with VS Data's Enhancements of its Detachments, by the catalogue options standing for them. */
+const withVsEnhancements: LoadedCatalogue = {
+  ...loaded,
+  vsRoster: {
+    construction: {
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'MFM 1.6' },
+      definitions: {
+        enhancement: {
+          'necrons.skyshroud-spearhead.veil-of-darkness': { name: 'Veil of Darkness', data: {} },
+          'necrons.pantheon-of-woe.demanding-leadership': { name: 'Demanding Leadership', data: {} },
+        },
+      },
+      unavailable: [],
+      points: [],
+    },
+    books: {},
+    detachments: { skyshroud: 'necrons.skyshroud-spearhead', pantheon: 'necrons.pantheon-of-woe' },
+    units: {},
+    enhancements: {
+      'necrons.skyshroud-spearhead/veil': 'necrons.skyshroud-spearhead.veil-of-darkness',
+      'necrons.pantheon-of-woe/relic': 'necrons.pantheon-of-woe.demanding-leadership',
+    },
+  },
 }
 
 /** A squad whose heavy weapon names its carrier, as the Terminator Squad's cyclone missile launcher does. */
@@ -1317,6 +1342,28 @@ Exported with BattleBase, Data Version: v20260812`,
     expect(imported.units[0]?.spreads?.['model/weapon']).toEqual({ blaster: 0, beamer: 3 })
   })
 
+  it('matches an enhancement the official app spells otherwise, through its VS Data ID', () => {
+    const imported = importRosterFile(
+      {
+        file: `Lord (80 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Enhancement: Demanding Leadership
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      withVsEnhancements,
+    )
+
+    expect(imported.units[0]?.choices?.enhancements).toBe('relic')
+  })
+
   it('matches an enhancement after a plural export label', () => {
     const imported = importRosterFile(
       {
@@ -1542,7 +1589,7 @@ Lokhust Lord (80 Points)
 
 Exported with BattleBase, Data Version: v20260812`,
       },
-      loaded,
+      withVsEnhancements,
     )
 
     expect(imported.unplaced).toEqual([
@@ -1560,10 +1607,26 @@ Lokhust Lord (80 Points)
 
 Exported with New Recruit v38.18, Data Version: v17`,
       },
-      loaded,
+      withVsEnhancements,
     )
 
     expect(imported.detachmentIds).toEqual(['skyshroud'])
+  })
+
+  it('takes the detachment of an enhancement a list spells as BSData does where the official app spells it otherwise', () => {
+    const imported = importRosterFile(
+      {
+        file: `CHARACTERS
+
+Lokhust Lord (80 Points)
+  • Enhancements: Demanding Leader
+
+Exported with New Recruit v38.18, Data Version: v17`,
+      },
+      withVsEnhancements,
+    )
+
+    expect(imported.detachmentIds).toEqual(['pantheon'])
   })
 
   it('separates an enhancement of the chosen detachment from one of another', () => {
@@ -1582,7 +1645,7 @@ Tomb Blades (70 Points)
 
 Exported with BattleBase, Data Version: v20260812`,
       },
-      loaded,
+      withVsEnhancements,
     )
 
     expect(imported.unplaced).toEqual([
