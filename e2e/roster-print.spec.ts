@@ -8,7 +8,9 @@ import {
   waitForRosterSave,
   addUnit,
   chooseRosterAction,
+  createRoster,
   practiceBattle,
+  retryUntilVisible,
   PHONE,
   playerPanel,
 } from './account'
@@ -17,6 +19,79 @@ import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/na
 import { lastPathSegment } from './storage'
 import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
 import { screenshot } from './screenshots'
+
+for (const { faction, detachment, unit, group, name, label } of [
+  {
+    faction: 'Adepta Sororitas',
+    detachment: /Bringers of Flame/,
+    unit: 'Palatine',
+    group: 'Enhancements',
+    name: 'Fire and Fury',
+    label: 'Enhancement',
+  },
+  {
+    faction: 'Necrons',
+    detachment: /Skyshroud Spearhead/,
+    unit: 'Lokhust Destroyers',
+    group: 'Unit upgrades',
+    name: 'Deepening Madness',
+    label: 'Upgrade',
+  },
+]) {
+  test(`${unit} prints ${name} and its summary with its datasheet`, async ({ page }) => {
+    await page.addInitScript(
+      ({ unit: unitName, name: specialName }) => {
+        window.print = () => {
+          const datasheet = document.querySelector(`[data-print-datasheet="${unitName}"]`)
+          document.documentElement.dataset.printedSummary =
+            datasheet?.querySelector(`[data-print-special="${specialName}"] [data-rule-summary]`)?.textContent ?? ''
+        }
+      },
+      { unit, name },
+    )
+    await signUp(page, uniqueName('Print ' + label))
+    await createRoster(page, { faction, detachment })
+    await addUnit(page, unit)
+    const card = page.locator(`[data-unit="${unit}"]`)
+    const choice = page.getByRole('group', { name: `${unit} ${group}` }).getByRole('button', { name: `Select ${name}`, exact: true })
+    await retryUntilVisible(choice, () => card.getByRole('button', { name: new RegExp('^' + unit) }).click())
+    await waitForRosterSave(page, () => choice.click())
+
+    await chooseRosterAction(page, 'Print')
+    const datasheet = page.locator(`[data-print-datasheet="${unit}"]`)
+    await expect(datasheet.getByRole('heading', { name: `${name} (${label})`, exact: true })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-printed-summary', /\S/)
+  })
+}
+
+test('a saved army prints its points and identifies the transport an attached unit starts in', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.print = () => {
+      document.documentElement.dataset.printed = 'true'
+    }
+  })
+  await signUp(page, uniqueName('Print starting transports'))
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force' })
+  for (const name of ['Land Raider', 'Land Raider', 'Intercessor Squad', 'Captain']) await addUnit(page, name)
+  await waitForRosterSave(page, () => attach(page, 'Captain', 'Intercessor Squad'))
+  await page.getByRole('button', { name: 'Embark unit in transport: Intercessor Squad', exact: true }).click()
+  await waitForRosterSave(
+    page,
+    () => page.getByRole('menuitem', { name: 'Embark Intercessor Squad in Land Raider #2', exact: true }).click(),
+    'embarkedIn',
+  )
+  const [points, limit] = (await page.locator('[data-stat="points"]').innerText()).split('/')
+
+  await chooseRosterAction(page, 'Print')
+  const pack = page.locator('[data-battle-reference-pack]')
+  await expect(pack.locator('.pack-headline')).toContainText(`${points?.trim()} / ${limit?.trim()} pts`)
+  const secondRaider = pack.locator('[data-print-datasheet="Land Raider"]').last()
+  const number = await secondRaider.locator('.pack-number').innerText()
+  const squad = pack.locator('[data-print-datasheet="Intercessor Squad"]')
+  await expect(squad.locator('[data-print-embark]')).toHaveText(`Starts embarked in Land Raider (unit ${number})`)
+  await expect(pack.locator('[data-print-embark]')).toHaveCount(1)
+  await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
+})
 
 test('a full saved army prints selected equipment, both detachments and every page', async ({ page }, testInfo) => {
   await signInAsPreview(page)

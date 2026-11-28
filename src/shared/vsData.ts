@@ -400,12 +400,13 @@ export function vsDataIndex(entries: Readonly<Record<string, readonly string[]>>
  * profile several datasheets carry is a different record on each, from the frozen map, else by VS Data's `bsdata.*`
  * alias of it, whose dots stand for the id's dashes.
  */
-export type BsdataRecords = { byId: Readonly<Record<string, string>>; bySheet: Readonly<Record<string, string>> }
+/** `bySheet` holds a pair frozen as having no record as null, which the id's alias must not stand in for. */
+export type BsdataRecords = { byId: Readonly<Record<string, string>>; bySheet: Readonly<Record<string, string | null>> }
 
 /** A rules version's `BsdataRecords`: its release's identity entries and the frozen map, read as `idsIn` reads one. */
 export function bsdataRecords(
   entries: Readonly<Record<string, readonly string[]>>,
-  frozen: Readonly<Record<string, string>>,
+  frozen: Readonly<Record<string, string | null>>,
   edition: string | null,
 ): BsdataRecords {
   const byId: Record<string, string> = {}
@@ -415,8 +416,10 @@ export function bsdataRecords(
 }
 
 /** The record a BSData id is, on the datasheet `sheet` where it is one. */
-export const vsDataRecordOfBsdata = (records: BsdataRecords, id: string, sheet?: string): string | undefined =>
-  (sheet ? records.bySheet[`${sheet}/${id}`] : undefined) ?? records.byId[id]
+export function vsDataRecordOfBsdata(records: BsdataRecords, id: string, sheet?: string): string | undefined {
+  const held = sheet ? records.bySheet[`${sheet}/${id}`] : undefined
+  return held === undefined ? records.byId[id] : (held ?? undefined)
+}
 
 /** The kinds of Game Datacards record VS Data summarizes, as the coverage report counts them. */
 export type GdcRuleKind =
@@ -477,9 +480,13 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
   for (const datasheet of list(root.datasheets)) {
     const abilities = fieldsOf(datasheet.abilities)
     const faction = datasheet.faction_id ? `.faction.${dotted(datasheet.faction_id)}` : ''
-    // Wargear and special abilities are a datasheet's abilities too, aliased alike.
-    for (const group of ['other', 'wargear', 'special'])
-      for (const ability of list(abilities?.[group])) {
+    // Wargear, special and primarch abilities are a datasheet's abilities too, aliased alike; primarch ones sit in named groups.
+    const groups = [
+      ...['other', 'wargear', 'special'].map((group) => ({ group, held: list(abilities?.[group]) })),
+      ...list(abilities?.primarch).map((group) => ({ group: 'primarch', held: list(group.abilities) })),
+    ]
+    for (const { group, held } of groups)
+      for (const ability of held) {
         const base = `gdc.unit.ability.${dotted(datasheet.id)}.${named(ability.name)}`
         const slotted = group === 'wargear' ? [`${base}.slot.wargear${faction}`, `${base}.slot.wargear`] : []
         add('unit ability', [...slotted, `${base}${faction}`, base], [raw(ability.description)])

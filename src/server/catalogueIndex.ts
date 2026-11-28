@@ -9,7 +9,7 @@ import {
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
-import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import { textOfFactsKey, type TextFacts, type TextFactsByKey } from '../core/textFacts'
 import { vsDataTextFacts } from './vsDataEffects'
 import { combatOfVsDataOrWords } from '../shared/vsDataEffects'
 import { combatRuleRoles } from '../core/combatRules'
@@ -27,6 +27,7 @@ import { vsPointsIn, vsProfilesIn, vsRosterDefinitionsIn } from './vsDataPoints'
 import { baseSizesByEntry } from '../shared/vsDataBaseSizes'
 import { readSharedJson } from './sharedJson'
 import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
+import type { VsRosterData } from '../shared/vsDataLegality'
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
@@ -136,12 +137,18 @@ export function* loadCatalogueSteps(
   const shown = texts.withTwins(twins)
   holding = shown
   const shownCards = withoutTwinSearch(datacards)
-  const readFacts = new Map<string, TextFacts>()
+  const readFacts = new Map<string, TextFacts | undefined>()
+  // Held alone, so the facts keep none of the cards' other readings alive.
+  const cardWords = cards.textWords
   const factsOf = (key: string) => {
-    const facts = withLegality(effects!.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))
+    // A text's facts for one rule or profile holding it are recorded only where its holders read differently.
+    const text = textOfFactsKey(key)
+    const recorded = effects!.get(key)
+    if (!recorded && text !== key) return undefined
+    const facts = withLegality(recorded ?? NO_FACTS, shown.fact(text) ?? cardFacts?.get(text))
     const vsData = facts.combat
     const roles = () => {
-      const said = shown.said(key) ?? cards.textWords?.(key)
+      const said = shown.said(text) ?? cardWords?.(text)
       return said === undefined ? [] : combatRuleRoles(said)
     }
     let combat: TextFacts['combat']
@@ -164,7 +171,7 @@ export function* loadCatalogueSteps(
             }
           : undefined,
       ),
-      ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+      ...(vsRoster ? { attachments: vsRoster.attachments } : {}),
     },
     definitions: shown,
     factionContents: shownCards.factions,
@@ -177,7 +184,15 @@ export function* loadCatalogueSteps(
     mfm: yield* loadMfmSteps(directory),
     ...(vsPoints ? { vsPoints } : {}),
     ...(vsProfiles ? { vsProfiles } : {}),
+    // The current rules read a pick saved in an earlier rules version there, by that version's own release.
+    ...(edition ? {} : { vsRosterIn: savedVersionsIn(snapshotDirectory, loaded.index) }),
   }
+}
+
+/** Each rules version's roster definitions and points from the snapshot's releases, read once when first asked for. */
+function savedVersionsIn(directory: string, index: LoadedCatalogue['index']) {
+  const read = new Map<string, VsRosterData | null>()
+  return (rulesVersion: string) => remember(read, rulesVersion, () => vsRosterDefinitionsIn(directory, index, rulesVersion))
 }
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */

@@ -31,11 +31,27 @@ export type Attachment = {
   swap?: AttachmentSwap
   /** Hosts taken only in some armies, which {@link inArmy} settles. */
   conditional?: AttachmentCondition[]
-  /** Keyword sets a host holding every keyword of is admitted, which settled conditions give. */
-  holding?: string[][]
+  /** Keyword sets a host holding every keyword of, and none it excludes, is admitted, which settled conditions give. */
+  holding?: KeywordSet[]
   /** Hosts admitted only while both units hold `keyword`, which settled conditions give. */
   sharing?: { keyword: string; targets: string[]; keywords?: string[] }[]
+  /** Bodyguards it leads beside one other leader, never one of its own; `beside` names what that other may be. */
+  besideAnother?: BesideAnother[]
+  /** Units it joins as part of them, outside the leader and support roles, in place of `targets`. */
+  joins?: AttachmentJoin[]
 }
+
+/** Keywords a unit holds every one of, and none of `excluded`. */
+export type KeywordSet = { keywords: string[]; excluded?: string[] }
+
+/** Bodyguards in `targets` it leads beside another leader, which must be one of `besideNames` or hold one of `besideKeywords` where given. */
+export type BesideAnother = { targets: string[]; besideNames?: string[]; besideKeywords?: string[] }
+
+/**
+ * Units a unit joins as part of them: those named, those holding every keyword, or any where it gives neither (`anyHost`),
+ * once a leader holding every `ledBy` keyword leads them, beside no other joined unit holding one of `exclusive`.
+ */
+export type AttachmentJoin = { targets?: string[]; keywords?: string[]; anyHost?: true; ledBy?: string[]; exclusive?: string[] }
 
 /**
  * Who a datasheet may join by its VS Data attachment record, each host named as the catalogue names its datasheets. VS
@@ -47,6 +63,22 @@ export type VsAttachment = {
   targets: string[]
   conditional?: AttachmentCondition[]
   named: string[]
+  besideAnother?: BesideAnother[]
+  joins?: AttachmentJoin[]
+  /** As a bodyguard, the attachments it takes beyond the core one leader and one support unit. */
+  capacity?: VsCapacity
+}
+
+/**
+ * A bodyguard's `leader` and `support` units, the second leader taken only once it fields `startingStrength` models; no
+ * two the same where `distinct`, and at most `maximum` holding every keyword of each limit.
+ */
+export type VsCapacity = {
+  leader?: number
+  support?: number
+  startingStrength?: number
+  distinct?: true
+  limits?: { keywords: string[]; maximum: number }[]
 }
 
 /** Hosts a unit takes only in some armies, until {@link inArmy} settles them; unsettled, every one is admitted. */
@@ -55,6 +87,8 @@ export type AttachmentCondition = {
   targets?: string[]
   /** Keywords a host holding every one of is admitted, as `BATTLELINE`, `IMPERIUM` and `INFANTRY` are for an Inquisitor. */
   keywords?: string[]
+  /** Keywords a host admitted by `keywords` must hold none of. */
+  excludedKeywords?: string[]
   /** Groups of entry or Detachment ids, of each of which the army must hold one. */
   requires?: string[][]
   /** Entry or Detachment ids the army must hold none of. */
@@ -74,6 +108,10 @@ export type AttachmentLimits = Record<Attachment['kind'], number> & {
   raises?: { kind: Attachment['kind']; maximum: number; when: string[] }[]
   /** More of a kind once the unit fields this many models, as twenty Kroot Carnivores take a second Leader. */
   growths?: { kind: Attachment['kind']; models: number; more: number }[]
+  /** No two of its attached units the same datasheet. */
+  distinct?: true
+  /** At most `maximum` of its attached units holding every one of `keywords`, as one COMMAND SQUAD among two Leaders. */
+  keywordLimits?: { keywords: string[]; maximum: number }[]
 }
 
 const CLAIM = /can be attached to the following units?/i
@@ -210,8 +248,8 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
  * dropped rather than guessed at.
  */
 export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection): Attachment | null {
-  const caches = remember(attachmentCache, index, () => ({ read: new WeakMap(), merged: new WeakMap() }))
-  const attachment = remember(caches.read, definition, () => findAttachment(definition, index))
+  const caches = cachesOf(index)
+  const attachment = textAttachmentOf(definition, index)
   const vsData = vsAttachmentOf(definition, index)
   if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
 
@@ -229,12 +267,27 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   )
 }
 
+const cachesOf = (index: CatalogueIndex) => remember(attachmentCache, index, () => ({ read: new WeakMap(), merged: new WeakMap() }))
+
+/** Who the datasheet's own Leader or Support text says it may join, before associations or VS Data. */
+const textAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
+  remember(cachesOf(index).read, definition, () => findAttachment(definition, index))
+
 const vsAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
   index.attachments?.[definition.id] ?? index.attachments?.[targetOf(definition, index.definitions).id]
 
 /** The catalogue's reading with VS Data's record laid over it: VS Data's hosts, then the catalogue's for hosts it never names. */
 function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): Attachment | null {
   const conditional = vsData?.conditional ?? []
+  // A unit that joins others as part of them takes neither role. The catalogue's hosts VS Data never names stay, under
+  // the record's exclusivity, as the leader and support readings keep theirs.
+  if (vsData?.joins) {
+    const deferred = new Set(vsData.named.map(normalizedName))
+    const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)))
+    const exclusive = [...new Set(vsData.joins.flatMap((join) => join.exclusive ?? []))]
+    const catalogue = kept.length ? [{ targets: kept, ...(exclusive.length ? { exclusive } : {}) }] : []
+    return { kind: 'support', targets: [], joins: [...vsData.joins, ...catalogue] }
+  }
   if (!vsData || (!vsData.targets.length && !conditional.length)) return read
   const deferred = new Set(vsData.named.map(normalizedName))
   const granted = new Set(vsData.targets.map(normalizedName))
@@ -247,6 +300,7 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): 
     ...(read?.requiresLeader ? { requiresLeader: true as const } : {}),
     ...(read?.swap ? { swap: read.swap } : {}),
     ...(conditional.length ? { conditional } : {}),
+    ...(vsData.besideAnother ? { besideAnother: vsData.besideAnother } : {}),
   }
 }
 
@@ -256,11 +310,18 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): 
  * the printed datasheet does not.
  */
 export function referenceAttachmentOf(definition: Definition, index: CatalogueIndex): Attachment | null {
-  const attachment = attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
-  if (!attachment?.conditional) return attachment
+  // A datasheet without ability text reads its hosts from its associations, which only a selection reads.
+  const attachment = textAttachmentOf(definition, index)
+    ? attachmentOf(definition, index)
+    : attachmentOf(definition, index, { id: definition.id })
+  if (!attachment?.conditional && !attachment?.joins) return attachment
   return {
     ...attachment,
-    targets: uniqueNormalizedNames([...attachment.targets, ...attachment.conditional.flatMap((condition) => condition.targets ?? [])]),
+    targets: uniqueNormalizedNames([
+      ...attachment.targets,
+      ...(attachment.conditional ?? []).flatMap((condition) => condition.targets ?? []),
+      ...(attachment.joins ?? []).flatMap((join) => join.targets ?? []),
+    ]),
   }
 }
 
@@ -488,17 +549,21 @@ const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, no
 export function admitsHost(attachment: Attachment, hostName: string, hostKeywords?: readonly string[]): boolean {
   const named = (targets: readonly string[] = []) => targets.some((target) => sameText(target, hostName))
   const held = new Set((hostKeywords ?? []).map(heldKeyword))
-  const holds = (keywords: readonly string[] = []) => keywords.length > 0 && keywords.every((keyword) => held.has(heldKeyword(keyword)))
+  const holds = (keywords: readonly string[] = [], excluded: readonly string[] = []) =>
+    keywords.length > 0 &&
+    keywords.every((keyword) => held.has(heldKeyword(keyword))) &&
+    !excluded.some((keyword) => held.has(heldKeyword(keyword)))
   return (
     named(attachment.targets) ||
     (attachment.keywords ?? []).some((phrase) => phrase.split(' ').every((word) => held.has(word))) ||
-    (attachment.holding ?? []).some(holds) ||
+    (attachment.holding ?? []).some((set) => holds(set.keywords, set.excluded)) ||
+    (attachment.joins ?? []).some((join) => join.anyHost || named(join.targets) || holds(join.keywords)) ||
     // A host whose keywords are not known is not refused for a keyword it may hold.
     (attachment.sharing ?? []).some(
       (entry) => (!hostKeywords || held.has(heldKeyword(entry.keyword))) && (named(entry.targets) || holds(entry.keywords)),
     ) ||
     // Unsettled, a host any army lets the unit join is admitted, as an imported list's groups are read before its army is.
-    (attachment.conditional ?? []).some((condition) => named(condition.targets) || holds(condition.keywords))
+    (attachment.conditional ?? []).some((condition) => named(condition.targets) || holds(condition.keywords, condition.excludedKeywords))
   )
 }
 
@@ -511,7 +576,7 @@ const heldKeyword = (keyword: string) => withoutFactionPrefix(normalizedName(key
 export function beforeHostChoices(attachment: Attachment): Attachment {
   if (!attachment.sharing) return attachment
   const { sharing, ...rest } = attachment
-  const holding = [...(rest.holding ?? []), ...sharing.flatMap((entry) => (entry.keywords ? [entry.keywords] : []))]
+  const holding = [...(rest.holding ?? []), ...sharing.flatMap((entry) => (entry.keywords ? [{ keywords: entry.keywords }] : []))]
   return {
     ...rest,
     targets: uniqueNormalizedNames([...rest.targets, ...sharing.flatMap((entry) => entry.targets)]),
@@ -560,11 +625,12 @@ export type AttachmentRefusal<T> =
   | { rule: 'unattachable' }
   | { rule: 'full'; limit: number; holder: T }
   | { rule: 'category'; name: string; maximum: number }
+  | { rule: 'exclusive'; holder: T }
 
 /** The attachment facts of a datasheet in a list, read once for both judging and the client. */
 export function attachmentPartyOf(definition: Definition, index: CatalogueIndex, selection?: Selection) {
   const attachment = attachmentOf(definition, index, selection)
-  const limits = attachmentLimitsOf(definition, index)
+  const limits = withVsCapacity(attachmentLimitsOf(definition, index), vsAttachmentOf(definition, index)?.capacity)
   const models = selection && limits.growths ? modelCountOf(selection, index) : 0
   const grown = (kind: Attachment['kind']) =>
     limits[kind] +
@@ -578,6 +644,61 @@ export function attachmentPartyOf(definition: Definition, index: CatalogueIndex,
     attachmentCategories: attachment ? attachmentCategoriesOf(definition, index) : [],
     ...(associationMax?.length && Math.min(...associationMax) < 1 ? { unattachable: true as const } : {}),
   }
+}
+
+/** The catalogue's limits with VS Data's capacity for the bodyguard laid over them, its raises from attached units kept. */
+function withVsCapacity(limits: AttachmentLimits, capacity: VsCapacity | undefined): AttachmentLimits {
+  if (!capacity) return limits
+  const { leader = 1, support = 1, startingStrength, distinct, limits: keywordLimits = [] } = capacity
+  return {
+    leader: startingStrength ? 1 : leader,
+    support,
+    categories: {},
+    ...(limits.raises ? { raises: limits.raises } : {}),
+    ...(startingStrength && leader > 1 ? { growths: [{ kind: 'leader' as const, models: startingStrength, more: leader - 1 }] } : {}),
+    ...(distinct ? { distinct } : {}),
+    ...(keywordLimits.length ? { keywordLimits } : {}),
+  }
+}
+
+/** Whether `attachment` lets its unit lead `host` beside `partner`, the other leader there. */
+const leadsBeside = (attachment: Attachment | null | undefined, host: AttachmentParty, partner: AttachmentParty) =>
+  (attachment?.besideAnother ?? []).some(
+    (entry) =>
+      entry.targets.some((target) => sameText(target, host.name)) &&
+      ((!entry.besideNames && !entry.besideKeywords) ||
+        (entry.besideNames ?? []).some((name) => sameText(name, partner.name)) ||
+        (entry.besideKeywords ?? []).some((keyword) => holdsKeyword(partner, keyword))),
+  )
+
+/** Whether a unit holds a keyword in this list, or might: one whose keywords are not known is not refused for it. */
+const holdsKeyword = (party: AttachmentParty, keyword: string) =>
+  !party.keywords || party.keywords.some((held) => heldKeyword(held) === heldKeyword(keyword))
+
+/** Why a unit may not join `host` as part of it: no join of its admits the host, or its leader, or a unit joined there already. */
+function joinRefusals<T extends AttachmentParty>(
+  joins: readonly AttachmentJoin[],
+  joiner: AttachmentParty,
+  host: AttachmentParty,
+  occupants: readonly T[],
+  companions: readonly AttachmentParty[],
+): AttachmentRefusal<T>[] {
+  const fitting = joins.filter((join) => admitsHost({ kind: 'support', targets: [], joins: [join] }, host.name, host.keywords))
+  if (!fitting.length) return [{ rule: 'host' }]
+  // "Led by a CRYPTEK model" is met by whatever attached character holds the keywords, a Cryptek being a Support unit.
+  const attached = companions.filter((other) => other.attachment && !other.attachment.joins)
+  const led = fitting.filter(
+    (join) => !join.ledBy || attached.some((leader) => join.ledBy!.every((keyword) => holdsKeyword(leader, keyword))),
+  )
+  if (!led.length) return [{ rule: 'leaderless' }]
+  // Only a unit already joined shuts another out, either's exclusive keywords held by the other, so a clash is said once.
+  const joined = occupants.filter((other) => other !== joiner && other.attachment?.joins)
+  const excludes = (exclusive: readonly string[] | undefined, other: AttachmentParty) =>
+    Boolean(other.keywords && exclusive?.some((keyword) => holdsKeyword(other, keyword)))
+  const clashOf = (join: AttachmentJoin) =>
+    joined.find((other) => excludes(join.exclusive, other) || other.attachment!.joins!.some((theirs) => excludes(theirs.exclusive, joiner)))
+  if (led.some((join) => !clashOf(join))) return []
+  return [{ rule: 'exclusive', holder: clashOf(led[0]!) as T }]
 }
 
 /**
@@ -595,6 +716,12 @@ export function attachmentRefusals<T extends AttachmentParty>(
   companions: readonly AttachmentParty[] = occupants,
 ): AttachmentRefusal<T>[] {
   const { attachment } = joiner
+  // A unit that joins another as part of it takes no place among its leader and support units.
+  if (attachment.joins)
+    return [
+      ...joinRefusals<T>(attachment.joins, joiner, host, occupants, companions),
+      ...(joiner.unattachable ? [{ rule: 'unattachable' as const }] : []),
+    ]
   const refusals: AttachmentRefusal<T>[] = []
   if (!admitsHost(attachment, host.name, host.keywords)) refusals.push({ rule: 'host' })
   if (
@@ -605,15 +732,22 @@ export function attachmentRefusals<T extends AttachmentParty>(
   }
   if (joiner.unattachable) refusals.push({ rule: 'unattachable' })
   const limits = host.attachmentLimits ?? { leader: 1, support: 1, categories: {} }
-  const same = occupants.filter((other) => other.attachment?.kind === attachment.kind)
+  const same = occupants.filter((other) => other.attachment?.kind === attachment.kind && !other.attachment.joins)
   // A raise counts everything attached, as a Warlock Conclave the official app lists after both the Leaders it makes room for.
   const named = new Set([joiner, ...occupants, ...companions].flatMap((party) => party.attachmentCategories ?? []))
   const raised = (limits.raises ?? []).filter(
     (raise) => raise.kind === attachment.kind && raise.maximum > limits[attachment.kind] && raise.when.every((key) => named.has(key)),
   )
-  const allowed = Math.max(limits[attachment.kind], ...raised.map((raise) => raise.maximum))
+  // A second leader that may lead beside the first, or that the first may lead beside, makes room for both.
+  const partner = attachment.kind === 'leader' && same.length === 1 ? same[0]! : undefined
+  const beside =
+    partner !== undefined &&
+    limits.leader < 2 &&
+    !sameText(partner.name, joiner.name) &&
+    (leadsBeside(attachment, host, partner) || leadsBeside(partner.attachment, host, joiner))
+  const allowed = Math.max(limits[attachment.kind], ...raised.map((raise) => raise.maximum), beside ? 2 : 0)
   // A datasheet that raises the limit says two of the same Leader still cannot share a unit, which the data does not record.
-  const twin = raised.length ? same.find((other) => sameText(other.name, joiner.name)) : undefined
+  const twin = raised.length || limits.distinct ? same.find((other) => sameText(other.name, joiner.name)) : undefined
   if (twin) return [...refusals, { rule: 'full', limit: 1, holder: twin }]
   if (same.length >= allowed) return [...refusals, { rule: 'full', limit: allowed, holder: same[0]! }]
   const fullCategory = (joiner.attachmentCategories ?? []).flatMap((category) => {
@@ -621,8 +755,18 @@ export function attachmentRefusals<T extends AttachmentParty>(
     return limit && occupants.filter((other) => other.attachmentCategories?.includes(category)).length >= limit.maximum ? [limit] : []
   })[0]
   if (fullCategory) refusals.push({ rule: 'category', ...fullCategory })
+  const attached = occupants.filter((other) => !other.attachment?.joins)
+  const fullKeywords = (limits.keywordLimits ?? []).find(
+    ({ keywords, maximum }) =>
+      keywords.every((keyword) => holdsKeyword(joiner, keyword) && joiner.keywords) &&
+      attached.filter((other) => other.keywords && keywords.every((keyword) => holdsKeyword(other, keyword))).length >= maximum,
+  )
+  if (fullKeywords) refusals.push({ rule: 'category', name: titleCaseKeywords(fullKeywords.keywords), maximum: fullKeywords.maximum })
   return refusals
 }
+
+const titleCaseKeywords = (keywords: readonly string[]) =>
+  keywords.map((keyword) => keyword.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' ')
 
 export function attachmentErrors(
   units: readonly { entryId: string; attachedTo?: number }[],
@@ -654,9 +798,11 @@ export function attachmentErrors(
     const { definition, name, attachment } = parties[position]!
     const error = (message: string) => errors.push({ entryId: unit.entryId, entryName: name, message })
     if (unit.attachedTo === undefined) {
-      // Core rules: each Support unit in a roster must be attached to a Bodyguard unit; a Leader may stand alone.
+      // Core rules: each Support unit in a roster must be attached to a Bodyguard unit; a Leader may stand alone. A unit
+      // that joins another as part of it and finds none to join takes no part in the battle, which leaves the list legal.
       const required =
         definition &&
+        !attachment?.joins &&
         (attachmentRequirement(definition, index) ?? (attachment?.kind === 'support' ? 'must be attached to a Bodyguard unit' : null))
       if (required) error(required)
       return
@@ -678,8 +824,8 @@ export function attachmentErrors(
     const already = occupants.get(unit.attachedTo) ?? []
     const companions = parties.filter((_, at) => at !== position && units[at]!.attachedTo === unit.attachedTo)
     const refusals = attachmentRefusals(joiner, host, already, companions)
-    for (const refusal of refusals) error(errorMessage(refusal, attachment.kind, host.name, index))
-    if (refusals.some((refusal) => refusal.rule === 'full' || refusal.rule === 'category')) return
+    for (const refusal of refusals) error(errorMessage(refusal, attachment, host.name, index))
+    if (refusals.some((refusal) => refusal.rule === 'full' || refusal.rule === 'category' || refusal.rule === 'exclusive')) return
     occupants.set(unit.attachedTo, [...already, joiner])
   })
   return errors
@@ -687,15 +833,17 @@ export function attachmentErrors(
 
 function errorMessage(
   refusal: AttachmentRefusal<{ definition?: Definition }>,
-  kind: Attachment['kind'],
+  { kind, joins }: Attachment,
   hostName: string,
   index: CatalogueIndex,
 ): string {
   switch (refusal.rule) {
     case 'host':
-      return `cannot be attached to ${hostName}`
+      return joins ? `cannot join ${hostName}` : `cannot be attached to ${hostName}`
     case 'leaderless':
-      return `cannot support ${hostName} without an attached Leader`
+      return joins ? `cannot join ${hostName} without the character it needs` : `cannot support ${hostName} without an attached Leader`
+    case 'exclusive':
+      return `cannot join ${hostName}, which ${nameOf(refusal.holder.definition ?? { id: '' }, index.definitions)} has already joined`
     case 'unattachable':
       return 'allows no attachments'
     case 'category':
@@ -818,7 +966,11 @@ export function inArmy<T extends Attachment | null>(attachment: T, army: Readonl
     ...rest.targets,
     ...own.flatMap((condition) => (condition.shared ? [] : (condition.targets ?? []))),
   ])
-  const holdingKeywords = own.flatMap((condition) => (condition.shared || !condition.keywords ? [] : [condition.keywords]))
+  const holdingKeywords = own.flatMap((condition) =>
+    condition.shared || !condition.keywords
+      ? []
+      : [{ keywords: condition.keywords, ...(condition.excludedKeywords ? { excluded: condition.excludedKeywords } : {}) }],
+  )
   const sharing = own.flatMap((condition) =>
     condition.shared
       ? [{ keyword: condition.shared, targets: condition.targets ?? [], ...(condition.keywords ? { keywords: condition.keywords } : {}) }]

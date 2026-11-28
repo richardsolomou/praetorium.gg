@@ -58,10 +58,14 @@ export function withCountsAs(
 export const withWanted = (saved: Readonly<Record<string, number>>, { entryId, wanted }: { entryId: string; wanted: number }) =>
   withEntry(saved, entryId, wanted || undefined)
 
-type CollectionFaction = { catalogueId: string; name: string; units: readonly { id: string; slug: string; name: string }[] }
+type CollectionFaction = {
+  catalogueId: string
+  name: string
+  units: readonly { id: string; slug: string; name: string; appName?: string }[]
+}
 
 export function collectionDatasheets(factions: readonly CollectionFaction[]) {
-  const sheets = new Map<string, { id: string; catalogueId: string; faction: string; slug: string; name: string }>()
+  const sheets = new Map<string, { id: string; catalogueId: string; faction: string; slug: string; name: string; appName?: string }>()
   for (const faction of factions)
     for (const unit of faction.units)
       if (!sheets.has(unit.id)) sheets.set(unit.id, { ...unit, catalogueId: faction.catalogueId, faction: faction.name })

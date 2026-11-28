@@ -1,4 +1,4 @@
-import { cachedIn, remember } from '../core/collections'
+import { cachedIn } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import {
@@ -14,26 +14,22 @@ import { defaultSelection } from '../core/expand'
 import { isNonMatchedPlayName, nonMatchedPlayKind } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
 import type { UnitSummary } from '../contracts/catalogue'
-import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
+import { datasheetSearchFieldsIn, datasheetIn, toughnessOf } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { searchDatasheetEntries } from '../core/datasheetSearch'
-import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
-import { alliedSource, vsDataOffer } from './vsDataOffers'
+import { vsDataDetachmentsOffering } from './vsDataLegality'
+import { alliedSource, vsDataOffer, vsDataRefused } from './vsDataOffers'
+import { vsDataCheck, vsDataChecks } from './vsDataLegality'
+import { type VsRoster, vsNameLimitUnheld, vsUnitAllowance } from '../core/vsDataRoster'
+import type { VsDataDefinitions } from '../core/vsDataConstruction'
 import { isOfferedDatasheet, listPriceOf, rosterPrices, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
 const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, Stepwise<UnitSummary[]>>>()
-
-/** Restriction sets live on the rules snapshot, so identity is a stable cache key. */
-const restrictionsKeys = new WeakMap<FactionRestrictions, string>()
-let nextRestrictionsKey = 0
-function restrictionsKey(restrictions: FactionRestrictions | undefined) {
-  return restrictions ? remember(restrictionsKeys, restrictions, () => `r${++nextRestrictionsKey}`) : 'none'
-}
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['epic hero', 'epic-hero'],
@@ -127,7 +123,6 @@ export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: str
 }
 
 export type UnitListOptions = {
-  restrictions?: FactionRestrictions
   factionCards?: boolean
   battleSize?: number
   waivedRules?: readonly string[]
@@ -168,11 +163,32 @@ export function listedDatasheets(
 const listedUnitIds = new WeakMap<LoadedCatalogue, Map<string, Set<string>>>()
 const detachmentOffers = new WeakMap<LoadedCatalogue, Map<string, string[] | null>>()
 
-/** The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it. */
-export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
+/**
+ * The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it: the ones
+ * VS Data's ally entries name where VS Data places the list and reads the datasheet, else the catalogue's visibility rules.
+ */
+export function detachmentsUnlocking(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  taken: { ids: readonly string[]; selections: readonly Selection[] },
+) {
   const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return null
+  const offering = vsDataDetachmentsOffering(
+    loaded.vsRoster,
+    { catalogueId, detachmentIds: taken.ids },
+    { entryId, name: entry.name ?? '' },
+  )
+  // Where VS Data offers the unit, the catalogue's visibility rules may still hide it, so an ally entry that names no
+  // Detachment never opens the picker on its own.
+  if (offering)
+    return (loaded.detachments.get(catalogueId)?.options ?? []).flatMap((option) =>
+      offering.includes(loaded.vsRoster?.detachments[option.id] ?? '') ? [option.name] : [],
+    )
   const options = { primaryCatalogueId: catalogueId, mustering: true }
-  if (!entry || !hiddenByRules(entry, loaded.index, { ...options, roster })) return null
+  const roster = taken.selections
+  if (!hiddenByRules(entry, loaded.index, { ...options, roster })) return null
   const listed = cachedIn(
     listedUnitIds,
     loaded,
@@ -191,7 +207,6 @@ export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: strin
 }
 
 type ListOptions = {
-  restrictions?: FactionRestrictions
   included: boolean
   battleSize?: number
   waivedRules: readonly string[]
@@ -202,11 +217,11 @@ type ListOptions = {
 function listOptions(
   loaded: LoadedCatalogue,
   catalogueId: string,
-  { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [], nonMatchedPlay = false }: UnitListOptions,
+  { factionCards, battleSize, waivedRules = [], detachmentIds = [], nonMatchedPlay = false }: UnitListOptions,
 ): ListOptions {
   const included = hasFactionCards(loaded, catalogueId, factionCards)
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
-  return { restrictions, included, battleSize, waivedRules, detachments, nonMatchedPlay }
+  return { included, battleSize, waivedRules, detachments, nonMatchedPlay }
 }
 
 /** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
@@ -231,7 +246,7 @@ export function seedUnitSummaries(loaded: LoadedCatalogue, catalogueId: string, 
 // The complete, priced list is cached so each search filters in memory. Waived rules
 // change which datasheets the book offers and how many of each, so they belong in the key.
 const summaryKey = (catalogueId: string, listed: ListOptions) =>
-  `${JSON.stringify(listed.detachments.chosen.map((option) => option.id))}:${catalogueId}:${listed.included ? 'included' : 'all'}:${listed.battleSize ?? 'all'}:${[...listed.waivedRules].toSorted().join(',')}:${restrictionsKey(listed.restrictions)}:${listed.nonMatchedPlay}`
+  `${JSON.stringify(listed.detachments.chosen.map((option) => option.id))}:${catalogueId}:${listed.included ? 'included' : 'all'}:${listed.battleSize ?? 'all'}:${[...listed.waivedRules].toSorted().join(',')}:${listed.nonMatchedPlay}`
 
 /** The datasheets `unitsIn` lists, in its order, without pricing each of them. */
 export function unitIdsIn(loaded: LoadedCatalogue, catalogueId: string, options: UnitListOptions = {}): string[] {
@@ -241,7 +256,7 @@ export function unitIdsIn(loaded: LoadedCatalogue, catalogueId: string, options:
 function* listUnits(
   loaded: LoadedCatalogue,
   catalogueId: string,
-  { restrictions, included, battleSize, waivedRules, detachments, nonMatchedPlay }: ListOptions,
+  { included, battleSize, waivedRules, detachments, nonMatchedPlay }: ListOptions,
 ) {
   const found: {
     id: string
@@ -253,14 +268,24 @@ function* listUnits(
   }[] = []
   // Allied books keep the catalogue's order, and one only VS Data names an ally comes after them.
   const orders = new Map([...(loaded.index.alliedDatasheets.get(catalogueId)?.values() ?? [])].map(({ name, order }) => [name, order]))
+  const refused = vsDataRefused(
+    loaded,
+    catalogueId,
+    detachments.chosen.map((option) => option.id),
+  )
 
   for (const { id, entry, name } of listedDatasheets(loaded, catalogueId, { factionCards: included, nonMatchedPlay })) {
-    if (detachments.chosen.length && detachmentsUnlocking(loaded, catalogueId, id, detachments.selections)) continue
+    if (
+      detachments.chosen.length &&
+      detachmentsUnlocking(loaded, catalogueId, id, {
+        ids: detachments.chosen.map((option) => option.id),
+        selections: detachments.selections,
+      })
+    )
+      continue
     const target = targetOf(entry, loaded.index.definitions)
+    if (refused.has(id)) continue
     const listed = detachmentUnitFacts(loaded, catalogueId, id, detachments.selections)
-    // Asked only where a restriction can act on the answer: folding the keywords a
-    // datasheet carries costs a default build of it, and most books exclude nothing.
-    if (restrictions && restrictedBy(restrictions, name, listed?.keywords ?? keywordsIn(loaded, catalogueId, id))) continue
     const ally = alliedSource(loaded, catalogueId, id)
     found.push({
       id,
@@ -293,6 +318,8 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
   const units = yield* listUnits(loaded, catalogueId, options)
   const size = battleSizeSelection(loaded.index, options.battleSize ?? null)
   const detachments = options.detachments.selections
+  const detachmentIds = options.detachments.chosen.map(({ id }) => id)
+  const checked = emptyVsRoster(loaded, catalogueId, { battleSize: options.battleSize, detachmentIds })
   const summaries: UnitSummary[] = []
   for (const unit of units) {
     yield
@@ -311,7 +338,7 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
       ...(kind ? { nonMatchedPlay: kind } : {}),
       points,
       ...(laterCopyPoints ? { laterCopyPoints } : {}),
-      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), unit.formatLimit),
+      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size, checked), unit.formatLimit),
     })
   }
   return summaries
@@ -319,19 +346,59 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
 
 const pickerLimits = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
 
+/** A list's units as VS Data checks them, and its definitions; null where VS Data cannot place the list. */
+export type VsCheckedRoster = { definitions: VsDataDefinitions; roster: VsRoster } | null
+
 /**
- * How many of one datasheet the roster may hold, or null when nothing limits it.
+ * How many of one datasheet the roster may hold, or null when nothing limits it: VS Data's count where it checks the
+ * datasheet in a list it can place, else the catalogue's.
  *
  * Asked with the battle size in hand, because the number the data carries is the
  * largest game's until a force says which game this is. A page with no roster
  * behind it — a faction's own datasheet list — has no battle size to give.
  */
-function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null) {
+function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null, checked: VsCheckedRoster) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
-  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${battleSize?.id ?? ''}`, () =>
-    rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] }),
-  )
+  const read = vsLimitsRoster(checked)
+  const key = read ? `vs:${read.roster.battleSize}:${read.roster.detachments.join(',')}` : `catalogue:${battleSize?.id ?? ''}`
+  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${key}`, () => {
+    const vs = vsAllowanceOf(loaded, catalogueId, entryId, read)
+    return vs
+      ? vs.limit
+      : rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
+  })
+}
+
+/** A list with no units yet as VS Data reads it. */
+const emptyVsRoster = (loaded: LoadedCatalogue, catalogueId: string, list: { battleSize?: number; detachmentIds: readonly string[] }) =>
+  vsDataCheck(loaded.vsRoster, { catalogueId, detachmentIds: list.detachmentIds, limit: list.battleSize ?? 0 }, [])
+
+/**
+ * The checked list VS Data's limits are read from. A list whose points name no battle size, as King of the Colosseum's
+ * or a faction page with none, is read at the largest, as the catalogue's limits are.
+ */
+function vsLimitsRoster(checked: VsCheckedRoster): VsCheckedRoster {
+  if (!checked) return null
+  if (checked.roster.battleSize) return checked
+  const largest = checked.definitions.all('battle-size').toSorted((left, right) => right.data.points - left.data.points)[0]
+  return { ...checked, roster: { ...checked.roster, ...(largest ? { battleSize: largest.id } : {}) } }
+}
+
+/**
+ * VS Data's allowance for a datasheet it checks and defines, in the list VS Data's limits are read from; null where the
+ * catalogue's limits stand. They also stand where the faction limits a unit by its own name in a keyword the unit does
+ * not hold exactly (`vsNameLimitUnheld`), as the Emperor's Champion, so the picker never shows more copies than the
+ * faction allows while VS Data's checker cannot hold the unit to it.
+ */
+function vsAllowanceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, read: VsCheckedRoster) {
+  const entry = loaded.index.definitions.get(entryId)
+  const unit =
+    read && entry ? vsDataChecks(loaded.vsRoster, catalogueId, { entryId, name: nameOf(entry, loaded.index.definitions) }) : undefined
+  const record = unit ? read?.definitions.get('unit', unit) : undefined
+  if (!read || !unit || !record) return null
+  if (vsNameLimitUnheld(read.definitions, read.roster, unit)) return null
+  return vsUnitAllowance(read.definitions, read.roster, unit)
 }
 
 export function contextualUnitLimit(
@@ -341,10 +408,13 @@ export function contextualUnitLimit(
   battleSize: number,
   waivedRules: readonly string[],
   roster: readonly Selection[],
+  checked: VsCheckedRoster,
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return { limit: 0, unlockedBy: null }
-  const allowance = rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
+  const allowance =
+    vsAllowanceOf(loaded, catalogueId, entryId, vsLimitsRoster(checked)) ??
+    rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
   if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)
   const limit = minimumLimit(

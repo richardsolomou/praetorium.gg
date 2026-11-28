@@ -13,7 +13,10 @@ import { fetchWithRetry } from './fetch'
 import { replaceFile } from './replaceFile'
 import { miniHeadquartersEvents } from './miniHeadquartersLists'
 import { importedRosterDraft, importRosterInput } from './rosterImport'
+import type { RosterPick } from '../core/roster'
+import { vsWarlordOf } from '../shared/importedVsPicks'
 import { assumeWarlord } from '../shared/rosterFiles'
+import { datasheetName } from '../shared/vsDataNames'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
@@ -124,7 +127,11 @@ async function importWinningList(text: string) {
   const disposition = 'disposition' in result ? (result.disposition ?? null) : null
   const roster = { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, disposition, limit, units: result.units }
   const price = () => calculateRosterPrice(roster, imported.loaded, imported.rules)
-  assumeWarlord(result.units, () => price()?.errors.length ?? Number.POSITIVE_INFINITY)
+  assumeWarlord<RosterPick>(
+    result.units,
+    () => price()?.errors.length ?? Number.POSITIVE_INFINITY,
+    (pick) => (imported.loaded ? vsWarlordOf(imported.loaded, roster.catalogueId, pick.entryId) : undefined),
+  )
   const priced = price()
   if (!priced) return null
   const verdict: NonNullable<Verdict> = {
@@ -327,20 +334,32 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
     placings = placings?.version === version ? placings : { version, events: readEvents() }
     return placings.events
   }
+  // Datasheets are named on read, as VS Data names them; one the current data no longer has keeps the name its verdict stored.
+  const named = (list: WinningList): WinningList => {
+    const loaded = catalogue()
+    if (!loaded) return list
+    return {
+      ...list,
+      datasheets: list.datasheets.map((datasheet) => ({
+        ...datasheet,
+        name: datasheetName(loaded, list.catalogueId, datasheet.id) ?? datasheet.name,
+      })),
+    }
+  }
   const read = () => {
     const revision = catalogue()?.index.revision
     if (!revision || running || (shown?.complete && shown.revision === revision && shown.version === version)) return
     const reading = version
     // Lists found so far stand in only for none or for an earlier partial read, never for a finished one.
     const partial = (lists: WinningList[]) => {
-      if (!shown?.complete) shown = { lists, revision, version: reading, complete: false }
+      if (!shown?.complete) shown = { lists: lists.map(named), revision, version: reading, complete: false }
     }
     running = (async () => {
       // After a restart, the last finished lists stand in while a new revision is checked, rather than a partial set.
       const finished = shown ? null : await finishedLists(directory)
-      if (finished) shown = { ...finished, version: reading, complete: true }
+      if (finished) shown = { ...finished, lists: finished.lists.map(named), version: reading, complete: true }
       const lists = await importableLists(directory, revision, partial)
-      if (lists) shown = { lists, revision, version: reading, complete: true }
+      if (lists) shown = { lists: lists.map(named), revision, version: reading, complete: true }
     })()
       .catch(onError)
       .finally(() => {
@@ -381,7 +400,7 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       const kept = await readJson(importedFile(directory, id), importedSchema)
       const { verdict, draft } =
         kept?.revision === revision && kept.release === release ? kept : await importAndKeep(directory, id, text, revision)
-      return verdict && draft ? { list: placed(verdict, id, event, player), units: draft.picks, draft, text } : null
+      return verdict && draft ? { list: named(placed(verdict, id, event, player)), units: draft.picks, draft, text } : null
     },
   }
 }

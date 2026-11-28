@@ -1,6 +1,7 @@
 import '../polyfills'
 import { readPart } from './referenceStore'
 import { buildConstruction, constructionSource, loadConstructionData, runConstructionRead } from './constructionSource'
+import { editionCatalogueId } from '../../core/catalogueEdition'
 import { constructionReadEvents, type ConstructionReadEvent, type ConstructionReadName } from './constructionReads'
 import type { OfflineConstructionSource, OfflineReferenceVersion } from '../../contracts/offlineReference'
 import { pickerConstruction } from '../../shared/pickerUnits'
@@ -51,20 +52,33 @@ function part(asset: string, limit: number) {
   return decoded
 }
 
-async function construction(catalogueId?: string) {
+function constructionData(catalogueId?: string) {
   if (!source) throw new Error('The construction data has not been loaded.')
   const { parts: download } = source
-  const data = await loadConstructionData(download, catalogueId, (asset, limit) =>
+  return loadConstructionData(download, catalogueId, (asset, limit) =>
     part(asset, limit).catch((error: unknown) => {
       // Without the current rules nothing can be answered here; another version's part only fails its own reads.
-      throw asset === download.catalogue || asset === download.rules ? new Unavailable(String(error)) : error
+      throw asset === download.catalogue || asset === download.rules || asset === download.vs ? new Unavailable(String(error)) : error
     }),
   )
+}
+
+async function construction(catalogueId?: string) {
+  const data = await constructionData(catalogueId)
   const saved = constructionSource(data, catalogueId)
   if (!saved) throw new Error('This rules version is not in the download')
   let prepared = built.get(saved)
-  if (!prepared) built.set(saved, (prepared = buildConstruction(saved)))
+  if (!prepared) built.set(saved, (prepared = buildConstruction(saved, data)))
   return prepared
+}
+
+/**
+ * Loads the part of each earlier rules version a read's picks were saved in, which the current rules read them by; one
+ * the device cannot load leaves its picks on their catalogue choices.
+ */
+async function savedVersions(data: unknown) {
+  const versions = new Set([...JSON.stringify(data ?? null).matchAll(/"rulesVersion":"([^"]+)"/g)].map((match) => match[1]!))
+  await Promise.all([...versions].map((version) => constructionData(editionCatalogueId(version, '')).catch(() => undefined)))
 }
 
 const failed = (error: unknown) => {
@@ -74,9 +88,9 @@ const failed = (error: unknown) => {
 /** Builds a rules version's construction data and, for `units`, prepares a faction's picker a datasheet per step. */
 async function prepare({ catalogueId, units, keys }: Extract<ConstructionWorkerRequest, { kind: 'prepare' }>) {
   try {
-    const { catalogue, rules } = await construction(catalogueId)
+    const { catalogue } = await construction(catalogueId)
     if (units && catalogueId) {
-      const steps = pickerConstruction(catalogue, rules, catalogueId)
+      const steps = pickerConstruction(catalogue, catalogueId)
       // Yielding once per slice lets reads already prepared be answered meanwhile.
       let slice = performance.now()
       while (!steps.next().done) {
@@ -94,6 +108,7 @@ async function prepare({ catalogueId, units, keys }: Extract<ConstructionWorkerR
 
 async function read({ id, name, data, catalogueId }: Extract<ConstructionWorkerRequest, { kind: 'read' }>) {
   const prepared = await construction(catalogueId)
+  await savedVersions(data)
   const startedAt = performance.now()
   const value = runConstructionRead(name, prepared, data as never)
   const event = constructionReadEvents[name]?.(prepared, data as never, value as never)

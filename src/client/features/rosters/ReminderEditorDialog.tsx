@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useId, useRef, useState } from 'react'
+import { type ReactNode, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,7 +18,6 @@ import {
   TURN_LABELS,
 } from '../../../core/reminders'
 import { TURN_SCOPES, type TurnScope } from '../../../core/battle'
-import { RuleText } from '../../components/RuleText'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 
@@ -60,6 +59,7 @@ const completeTiming = (draft: TimingDraft): ReminderTiming | null => {
 
 export function ReminderEditorDialog({
   draft,
+  rule,
   full,
   error,
   onClose,
@@ -67,6 +67,8 @@ export function ReminderEditorDialog({
   onRemove,
 }: {
   draft: ReminderDraft
+  /** The rule's text as the page behind the dialog draws it, which may draw nothing. */
+  rule: ReactNode
   /** The player holds as many alerts as they may and this would be a new one. */
   full: boolean
   error: unknown
@@ -100,11 +102,7 @@ export function ReminderEditorDialog({
           </DialogHeader>
 
           <DialogBody>
-            {draft.description ? (
-              <div className="max-h-40 overflow-y-auto rounded-lg border border-edge bg-sunken p-3 text-xs">
-                <RuleText text={draft.description} rules={[]} />
-              </div>
-            ) : null}
+            <div className="rounded-lg border border-edge bg-sunken p-3 empty:hidden *:text-sm [&>:first-child]:mt-0">{rule}</div>
 
             <div className="space-y-3">
               {timings.map((timing, index) => {

@@ -14,7 +14,10 @@ import {
   importRosterFormat,
 } from '../shared/rosterFiles'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
+import { vsFactionOf } from '../shared/factionNames'
+import { rulesetCatalogueIds } from '../shared/vsDataNames'
 import { app } from './app'
+import { importVsMaps } from './importVsMaps'
 import { requireCatalogue } from './requireCatalogue'
 import { withinTime } from './timeLimit'
 
@@ -57,10 +60,11 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
     parsed,
     format,
     loaded,
-    factions.map((candidate) => candidate.name),
+    factions.flatMap((candidate) => candidate.bookNames.slice(-1)),
     rules,
     translations,
     instance.catalogueRemovals(),
+    importVsMaps(),
   )
 }
 
@@ -78,9 +82,12 @@ async function importedFaction(
 ) {
   if (!name) return null
   if (!statedCatalogueId)
-    return factions.find((candidate) => matchesImportFaction(name, candidate.name, translations) && candidate.isDefault) ?? null
-  const stated = await factionById(statedCatalogueId)
-  return stated && matchesImportFaction(name, stated.name, translations) ? stated : null
+    return factions.find((candidate) => matchesImportFaction(name, candidate, translations) && candidate.isDefault) ?? null
+  for (const id of rulesetCatalogueIds(statedCatalogueId)) {
+    const stated = await factionById(id)
+    if (stated && matchesImportFaction(name, stated, translations)) return stated
+  }
+  return null
 }
 
 /** How long reading one pasted text may hold the server. The slowest of five thousand published lists takes 16 ms. */
@@ -99,18 +106,24 @@ async function importText(file: string, factions: Factions) {
   const statedCatalogueId = importRosterCatalogueId(file)
   const named = await importedFaction(factionName, statedCatalogueId, factions, translations)
   const base = named || statedCatalogueId ? null : instance.catalogue()
-  const byUnits = base ? importRosterUnitFaction(file, base) : null
-  const faction = named ?? (byUnits ? await importedFaction(byUnits.name, null, factions, translations) : null)
+  const byUnits = base ? importRosterUnitFaction(file, base, instance.rules()?.importNames) : null
+  const unitsName =
+    byUnits && base
+      ? (vsFactionOf(base, byUnits.id)?.name ??
+        factions.find(({ id, baseCatalogueId }) => id === byUnits.id || baseCatalogueId === byUnits.id)?.bookNames.at(-1))
+      : null
+  const faction = named ?? (unitsName ? await importedFaction(unitsName, null, factions, translations) : null)
   if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
   const loaded = faction ? await requireCatalogue(faction.id) : null
   const rules = await instance.rulesFor(faction?.id)
   const result = importRosterFile(
     { file },
     loaded,
-    factions.map((candidate) => candidate.name),
+    factions.flatMap((candidate) => candidate.bookNames.slice(-1)),
     rules,
     translations,
     instance.catalogueRemovals(),
+    importVsMaps(),
   )
   return { result, loaded, rules }
 }
@@ -124,5 +137,5 @@ async function importExchangeCode(code: string) {
   if (!faction) throw new Response(ROSTER_EXCHANGE_RULES_UNAVAILABLE, { status: 409 })
   const loaded = await requireCatalogue(faction.id)
   const rules = await instance.rulesFor(faction.id)
-  return { result: importRosterExchange(exchange, loaded, rules, faction.name), loaded, rules }
+  return { result: importRosterExchange(exchange, loaded, rules, faction.bookNames.at(-1) ?? faction.displayName), loaded, rules }
 }

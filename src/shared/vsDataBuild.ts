@@ -4,10 +4,12 @@ import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { steppedSizes } from '../core/vsDataBuild'
-import { keywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
+import { countedKeywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
+import { vsShellIn, vsShellSpreads } from './vsDataShell'
+import { keywordName } from '../core/text'
 
 const definitionsOf = new WeakMap<LoadedCatalogue, VsDataDefinitions | null>()
 
@@ -47,17 +49,69 @@ export function buildPick(
   list: { catalogueId: string; detachmentIds: readonly string[] },
   context: ChoiceOptions,
 ): BuiltUnit | null {
+  const own = builtVsPick(loaded, pick, list, context)
+  if (own !== undefined) return own
+  // One this version no longer holds is read in the rules version it was saved in, where that version still holds it.
+  const saved = pick.vs && pick.rulesVersion ? savedVersionOf(loaded, pick.rulesVersion) : null
+  const kept = saved ? builtVsPick(saved, pick, list, context) : undefined
+  if (kept?.vs) return { ...kept, vs: { ...kept.vs, rulesVersion: pick.rulesVersion! } }
+  const build = (models: number | undefined) =>
+    buildUnit(pick.entryId, loaded.index, models, pick.choices, {
+      ...context,
+      spreads: pick.spreads,
+      toggles: pick.toggles,
+      floor: pick.floor,
+    })
+  const plain = build(pick.models)
+  // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
+  const sizes = vsSizesOf(loaded, list.catalogueId, pick.entryId)
+  if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
+  const wanted = plain.size.models
+  const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
+  const built = nearest === wanted ? plain : (build(nearest) ?? plain)
+  return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
+}
+
+const savedVersions = new WeakMap<LoadedCatalogue, Map<string, LoadedCatalogue>>()
+
+/**
+ * The catalogue as it reads VS Data in another rules version: its own catalogue tree, with that version's roster
+ * definitions and points (`vsRosterIn`); none where the host gives no such lookup or holds no release for it.
+ */
+export function savedVersionOf(loaded: LoadedCatalogue, rulesVersion: string): LoadedCatalogue | null {
+  const versions = savedVersions.get(loaded) ?? new Map<string, LoadedCatalogue>()
+  savedVersions.set(loaded, versions)
+  // A version the host has not loaded yet, as a device reading its part, is asked again next time.
+  if (!versions.has(rulesVersion)) {
+    const vsRoster = loaded.vsRosterIn?.(rulesVersion)
+    if (vsRoster) versions.set(rulesVersion, { ...loaded, vsRoster })
+  }
+  return versions.get(rulesVersion) ?? null
+}
+
+/**
+ * A VS pick built by `loaded`'s VS Data beside the catalogue's tree of it (`buildVsUnit`); null where the tree cannot be
+ * built, and undefined where this VS Data does not hold the pick, as a pick moved from another rules version or datasheet.
+ */
+function builtVsPick(
+  loaded: LoadedCatalogue,
+  pick: RosterPick,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  context: ChoiceOptions,
+): BuiltUnit | null | undefined {
   const unit = pick.vs && vsUnitIdOf(loaded, list.catalogueId, pick.entryId)
   const definitions = unit ? vsDefinitionsOf(loaded) : null
-  // A pick moved from another rules version or datasheet keeps its `vs` only where this version still holds it.
   const vs = pick.vs && definitions && unit ? vsPickIn(definitions, unit, pick.vs) : undefined
   if (vs && definitions && unit) {
     const { faction, detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
     const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).find(
       ([key, id]) => id === vs.enhancement && detachments.includes(key.slice(0, key.indexOf('/'))),
     )
+    // The catalogue tree follows the pick's VS Data choices where the options map files each under a catalogue option, so
+    // the abilities, characteristics and keywords read from it are the loadout's, not the default's.
+    const spreads = vsShellSpreads(vsShellIn(loaded.vsRoster, pick.entryId), vs.options)
     const built = buildVsUnit(
-      { ...pick, vs },
+      { ...pick, vs, ...(spreads ? { choices: {}, spreads } : {}) },
       loaded.index,
       {
         definitions,
@@ -77,21 +131,7 @@ export function buildPick(
       toggles: vsUnitToggles(definitions, built.vs.unit, roster).map((toggle) => (required ? { ...toggle, required } : toggle)),
     }
   }
-  const build = (models: number | undefined) =>
-    buildUnit(pick.entryId, loaded.index, models, pick.choices, {
-      ...context,
-      spreads: pick.spreads,
-      toggles: pick.toggles,
-      floor: pick.floor,
-    })
-  const plain = build(pick.models)
-  // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
-  const sizes = vsSizesOf(loaded, list.catalogueId, pick.entryId)
-  if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
-  const wanted = plain.size.models
-  const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
-  const built = nearest === wanted ? plain : (build(nearest) ?? plain)
-  return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
+  return undefined
 }
 
 /** The sizes VS Data steps a datasheet's unit between, where it fields some but not all between its smallest and largest. */
@@ -131,6 +171,25 @@ export function vsPickPrices(
   list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
   units: readonly { entryId: string; vs?: BuiltUnit['vs'] }[],
 ): Map<number, number> {
+  // A pick read in its saved rules version is priced there, among that version's picks; here it counts as its datasheet.
+  const prices = pricesIn(
+    loaded,
+    list,
+    units.map((unit) => (unit.vs?.rulesVersion ? { entryId: unit.entryId } : unit)),
+  )
+  for (const rulesVersion of new Set(units.flatMap((unit) => unit.vs?.rulesVersion ?? []))) {
+    const saved = savedVersionOf(loaded, rulesVersion)
+    const own = units.map((unit) => (unit.vs?.rulesVersion === rulesVersion ? unit : { entryId: '' }))
+    if (saved) for (const [position, points] of pricesIn(saved, list, own)) prices.set(position, points)
+  }
+  return prices
+}
+
+function pricesIn(
+  loaded: LoadedCatalogue,
+  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  units: readonly { entryId: string; vs?: BuiltUnit['vs'] }[],
+): Map<number, number> {
   const definitions = units.some((unit) => unit.vs) ? vsDefinitionsOf(loaded) : null
   if (!definitions) return new Map()
   const { roster, at } = vsRosterOf(loaded, definitions, list, units)
@@ -144,7 +203,10 @@ export function vsPickPrices(
   )
 }
 
-/** A VS pick's keywords in its list: its datasheet's and each conditional one the list or its allegiance gives it. */
+/**
+ * A VS pick's keywords in its list: its datasheet's, each conditional one the list or its allegiance gives it, and those of
+ * each model it fields, since a unit has all its models' keywords, as a squad led by a Character is one.
+ */
 export function vsPickKeywords(
   loaded: LoadedCatalogue,
   list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
@@ -154,8 +216,5 @@ export function vsPickKeywords(
   const definitions = vsDefinitionsOf(loaded)
   const built = units[position]?.vs
   if (!definitions || !built || !definitions.get('unit', built.unit.unit)) return null
-  // VS Data writes keywords in capitals; a list shows them as the catalogue does, each word capitalised.
-  return keywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map((keyword) =>
-    keyword.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase()),
-  )
+  return countedKeywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map(keywordName)
 }

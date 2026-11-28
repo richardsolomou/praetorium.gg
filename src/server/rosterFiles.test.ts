@@ -1,10 +1,9 @@
 import type { RosterPick } from '../core/roster'
-import { removedNamesOf, unmatchedDetachmentReason } from '../shared/importMismatch'
+import { removedNamesOf, unmatchedDetachmentReason, unplacedChoiceReason } from '../shared/importMismatch'
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
-import { descriptionKey } from '../shared/datacards'
 import {
   exportRosterFile,
   importRosterExchange,
@@ -13,10 +12,11 @@ import {
   importRosterCatalogueId,
   matchesImportFaction,
   assumeWarlord,
+  groupHosts,
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import type { LoadedRules } from '../shared/rules'
-import { importNamesOf, type ImportNames } from '../shared/importNames'
+import { importNamesOf, NO_IMPORT_NAMES, type ImportNames } from '../shared/importNames'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -829,7 +829,7 @@ const loaded: LoadedCatalogue = {
   datacards: {
     factions: new Map(),
     detachmentRules: new Map(),
-    enhancements: new Map([[descriptionKey('Skyshroud Spearhead', 'Veil of Darkness'), 'Vanishes.']]),
+    enhancements: new Map(),
     stratagemTexts: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
@@ -852,6 +852,33 @@ const loaded: LoadedCatalogue = {
     ],
   ]),
   factionContents: new Map(),
+}
+
+/** The catalogue with VS Data's Enhancements of its Detachments, by the catalogue options standing for them. */
+const withVsEnhancements: LoadedCatalogue = {
+  ...loaded,
+  vsRoster: {
+    construction: {
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'MFM 1.6' },
+      definitions: {
+        enhancement: {
+          'necrons.skyshroud-spearhead.veil-of-darkness': { name: 'Veil of Darkness', data: {} },
+          'necrons.pantheon-of-woe.demanding-leadership': { name: 'Demanding Leadership', data: {} },
+        },
+      },
+      unavailable: [],
+      points: [],
+    },
+    books: {},
+    detachments: { skyshroud: 'necrons.skyshroud-spearhead', pantheon: 'necrons.pantheon-of-woe' },
+    units: {},
+    enhancements: {
+      'necrons.skyshroud-spearhead/veil': 'necrons.skyshroud-spearhead.veil-of-darkness',
+      'necrons.pantheon-of-woe/relic': 'necrons.pantheon-of-woe.demanding-leadership',
+    },
+    attachments: {},
+  },
 }
 
 /** A squad whose heavy weapon names its carrier, as the Terminator Squad's cyclone missile launcher does. */
@@ -1087,8 +1114,10 @@ describe('roster export', () => {
         units: [
           {
             key: 0,
+            entryId: 'lord',
             size: { models: 1 },
             name: 'Lokhust Lord',
+            choices: [],
             points: 100,
             group: 'character',
             attachment: { kind: 'leader', targets: ['Immortals'] },
@@ -1099,8 +1128,10 @@ describe('roster export', () => {
           },
           {
             key: 1,
+            entryId: 'immortals',
             size: { models: 5 },
             name: 'Immortals',
+            choices: [],
             points: 200,
             group: 'other',
             attachment: null,
@@ -1314,6 +1345,28 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.units[0]?.spreads?.['model/weapon']).toEqual({ blaster: 0, beamer: 3 })
+  })
+
+  it('matches an enhancement the official app spells otherwise, through its VS Data ID', () => {
+    const imported = importRosterFile(
+      {
+        file: `Lord (80 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Enhancement: Demanding Leadership
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      withVsEnhancements,
+    )
+
+    expect(imported.units[0]?.choices?.enhancements).toBe('relic')
   })
 
   it('matches an enhancement after a plural export label', () => {
@@ -1541,7 +1594,7 @@ Lokhust Lord (80 Points)
 
 Exported with BattleBase, Data Version: v20260812`,
       },
-      loaded,
+      withVsEnhancements,
     )
 
     expect(imported.unplaced).toEqual([
@@ -1559,10 +1612,26 @@ Lokhust Lord (80 Points)
 
 Exported with New Recruit v38.18, Data Version: v17`,
       },
-      loaded,
+      withVsEnhancements,
     )
 
     expect(imported.detachmentIds).toEqual(['skyshroud'])
+  })
+
+  it('takes the detachment of an enhancement a list spells as BSData does where the official app spells it otherwise', () => {
+    const imported = importRosterFile(
+      {
+        file: `CHARACTERS
+
+Lokhust Lord (80 Points)
+  • Enhancements: Demanding Leader
+
+Exported with New Recruit v38.18, Data Version: v17`,
+      },
+      withVsEnhancements,
+    )
+
+    expect(imported.detachmentIds).toEqual(['pantheon'])
   })
 
   it('separates an enhancement of the chosen detachment from one of another', () => {
@@ -1581,7 +1650,7 @@ Tomb Blades (70 Points)
 
 Exported with BattleBase, Data Version: v20260812`,
       },
-      loaded,
+      withVsEnhancements,
     )
 
     expect(imported.unplaced).toEqual([
@@ -1611,6 +1680,14 @@ Exported with BattleBase, Data Version: v20260812`,
     expect(imported.unplaced).toEqual([
       { unit: 'Tomb Blades', choices: [{ name: 'Tesla carbine', reason: 'this datasheet does not offer it' }] },
     ])
+  })
+
+  it('knows wargear the faction has by the name BSData gave it, frozen, over the catalogue’s', () => {
+    const names = { ...NO_IMPORT_NAMES, entryNames: new Map([['hull-lascannon', ['Hull lascannon']]]) }
+
+    expect(unplacedChoiceReason('Hull lascannon', { loaded, catalogueId: 'necrons', detachmentIds: [], names })).toBe(
+      'this datasheet does not offer it',
+    )
   })
 
   it('names the faction a datasheet belongs to instead', () => {
@@ -1763,7 +1840,7 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
         },
       },
       { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
-      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map() },
+      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map(), entryNames: new Map(), bookNames: new Map() },
     )
     const imported = importRosterFile(
       {
@@ -1787,7 +1864,6 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
         factionKeys: new Map(),
         detachmentReferences: new Map(),
         detachmentDetails: new Map(),
-        factionRestrictions: new Map(),
         importNames,
       } as Partial<LoadedRules> as LoadedRules,
     )
@@ -1817,7 +1893,6 @@ Exported with App Version: v2.4.0 (139), Data Version: v925`,
         factionKeys: new Map(),
         detachmentReferences: new Map(),
         detachmentDetails: new Map(),
-        factionRestrictions: new Map(),
         importNames: { datasheets: new Map(), pieces: new Map(), detachments: new Map() } as unknown as ImportNames,
       } as Partial<LoadedRules> as LoadedRules,
     )
@@ -1847,7 +1922,6 @@ Exported with App Version: v2.6.0 (3), Data Version: v963`,
         factionKeys: new Map(),
         detachmentReferences: new Map(),
         detachmentDetails: new Map(),
-        factionRestrictions: new Map(),
         appDataBuild: 981,
       } as Partial<LoadedRules> as LoadedRules,
     )
@@ -1947,7 +2021,7 @@ Exported with BattleBase, Data Version: v20260812`
         },
       },
     ]
-    expect(unmatchedDetachmentReason('Pantheon of Doom', 'mfm-1-6~necrons', loaded, removedNamesOf(history))).toBe(
+    expect(unmatchedDetachmentReason('Pantheon of Doom', 'mfm-1-6~necrons', loaded, NO_IMPORT_NAMES, removedNamesOf(history))).toBe(
       'removed in the 30 Sept 2026 data update',
     )
   })
@@ -2314,8 +2388,10 @@ describe('Praetorium roster import', () => {
         units: [
           {
             key: 0,
+            entryId: 'lord',
             size: { models: 1 },
             name: 'Lokhust Lord',
+            choices: [],
             points: 100,
             group: 'character',
             attachment: { kind: 'leader', targets: ['Immortals'] },
@@ -2326,8 +2402,10 @@ describe('Praetorium roster import', () => {
           },
           {
             key: 1,
+            entryId: 'immortals',
             size: { models: 5 },
             name: 'Immortals',
+            choices: [],
             points: 200,
             group: 'other',
             attachment: null,
@@ -2456,8 +2534,10 @@ Created with newrecruit.eu v35.51`,
 describe('custom unit names in text', () => {
   const immortals = (key: number) => ({
     key,
+    entryId: 'immortals',
     size: { models: 5 },
     name: 'Immortals',
+    choices: [],
     points: 200,
     group: 'other' as const,
     attachment: null,
@@ -2916,8 +2996,21 @@ describe('import faction names', () => {
     ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
     ['Imperial Agents', 'Imperium - Agents of the Imperium'],
   ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
-    expect(matchesImportFaction(keyword, catalogue)).toBe(true)
+    expect(matchesImportFaction(keyword, { bookNames: [catalogue] })).toBe(true)
   })
+
+  it.each(['Chaos Daemons', 'Chaos - Chaos Daemons', 'Daemons du Chaos'])(
+    'reads %s by the names of the VS Data faction the book plays',
+    (stated) => {
+      const translations = new Map([
+        ['Legiones Daemonica', ['Chaos Daemons']],
+        ['Chaos Daemons', ['Legiones Daemonica', 'Daemons du Chaos']],
+      ])
+      expect(
+        matchesImportFaction(stated, { bookNames: ['Chaos - Daemons'], vsFaction: { name: 'Legiones Daemonica' } }, translations),
+      ).toBe(true)
+    },
+  )
 })
 
 describe('a list another app read into army text', () => {
@@ -3319,5 +3412,37 @@ describe('a Warlord a list leaves unnamed', () => {
     const units = picks()
     assumeWarlord(units, () => (units[2]!.toggles['crown'] ? 0 : 1))
     expect(units.map((unit) => unit.toggles)).toEqual([{}, { crown: 0 }, { crown: 1 }])
+  })
+})
+
+describe('groupHosts', () => {
+  const canJoin: Record<string, string[]> = {
+    ogryns: ['command'],
+    command: ['shocks'],
+    servitors: ['techmarine', 'tacticals'],
+    techmarine: ['tacticals'],
+  }
+  const joins = (member: string, host: string) => (canJoin[member] ?? []).includes(host)
+
+  it('joins each unit to the one other unit it can join', () => {
+    expect(Object.fromEntries(groupHosts(['command', 'shocks', 'ogryns'], joins))).toEqual({ ogryns: 'command', command: 'shocks' })
+  })
+
+  it('joins a unit that can join several to the one nothing else takes it to', () => {
+    expect(groupHosts(['techmarine', 'tacticals', 'servitors'], joins).get('servitors')).toBe('tacticals')
+  })
+
+  it("joins a unit that can join none to the group's one bodyguard", () => {
+    expect(
+      groupHosts(['captain', 'intercessors', 'lieutenant'], (member, host) => member === 'captain' && host === 'intercessors').get(
+        'lieutenant',
+      ),
+    ).toBe('intercessors')
+  })
+
+  it('is held on the model a VS pick names', () => {
+    const units = [{ toggles: { crown: 0 }, vs: { models: {}, options: {} } }]
+    assumeWarlord(units, undefined, () => 'captain')
+    expect(units[0]!.vs).toEqual({ models: {}, options: {}, warlord: 'captain' })
   })
 })

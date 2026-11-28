@@ -804,6 +804,53 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it("reads a squad's wargear in VS Data's spelling as the model that carries it", () => {
+    const result = imported(
+      officialApp(
+        'Aeldari',
+        `Corsair Voidscarred (140 Points)
+    • 5x Power sword
+    • 10x Close combat weapon
+    • 1x Neuro disruptor
+    • 1x Mistshield
+    • 1x Paired Hekatarii blades
+    • 6x Shuriken pistol
+    • 1x Channeller Stones
+    • 1x Executioner
+    • 1x Witch staff
+    • 1x Faolchú
+    • 1x Wraithcannon
+    • 2x Blaster
+    • Models: 10`,
+      ),
+    )
+    const [unit] = calculateRosterPrice(
+      { catalogueId: result.catalogueId!, detachmentIds: result.detachmentIds, disposition: null, limit: 2000, units: result.units },
+      catalogue,
+      rules,
+    )!.units
+    expect(unit!.wargear).toContainEqual({ name: 'Channeler stones', count: 1 })
+  })
+
+  it("reads an official-app Termagant squad's spinefists at the size the list prints", () => {
+    const result = imported(
+      officialApp(
+        'Tyranids',
+        `Termagants (55 Points)
+    • 10x Termagant
+    • 10x Chitinous claws and teeth
+    • 1x Strangleweb
+    • 9x Termagant spinefists`,
+      ),
+    )
+    const [unit] = calculateRosterPrice(
+      { catalogueId: result.catalogueId!, detachmentIds: result.detachmentIds, disposition: null, limit: 2000, units: result.units },
+      catalogue,
+      rules,
+    )!.units
+    expect({ models: unit!.size.models, points: unit!.points }).toEqual({ models: 10, points: 55 })
+  })
+
   it('reads a Grey Knights Ancient as the model carrying the banner', () => {
     const file = officialApp(
       'Grey Knights',
@@ -1414,7 +1461,7 @@ Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
   })
 
   it('prices both Salamanders detachments against their source names', () => {
-    expect(priced(salamandersOfficial)?.detachments).toEqual([
+    expect(priced(salamandersOfficial)?.detachments.map(({ name, points }) => ({ name, points }))).toEqual([
       { name: 'Deathwatch Support', points: 1 },
       { name: "Forgefather's Seekers", points: 2 },
     ])

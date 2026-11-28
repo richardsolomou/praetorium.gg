@@ -3,7 +3,7 @@ import type { CanonicalCatalogue } from '../../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../../core/catalogueHistory'
 import { catalogueChangeLog, referenceChanges } from './changes'
 
-const mocks = vi.hoisted(() => ({ canonicalCatalogueFor: vi.fn(), catalogueHistoryFor: vi.fn() }))
+const mocks = vi.hoisted(() => ({ canonicalCatalogueFor: vi.fn(), catalogueHistoryFor: vi.fn(), factionsFor: async () => null }))
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
   return { createServerFn: builder }

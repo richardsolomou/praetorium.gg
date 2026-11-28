@@ -18,7 +18,7 @@ import {
 } from '../core/catalogue'
 import { comparableText, withoutText } from '../core/sourceText'
 import { attachmentRoles, referenceAttachmentOf } from '../core/attach'
-import type { PrintedTransport } from '../core/transport'
+import { type PrintedTransport, withPrintedWargear } from '../core/transport'
 import {
   flattenedModifiers,
   infoLinkHiddenByRules,
@@ -62,6 +62,8 @@ import {
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 import { baseSizeOf } from './vsDataBaseSizes'
 import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
+import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
+import { compositionLines } from './vsDataUnitLines'
 import { rulesNamed } from './catalogueRules'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
@@ -365,8 +367,25 @@ export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: strin
 
 /** What the datasheet's transport carries: VS Data's typed capacity, or failing that what its printed rule reads as. */
 function transportCapacityOf(loaded: LoadedCatalogue, entryId: string, details: { transportCapacity?: PrintedTransport } | null) {
-  const capacity = loaded.vsProfiles?.transports?.[entryId] ?? details?.transportCapacity
+  const vsData = loaded.vsProfiles?.transports?.[entryId]
+  const capacity = vsData ? withPrintedWargear(vsData, details?.transportCapacity) : details?.transportCapacity
   return capacity ? { transportCapacity: capacity } : {}
+}
+
+/** The datasheet's model counts as its VS Data unit fields them, or null where VS Data does not define it. */
+export function vsCompositionOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  const definitions = vsDefinitionsOf(loaded)
+  const unitId = vsUnitIdOf(loaded, catalogueId, entryId)
+  const unit = unitId ? definitions?.get('unit', unitId) : undefined
+  if (!definitions || !unit) return null
+  const name = (id: string) => definitions.get('model', id)?.name ?? id
+  return compositionLines({
+    sizes: unit.data.sizes,
+    models: definitions.modelsOf(unit.id).map((model) => ({ name: model.name, min: model.data.min, max: model.data.max })),
+    ...(unit.data.defaultModels
+      ? { defaultModels: Object.entries(unit.data.defaultModels).map(([id, count]) => [name(id), count] as [string, number]) }
+      : {}),
+  })
 }
 
 function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
@@ -386,7 +405,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     profiles: walked.profiles,
     abilities: walked.abilities,
     ...(walked.enhancements.length ? { enhancements: walked.enhancements } : {}),
-    composition: details?.composition ?? [],
+    composition: vsCompositionOf(loaded, catalogueId, entryId) ?? details?.composition ?? [],
     ...(details?.modelCount ? { modelCount: details.modelCount } : {}),
     loadout: details?.loadout ?? null,
     wargearOptions: details?.wargear.length

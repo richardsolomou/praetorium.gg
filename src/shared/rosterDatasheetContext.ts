@@ -1,6 +1,7 @@
 import { attachedUnit } from '../core/attachedUnits'
 import type { Selection } from '../core/evaluate'
-import type { RosterPick } from '../core/roster'
+import { catalogueTreeOf, type RosterPick } from '../core/roster'
+import type { VsBuiltUnit } from '../core/vsDataBuild'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
 import { buildPick } from './vsDataBuild'
@@ -31,16 +32,24 @@ export function rosterDatasheetSelections(
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
   const builtUnits = data.picks.flatMap((pick, index) => {
     const unit = buildRosterPick(loaded, data.catalogueId, detachments, pick, data.detachmentIds)
-    return unit ? [{ index, selection: unit.selection, models: unit.size.models, carriers: unit.vs?.carriers }] : []
+    if (!unit) return []
+    // A VS pick is sized by its `vs`, so only a catalogue build can be asked for a size it does not field.
+    const refused = !unit.vs && pick.models !== undefined && pick.models !== unit.size.models ? pick.models : undefined
+    return [{ index, selection: catalogueTreeOf(unit), models: unit.size.models, refused, vs: unit.vs }]
   })
+  const vsUnits: Record<number, VsBuiltUnit> = {}
+  for (const unit of builtUnits) if (unit.vs) vsUnits[unit.index] = unit.vs
   return {
     selections: [...detachments, ...builtUnits.map((unit) => unit.selection)],
+    /** Each VS pick by its index in the list, as VS Data fields it: its roster unit, size, models, carriers and wargear. */
+    vsUnits,
     unitSelections: builtUnits.map((unit, at) => ({
       pickIndex: unit.index,
       selectionIndex: detachments.length + at,
       models: unit.models,
+      ...(unit.refused === undefined ? {} : { refusedModels: unit.refused }),
       // A VS pick's models carry what VS Data fields, which its catalogue tree, built at its default loadout, does not.
-      ...(unit.carriers ? { carriers: unit.carriers } : {}),
+      ...(unit.vs ? { carriers: unit.vs.carriers } : {}),
     })),
   }
 }

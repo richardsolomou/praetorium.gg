@@ -9,6 +9,7 @@ import { buildConstruction } from './constructionSource'
 import { datacardOf } from '../../shared/datasheetJoin'
 import { datasheetIn } from '../../shared/catalogue'
 import { attachmentErrors } from '../../core/attach'
+import { vsRosterData } from '../../shared/vsDataLegality'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
 import type { TerrainLayout } from '../../contracts/terrain'
@@ -60,7 +61,6 @@ function source(cost: number, versioned = false): OfflineConstructionSource {
     factionKeys: new Map(),
     detachmentReferences: new Map(),
     detachmentDetails: new Map(),
-    factionRestrictions: new Map(),
     terrainLayouts: [],
     terrainTemplates: [],
   }
@@ -339,7 +339,26 @@ it('lets a unit join the hosts VS Data gives it, as the server does', () => {
     { id: 'lord', name: 'Lord', type: 'model' },
     { id: 'squad', name: 'Squad', type: 'unit' },
   ]
-  const vsProfiles = { units: {}, lines: {}, attachments: { lord: { kind: 'leader', targets: ['Squad'], named: ['Squad'] } } }
-  const { catalogue } = buildConstruction({ ...saved, vsProfiles: packRuntimeData(vsProfiles) })
+  const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+  const vsRoster = vsRosterData(
+    {
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'test' },
+      unavailable: [],
+      points: [],
+      definitions: {
+        faction: { host: record('Host', {}) },
+        unit: {
+          'host.lord': record('Lord', { faction: 'host', keywords: [], sizes: [1] }),
+          'host.squad': record('Squad', { faction: 'host', keywords: [], sizes: [5] }),
+        },
+        attachment: { 'host.lord': record('Lord', { unit: 'host.lord', leads: ['host.squad'] }) },
+      },
+    },
+    { books: {}, detachments: {}, units: { lord: 'host.lord', squad: 'host.squad' }, enhancements: {} },
+    null,
+    (id) => ({ lord: 'Lord', squad: 'Squad' })[id],
+  )
+  const { catalogue } = buildConstruction({ ...saved, vsRoster: packRuntimeData(vsRoster) })
   expect(attachmentErrors([{ entryId: 'lord', attachedTo: 1 }, { entryId: 'squad' }], catalogue.index)).toEqual([])
 })

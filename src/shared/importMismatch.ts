@@ -15,10 +15,13 @@ import { type CatalogueIndex, nameOf } from '../core/catalogue'
 import { eachDefinition } from '../core/definitions'
 import type { UnitSize } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { descriptionKey } from './datacards'
+import { cardName } from './datacards'
+import type { VsRosterData } from './vsDataLegality'
 import { factionDisplayName } from './factionNames'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { editionFamilyId } from '../core/catalogueEdition'
+import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, storedNames, type ImportNames } from './importNames'
+import { inBook } from './vsDataPoints'
 
 /** What each faction's data updates removed and never brought back, by name: an older list can still name it. */
 export type RemovedNames = ReadonlyMap<string, ReadonlyMap<string, { kind: 'datasheet' | 'detachment' | 'enhancement'; at: number }>>
@@ -82,16 +85,17 @@ export function unmatchedDatasheetReason(
   stated: string,
   catalogueId: string,
   loaded: LoadedCatalogue,
+  names: ImportNames,
   removed: RemovedNames = NO_REMOVALS,
 ): string {
-  const faction = factionOf(loaded, catalogueId)
-  const other = otherFaction(stated, catalogueId, loaded)
+  const faction = factionOf(loaded, catalogueId, names)
+  const other = otherFaction(stated, catalogueId, loaded, names)
   if (other) return `a ${other} datasheet, not ${faction}`
   const gone = removedReason(stated, 'datasheet', catalogueId, removed)
   if (gone) return gone
-  const near = closestName(stated, datasheetNames(loaded, catalogueId))
+  const near = closestName(stated, datasheetNames(loaded, catalogueId, names))
   if (near) return `no ${faction} datasheet is called that; the closest is "${near}"`
-  if (factionNames(loaded, catalogueId).has(normalized(stated))) return `${faction} has this, but not as a datasheet`
+  if (factionNames(loaded, catalogueId, names).has(normalized(stated))) return `${faction} has this, but not as a datasheet`
   return `no ${faction} datasheet is called that`
 }
 
@@ -99,6 +103,7 @@ export function unmatchedDetachmentReason(
   stated: string,
   catalogueId: string,
   loaded: LoadedCatalogue,
+  names: ImportNames,
   removed: RemovedNames = NO_REMOVALS,
 ): string {
   const gone = removedReason(stated, 'detachment', catalogueId, removed)
@@ -106,7 +111,7 @@ export function unmatchedDetachmentReason(
   const options = loaded.detachments.get(catalogueId)?.options ?? []
   const near = closestName(
     stated,
-    options.map((option) => option.name),
+    options.flatMap((option) => storedNames(names.detachmentNames, loaded, option.id) ?? [option.name]),
   )
   const faction = factionOf(loaded, catalogueId)
   return near ? `no ${faction} detachment is called that; the closest is "${near}"` : `no ${faction} detachment is called that`
@@ -120,16 +125,16 @@ export function unmatchedDetachmentReason(
  */
 export function unplacedChoiceReason(
   stated: string,
-  where: { loaded: LoadedCatalogue; catalogueId: string; detachmentIds: readonly string[]; removed?: RemovedNames },
+  where: { loaded: LoadedCatalogue; catalogueId: string; detachmentIds: readonly string[]; names: ImportNames; removed?: RemovedNames },
 ): string {
-  const { loaded, catalogueId, detachmentIds, removed = NO_REMOVALS } = where
-  const detachment = enhancementDetachment(stated, loaded, catalogueId)
+  const { loaded, catalogueId, detachmentIds, names, removed = NO_REMOVALS } = where
+  const detachment = enhancementDetachment(stated, loaded, catalogueId, names)
   if (detachment) {
     return detachmentIds.includes(detachment.id)
       ? 'this datasheet cannot take that enhancement'
       : `an enhancement of the ${detachment.name} detachment`
   }
-  if (factionNames(loaded, catalogueId).has(normalized(stated))) return 'this datasheet does not offer it'
+  if (factionNames(loaded, catalogueId, names).has(normalized(stated))) return 'this datasheet does not offer it'
   return (
     removedReason(stated, 'enhancement', catalogueId, removed) ??
     `nothing in the ${factionOf(loaded, catalogueId)} catalogue is called that`
@@ -150,61 +155,125 @@ export function squadSizeReason(size: UnitSize): string {
 export const attachmentReason = (target: string, imported: boolean) =>
   imported ? `every ${target} in this list is already led` : `this list has no ${target}`
 
-const factionOf = (loaded: LoadedCatalogue, catalogueId: string) =>
-  factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? catalogueId)
+/** A book's name in a reason: its newest frozen name, or the catalogue's where the rules carry none. */
+const factionOf = (loaded: LoadedCatalogue, catalogueId: string, names: ImportNames = NO_IMPORT_NAMES) =>
+  factionDisplayName(
+    frozenBookNames(names.bookNames, catalogueId, () => [loaded.index.catalogues.get(catalogueId)?.name ?? catalogueId]).at(-1) ??
+      catalogueId,
+  )
 
 /**
  * The factions whose datasheets hold this name, when they are not the one being
  * imported into. Two are named where two have it, because a Plague Marine bought from
- * the wrong book is as likely to belong to either.
+ * the wrong book is as likely to belong to either. Books holding it under a name BSData gave it answer first, since a
+ * VS Data name can also reach the Legends copy a book holds of another faction's unit.
  */
-function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue): string | null {
-  const elsewhere = [...(datasheetFactions(loaded).get(normalized(stated)) ?? [])]
-    .filter((id) => id !== catalogueId)
-    .map((id) => factionOf(loaded, id))
-    .filter(Boolean)
+function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue, names: ImportNames): string | null {
+  const holding = (spellings: ImportNames) =>
+    (datasheetFactions(loaded, spellings).get(normalized(stated)) ?? []).filter((id) => id !== catalogueId)
+  const named = holding({ ...names, datasheets: NO_IMPORT_NAMES.datasheets })
+  const elsewhere = (named.length ? named : holding(names)).map((id) => factionOf(loaded, id, names)).filter(Boolean)
   return elsewhere.length ? elsewhere.slice(0, 2).join(' or ') : null
 }
 
-/** Which detachment of this faction prints an enhancement by that name, if any does. */
-export function enhancementDetachment(stated: string, loaded: LoadedCatalogue, catalogueId: string) {
-  const options = loaded.detachments.get(catalogueId)?.options ?? []
-  return options.find((option) => loaded.datacards.enhancements.has(descriptionKey(option.name, stated))) ?? null
+const enhancementNameCache = new WeakMap<VsRosterData, Map<string, ReadonlyMap<string, string>>>()
+
+/** The official app's name for each Enhancement a stored Detachment has in VS Data, by the catalogue option standing for it. */
+function vsEnhancementNames(loaded: LoadedCatalogue, detachmentId: string): ReadonlyMap<string, string> {
+  const data = loaded.vsRoster
+  const detachment = data?.detachments[detachmentId]
+  if (!data || !detachment) return new Map()
+  return cachedIn(enhancementNameCache, data, detachmentId, () => {
+    const names = new Map<string, string>()
+    for (const [key, id] of Object.entries(data.enhancements)) {
+      const [owner, option] = key.split('/') as [string, string]
+      const name = owner === detachment ? data.construction.definitions.enhancement?.[id]?.name : undefined
+      if (name) names.set(option, name)
+    }
+    return names
+  })
 }
 
-const factionNameCache = new WeakMap<CatalogueIndex, Map<string, Set<string>>>()
+/** The catalogue option of the list's Detachments' Enhancement the official app names so, if any is. */
+export function vsEnhancementOption(stated: string, loaded: LoadedCatalogue, detachmentIds: readonly string[]) {
+  const wanted = cardName(stated)
+  if (!wanted) return undefined
+  for (const detachment of detachmentIds)
+    for (const [option, name] of vsEnhancementNames(loaded, detachment)) if (cardName(name) === wanted) return option
+  return undefined
+}
+
+/** Which detachment of this faction has an enhancement by that name, as the official app or BSData spells it, if any does. */
+export function enhancementDetachment(stated: string, loaded: LoadedCatalogue, catalogueId: string, names: ImportNames) {
+  const options = loaded.detachments.get(catalogueId)?.options ?? []
+  const wanted = cardName(stated)
+  if (!wanted) return null
+  return (
+    options.find((option) =>
+      [...vsEnhancementNames(loaded, option.id)].some(
+        ([id, name]) => cardName(name) === wanted || entryNames(loaded, names, id).some((own) => cardName(own) === wanted),
+      ),
+    ) ?? null
+  )
+}
+
+/** BSData's names for an entry, the catalogue's own where the frozen names lack it, as for one an upstream refresh added. */
+function entryNames(loaded: LoadedCatalogue, names: ImportNames, id: string): readonly string[] {
+  const definition = loaded.index.definitions.get(id)
+  return (
+    storedNames(names.datasheetNames, loaded, id) ??
+    storedNames(names.entryNames, loaded, id) ??
+    (definition ? [nameOf(definition, loaded.index.definitions)] : [])
+  )
+}
+
+const factionNameCache = new WeakMap<ImportNames['entryNames'], WeakMap<CatalogueIndex, Map<string, Set<string>>>>()
 
 /**
  * Every name reachable from the datasheets a faction offers, wargear and enhancements
  * included. Reading the catalogue a definition was declared in would miss both, since
  * a book reaches most of its range through a library it imports.
  */
-function factionNames(loaded: LoadedCatalogue, catalogueId: string): ReadonlySet<string> {
-  return cachedIn(factionNameCache, loaded.index, catalogueId, () => namesIn(loaded.index, catalogueId))
-}
-
-function namesIn(index: CatalogueIndex, catalogueId: string) {
-  const names = new Set<string>()
-  eachDefinition(index.datasheets.get(catalogueId) ?? [], index, (definition) =>
-    names.add(normalized(nameOf(definition, index.definitions))),
+function factionNames(loaded: LoadedCatalogue, catalogueId: string, names: ImportNames): ReadonlySet<string> {
+  return cachedIn(
+    remember(factionNameCache, names.entryNames, () => new WeakMap()),
+    loaded.index,
+    catalogueId,
+    () => {
+      const found = new Set<string>()
+      eachDefinition(loaded.index.datasheets.get(catalogueId) ?? [], loaded.index, (definition) => {
+        for (const name of entryNames(loaded, names, definition.id)) found.add(normalized(name))
+      })
+      return found
+    },
   )
-  return names
 }
 
-const datasheetFactionCache = new WeakMap<CatalogueIndex, Map<string, string[]>>()
+const datasheetFactionCache = new WeakMap<
+  CatalogueIndex,
+  WeakMap<ImportNames['datasheetNames'], WeakMap<ImportNames['datasheets'], Map<string, string[]>>>
+>()
 
-/** Which factions offer a datasheet under each name, for a name this one does not hold. */
-function datasheetFactions(loaded: LoadedCatalogue): ReadonlyMap<string, readonly string[]> {
-  return remember(datasheetFactionCache, loaded.index, () => {
+/**
+ * Which factions offer a datasheet under each name a list can give it, the names BSData gave it as frozen and VS Data's,
+ * for a name this one does not hold.
+ */
+function datasheetFactions(loaded: LoadedCatalogue, names: ImportNames): ReadonlyMap<string, readonly string[]> {
+  const byFrozen = remember(datasheetFactionCache, loaded.index, () => new WeakMap())
+  const byPrinted = remember(byFrozen, names.datasheetNames, () => new WeakMap())
+  return remember(byPrinted, names.datasheets, () => {
     const found = new Map<string, string[]>()
     for (const [catalogueId, entries] of loaded.index.datasheets) {
       for (const id of entries) {
-        const definition = loaded.index.definitions.get(id)
-        if (!definition) continue
-        const name = normalized(nameOf(definition, loaded.index.definitions))
-        const factions = found.get(name) ?? []
-        if (!factions.includes(catalogueId)) factions.push(catalogueId)
-        found.set(name, factions)
+        const own = frozenNames(names.datasheetNames, loaded, id, () => {
+          const definition = loaded.index.definitions.get(id)
+          return definition ? [nameOf(definition, loaded.index.definitions)] : []
+        })
+        for (const name of new Set([...own, ...(inBook(names.datasheets, catalogueId, id) ?? [])].map(normalized))) {
+          const factions = found.get(name) ?? []
+          if (!factions.includes(catalogueId)) factions.push(catalogueId)
+          found.set(name, factions)
+        }
       }
     }
     return found
@@ -217,11 +286,12 @@ function datasheetFactions(loaded: LoadedCatalogue): ReadonlyMap<string, readonl
  * The official app translates the faction's name but prints datasheets in English, so a
  * list whose faction is named in another language still says which army it is.
  */
-export function factionOfDatasheets(names: readonly string[], loaded: LoadedCatalogue): string | null {
+export function factionOfDatasheets(names: readonly string[], loaded: LoadedCatalogue, spellings: ImportNames): string | null {
   const factions = new Set(loaded.factions.map((faction) => faction.id))
   const counts = new Map<string, number>()
   for (const name of names)
-    for (const id of datasheetFactions(loaded).get(normalized(name)) ?? []) if (factions.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1)
+    for (const id of datasheetFactions(loaded, spellings).get(normalized(name)) ?? [])
+      if (factions.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1)
   const most = Math.max(0, ...counts.values())
   const leaders = [...counts].filter(([, count]) => count === most)
   return leaders.length === 1 && most * 2 > names.length ? leaders[0]![0] : null
@@ -232,9 +302,14 @@ export function factionOfDatasheets(names: readonly string[], loaded: LoadedCata
  * not all, as the Ultramarines for a list stated as Space Marines that fields Marneus Calgar. A list sharing no datasheet
  * with the faction it states is pasted against the wrong one, not a chapter of it.
  */
-export function chapterOfDatasheets(names: readonly string[], catalogueId: string, loaded: LoadedCatalogue): string | null {
+export function chapterOfDatasheets(
+  names: readonly string[],
+  catalogueId: string,
+  loaded: LoadedCatalogue,
+  spellings: ImportNames,
+): string | null {
   const offering = names.flatMap((name) => {
-    const ids = datasheetFactions(loaded).get(normalized(name))
+    const ids = datasheetFactions(loaded, spellings).get(normalized(name))
     return ids?.length ? [ids] : []
   })
   const own = offering.filter((ids) => ids.includes(catalogueId)).length
@@ -243,11 +318,8 @@ export function chapterOfDatasheets(names: readonly string[], catalogueId: strin
   return candidates.length === 1 ? candidates[0]!.id : null
 }
 
-function datasheetNames(loaded: LoadedCatalogue, catalogueId: string): string[] {
-  return [...(loaded.index.datasheets.get(catalogueId) ?? [])].flatMap((id) => {
-    const definition = loaded.index.definitions.get(id)
-    return definition ? [nameOf(definition, loaded.index.definitions)] : []
-  })
+function datasheetNames(loaded: LoadedCatalogue, catalogueId: string, names: ImportNames): string[] {
+  return [...(loaded.index.datasheets.get(catalogueId) ?? [])].flatMap((id) => entryNames(loaded, names, id))
 }
 
 /**

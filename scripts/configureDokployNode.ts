@@ -1,6 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { verifyWebAssetRoute } from './publishWebAssets.ts'
-import { webAssetRouting } from './lib/webAssetRouting.ts'
+import { withoutBucketAssetRoute } from './lib/webAssetRouting.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { type DokployApi, dokployWebApplication } from './lib/dokployWeb.ts'
 import { requiredEnv } from './lib/requiredEnv.ts'
@@ -172,7 +172,7 @@ export async function configureWebAssetRoute(
   }
   const previous = await read()
   if (!directories.length) throw new Error('Asset directories are required for route verification')
-  const traefikConfig = webAssetRouting(previous, host)
+  const traefikConfig = withoutBucketAssetRoute(previous, host)
   if (traefikConfig === previous) return verify(directories, `https://${host}`)
   const save = async (config: string) => {
     await api('application.updateTraefikConfig', { body: { applicationId, traefikConfig: config } })

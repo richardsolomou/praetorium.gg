@@ -424,7 +424,7 @@ export function pointCapErrors(
   index: CatalogueIndex,
   options: EvaluateOptions,
   pointsOf: (selection: Selection) => number,
-): { errors: EvaluationError[]; unhandled: string[] } {
+): { errors: EvaluationError[]; unhandled: string[]; counted: Map<EvaluationError, Selection[]> } {
   const caps = remember(pointCapsCache, index, () =>
     [...index.categories.values()].flatMap((category) =>
       (category.constraints ?? []).flatMap((constraint) =>
@@ -435,6 +435,8 @@ export function pointCapErrors(
   const census = new Census(0)
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const errors: EvaluationError[] = []
+  // The units each broken cap counted, so a caller can tell which allies it is about.
+  const counted = new Map<EvaluationError, Selection[]>()
   for (const { category, constraint } of caps) {
     if (constraint.scope !== 'roster' && constraint.scope !== 'force') {
       census.note(`points cap scope ${constraint.scope}`)
@@ -446,16 +448,22 @@ export function pointCapErrors(
       if (!holding.length) continue
       const limit = constraintValue(constraint, holding[0]!, root, index, census, extra)
       const measured = holding.reduce((total, unit) => total + (unit.selection ? pointsOf(unit.selection) : 0), 0)
-      if (limit >= 0 && measured > limit)
-        errors.push({
+      if (limit >= 0 && measured > limit) {
+        const error = {
           entryId: category.id,
           entryName: category.name ?? category.id,
           message: `allows at most ${limit} points, has ${measured}`,
           limit: { max: limit, measured },
-        })
+        }
+        errors.push(error)
+        counted.set(
+          error,
+          holding.flatMap((unit) => (unit.selection ? [unit.selection] : [])),
+        )
+      }
     }
   }
-  return { errors, unhandled: census.list }
+  return { errors, unhandled: census.list, counted }
 }
 
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
@@ -574,10 +582,11 @@ function heldBy(member: Node, grants: Map<Node, Map<string, boolean>>): Set<stri
 
 /**
  * Picks VS Data checks, and those of them it prices: their selections stay in the tree, so every other pick's conditions
- * still count them, but none of their nodes reports a limit, nor costs points where VS Data prices the pick. With
- * `ownLimits`, each pick's own entry still reports its roster limits and errors, for a list VS Data cannot place.
+ * still count them, but none of their nodes reports a limit, nor costs points where VS Data prices the pick. A pick in
+ * `ownLimits` still has its own entry report its roster limits and errors: one in a list VS Data cannot place, or one
+ * VS Data's limits cannot hold.
  */
-export type VsPicks = { checked: ReadonlySet<Selection>; priced: ReadonlySet<Selection>; ownLimits?: boolean }
+export type VsPicks = { checked: ReadonlySet<Selection>; priced: ReadonlySet<Selection>; ownLimits?: ReadonlySet<Selection> }
 
 /** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
 export function evaluateForces(
@@ -596,7 +605,7 @@ export function evaluateForces(
     const checked = vsPicks.checked.has(unit.selection)
     for (const node of priced || checked ? descendants(unit) : []) {
       if (priced) unpriced.add(node)
-      if (checked && (node !== unit || !vsPicks.ownLimits)) unchecked.add(node)
+      if (checked && (node !== unit || !vsPicks.ownLimits?.has(unit.selection))) unchecked.add(node)
     }
   }
   // Read up front rather than on the first question about a keyword, so a list that

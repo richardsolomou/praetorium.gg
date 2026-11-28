@@ -89,18 +89,23 @@ function betweenRows(costs: readonly PointsCost[], models: number): PointsCost |
 export const circumstance = (composition: string | undefined) =>
   composition !== undefined &&
   (composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as '))
-const sameName = (left: string, right: string) =>
+/** Whether two names are the same once case, spacing and punctuation are set aside. */
+export const sameName = (left: string, right: string) =>
   left.toLowerCase().replace(/[^a-z0-9]/g, '') === right.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+/** Whether two mixes give each model the same count, a model missing from either counting as zero. */
+const sameMix = (left: Readonly<Record<string, number>>, right: Readonly<Record<string, number>>) =>
+  [...new Set([...Object.keys(left), ...Object.keys(right)])].every((model) => (left[model] ?? 0) === (right[model] ?? 0))
 
 /**
  * Which of a unit's cost rows at one size applies in a list with `detachments`, of an army that `armies` names: the row
  * naming one of those Detachments, else the one naming that army, else the one for another army (`as …`), else the one
- * naming the unit's `models`, else the one row naming none of these. Rows that leave it open, such as two model mixes
- * at a size priced differently, give none.
+ * whose `mix` the unit's model counts are, or, in a release without mixes, the one naming the unit's `models`, else the
+ * one row naming none of these. Rows that leave it open, such as two model mixes at a size priced differently, give none.
  */
 export function costRowFor(
   rows: readonly PointsCost[],
-  context: { detachments: readonly string[]; armies: readonly string[]; models?: string },
+  context: { detachments: readonly string[]; armies: readonly string[]; mix?: Readonly<Record<string, number>>; models?: string },
 ): PointsCost | undefined {
   const named = (test: (composition: string) => boolean) => rows.filter((row) => row.composition !== undefined && test(row.composition))
   const army = 'in an army of '
@@ -108,6 +113,7 @@ export function costRowFor(
     named((composition) => context.detachments.some((name) => composition === `in the ${name} Detachment`)),
     named((composition) => composition.startsWith(army) && context.armies.some((name) => sameName(composition.slice(army.length), name))),
     named((composition) => composition.startsWith('as ')),
+    context.mix ? rows.filter((row) => row.mix && sameMix(row.mix, context.mix!)) : [],
     context.models ? named((composition) => composition === context.models) : [],
     rows.filter((row) => !circumstance(row.composition)),
   ].find((candidates) => candidates.length)

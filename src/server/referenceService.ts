@@ -2,7 +2,6 @@ import type { CanonicalDatasheet, CanonicalDetachment, UnitSummary } from '../co
 import { datasheetWithSummaries, detachmentWithSummaries, missionCardWithSummaries, withSummary } from './referenceSummaries'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { DatasheetRelationship } from '../core/datasheet'
-import { routeSlug } from '../core/slug'
 import { publishedFacts } from '../core/sourceText'
 import { byId, countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
@@ -11,7 +10,7 @@ import { fuzzyNameScore } from '../core/datasheetSearch'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
 import { entryFactions, type LoadedCatalogue } from '../shared/catalogueIndex'
-import { factionDisplayName } from '../shared/factionNames'
+import { factionByVsName, factionDisplayName } from '../shared/factionNames'
 import { dispositionMatchups, gameReferencesFor, matchupMission } from '../shared/gameReferences'
 import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import { offeredDetachments } from '../shared/vsDataOffers'
@@ -70,7 +69,6 @@ export type ReferenceUnitsQuery = { battleSize?: number; detachment?: string; no
 export function referenceUnits(
   corpus: ReferenceCorpus,
   loaded: LoadedCatalogue,
-  rules: LoadedRules | null,
   faction: string,
   { battleSize, detachment, nonMatchedPlay = false, query }: ReferenceUnitsQuery = {},
   currentCatalogueIds: ReadonlySet<string> = new Set(),
@@ -82,7 +80,7 @@ export function referenceUnits(
   if (detachment && !selectedDetachment) return null
   const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
   const wanted = query?.trim().toLocaleLowerCase()
-  const offered = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
+  const offered = factionUnits(loaded, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
   const offeredIds = new Set(offered.map((unit) => unit.id))
   const all = offered.map((unit) => unitReference(corpus, unit, sheets.get(unit.id), offeredIds))
   const units = wanted ? queriedUnits(all, wanted) : all
@@ -116,14 +114,10 @@ function queriedUnits<T extends { name: string; keywords: readonly string[] }>(u
 /** The units a faction's lists can take, as list_units offers them. */
 export function factionUnits(
   loaded: LoadedCatalogue,
-  rules: LoadedRules | null,
   faction: ReferenceFaction,
   options: { battleSize?: number; detachmentIds?: readonly string[]; nonMatchedPlay?: boolean } = {},
 ) {
-  const book = loaded.factions.find((entry) => entry.id === faction.id)
-  const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : faction.name
-  const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-  return unitsIn(loaded, faction.id, '', { restrictions, ...options })
+  return unitsIn(loaded, faction.id, '', options)
 }
 
 /** The names of the detachments a faction's lists can take, including any its codex holds. */
@@ -176,21 +170,24 @@ function sameRulesVersion(factionId: string, currentCatalogueIds: ReadonlySet<st
 }
 
 /**
- * A faction by the id, URL slug, or display name an agent read from the reference. A plain name
- * takes current rules and ignores case, punctuation, and apostrophes, so "Tau Empire" finds T’au Empire.
+ * A faction by the id, URL slug, or display name an agent read from the reference, or by the VS Data faction it plays, as
+ * "Asuryani" for Aeldari. A plain name takes current rules and ignores case, punctuation, and apostrophes, so "Tau Empire"
+ * finds T’au Empire.
  */
 export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   const wanted = faction.trim().toLocaleLowerCase()
   const key = joinKey(faction)
   const factions = referenceFactions(corpus)
+  const current = (candidate: ReferenceFaction) => !candidate.name.includes(' · Preview') && !candidate.name.includes(' · Archived')
+  const playing = factionByVsName(faction, corpus.factions ?? [])
   return (
     factions.find((candidate) => [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted)) ??
-    factions.find(
-      (candidate) =>
-        !candidate.name.includes(' · Preview') &&
-        !candidate.name.includes(' · Archived') &&
-        joinKey(candidate.name.split(' · ')[0]!) === key,
-    )
+    factions.find((candidate) => current(candidate) && joinKey(candidate.name.split(' · ')[0]!) === key) ??
+    // A current rules version's book is listed under its book's ID in the current corpus.
+    (playing
+      ? (factions.find((candidate) => candidate.id === playing.id) ??
+        factions.find((candidate) => current(candidate) && bookId(candidate.id) === bookId(playing.id)))
+      : undefined)
   )
 }
 
@@ -262,11 +259,13 @@ function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: Canoni
     // Composition is often withheld rules text, which would publish as empty strings.
     composition: (sheet?.composition ?? []).map(publishedFacts).filter(Boolean),
     // Most costs apply to any list, so a condition is named only where one applies.
-    costs: (sheet?.costs ?? []).map(({ keyword, faction, detachment, ...cost }) => ({
+    costs: (sheet?.costs ?? []).map(({ keyword, faction, detachment, allied, mix, ...cost }) => ({
       ...cost,
       ...(keyword ? { keyword } : {}),
       ...(faction ? { faction } : {}),
       ...(detachment ? { detachment } : {}),
+      ...(allied ? { allied } : {}),
+      ...(mix ? { mix } : {}),
     })),
     canLead: names(sheet?.attachments.filter((relationship) => relationship.kind === 'leader') ?? []),
     canSupport: names(sheet?.attachments.filter((relationship) => relationship.kind === 'support') ?? []),

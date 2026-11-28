@@ -28,6 +28,8 @@ export type LoadedCatalogue = {
   vsPoints?: VsPointsIndex
   /** The rules version's VS Data roster definitions, without wargear, which check the lists the catalogue builds. */
   vsRoster?: VsRosterData
+  /** Another rules version's roster definitions and points, which a pick saved in it is read in where this one's lack it. */
+  vsRosterIn?: (rulesVersion: string) => VsRosterData | null
   /** The rules version's VS Data stat lines, which datasheets print in place of the catalogue's (`vsStatLinesOf`). */
   vsProfiles?: VsProfilesIndex
   /** Game Datacards, read once here and handed to the rules loader. */

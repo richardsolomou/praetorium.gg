@@ -6,7 +6,7 @@ In the library, choose **Share…** in a roster's menu. Under **Who can open it*
 
 - **Copy link** (**Share link** on a phone) copies the list's address. On a private list the button reads **Make unlisted and copy**, and makes it Unlisted first.
 - **Export** gives you text to **Copy text** or **Download text**, or a file for Tabletop Simulator. See [Exchange codes and export](/docs/exchange-and-export) for what each holds.
-- **Print** prepares a compact two-column reference pack with a datasheet for each unit, then army and detachment rules, stratagems, and the abilities and weapon rules your units use.
+- **Print** prepares a compact reference pack with your points total and limit, a datasheet for each unit with its enhancements and upgrades, and which units start in a transport. The appendix gives army and detachment rules, stratagems, and the abilities and weapon rules your units use.
 
 The **Build**/**View** switch in the header hides editing controls for reading at the table, and lists each unit's ranged and melee weapons separately. Each model fights with one melee weapon, so where a model holds more than one, the melee weapons are grouped by model and marked **Choose one**.
 
@@ -24,7 +24,7 @@ Once other players have seen a private or unlisted list, Praetorium offers to sh
 
 **Lend to a friend** lets a friend view the list, field it in their battles and seal it for a tournament or hidden-list game, without editing it. Your notes stay yours, and they can **Return it** at any time.
 
-**Archive** hides a list. **Delete** removes it for good. Copies in battles and tournaments are kept either way.
+**Archive** hides a list, and army data updates stop notifying you about it. **Delete** removes it for good. Copies in battles and tournaments are kept either way.
 
 Locking, **Make its own roster** and changing several lists at once all need a connection.
 

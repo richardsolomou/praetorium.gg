@@ -35,7 +35,7 @@ export function picksAfterSetupChange<T extends RosterPick>(
   next: { catalogueId: string; detachmentIds: readonly string[] },
 ): T[] {
   if (currentCatalogueFamilyId(source.catalogueId) !== currentCatalogueFamilyId(next.catalogueId)) return []
-  const moved = source.catalogueId === next.catalogueId ? picks : picksForRulesVersion(picks, next.catalogueId)
+  const moved = source.catalogueId === next.catalogueId ? picks : picksForRulesVersion(picks, next.catalogueId, source.catalogueId)
   return picksAfterDetachmentChange(moved, units, source.detachmentIds, next.detachmentIds)
 }
 

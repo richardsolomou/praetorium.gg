@@ -2,7 +2,7 @@
 
 ### Add is greyed out
 
-You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted copies in the roster." If the data says what unlocks it, the message names it: allied Daemons, for example, read "Add a Khorne Battleline unit to the roster first." until the matching Battleline unit is in. "No copies available with the current detachments and prerequisite units." means the unit needs a different detachment or another unit first.
+You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted copies in the roster." If the data says what unlocks more, the message names it: allied Voidsmen-at-Arms, for example, add "More Character Voidfarers units allow more.", as each Character Voidfarers unit in the list frees another. "No copies available with the current detachments and prerequisite units." means the unit needs a different detachment or another unit first.
 
 ### A unit isn't in the picker
 
@@ -10,11 +10,13 @@ Check your filters ("Everything is filtered out." means they hide every match) a
 
 ### I can't select a detachment
 
-A greyed card tells you why: "An army can include only one … detachment". If the dialog says the combination costs too many DP, drop one or move up a battle size.
+Every detachment stays in the list, and one you can't take now is greyed out in place. Its DP turns amber when there aren't enough Detachment points left. Tap it, or hover over it, to see why, such as "Needs 2 DP, 1 left" or "Can't be taken with Awakened Dynasty: only one Dynasty detachment". Drop a detachment you've chosen, or move up a battle size.
 
 ### Attach to unit doesn't appear
 
 Nothing in the list or the book can take that attachment. Support units still need a Bodyguard. Some detachments narrow it further: in Pactbound Zealots, a Character only joins a unit with the same Mark of Chaos.
+
+Some units, such as Cryptothralls or Servitors, join a unit as part of it rather than as its Leader or Support unit. They need the character their rule names, such as a Cryptek, already attached there, and only one of each kind joins a unit.
 
 ### "Your latest changes have not been saved."
 

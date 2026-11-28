@@ -27,7 +27,8 @@ import {
 } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, ownChoiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
-import { buildUnit, type BuiltUnit, resolveUnitChoice } from '../core/roster'
+import { buildUnit, type BuiltUnit, catalogueTreeOf, resolveUnitChoice } from '../core/roster'
+import { countedEnhancements } from '../core/vsDataRoster'
 import { unavailableRosterSelections } from '../core/rosterSelections'
 import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
@@ -35,7 +36,7 @@ import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
-import { battleSizesOf, buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { battleSizesOf, buildPick, savedVersionOf, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -58,10 +59,22 @@ import {
 } from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
-import { vsDataChecks, vsDataEnhancementOptions, vsDataErrors, vsDataWithoutDetachments, vsPickErrors } from './vsDataLegality'
+import {
+  type CheckedUnit,
+  vsDataChecks,
+  vsDataEnhancementOptions,
+  vsDataEnhancementsRefused,
+  vsDataCheck,
+  vsDataAllyLimited,
+  vsDataUnheld,
+  vsDataPlaces,
+  vsDataWithoutDetachments,
+  vsPickErrors,
+} from './vsDataLegality'
 import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
-import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
+import { isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
+import { vsDataRefusedUnits } from './vsDataOffers'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import type { PriceInput } from '../contracts/schemas'
@@ -105,7 +118,7 @@ function rosterForces(
     if (!built) return []
     const source = built
     // Repeated picks need distinct top-level identities for contextual evaluation.
-    if (unitCache) built = { ...built, selection: { ...built.selection } }
+    if (unitCache) built = { ...built, selection: { ...catalogueTreeOf(built) } }
     const entry = loaded.index.definitions.get(wanted.entryId)
     return [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, source, ...built }]
   })
@@ -113,7 +126,7 @@ function rosterForces(
   for (const unit of picked) {
     const owner = unitCatalogueId(data, unit)
     const force = forceSelections.get(owner) ?? [...configuration]
-    force.push(unit.selection)
+    force.push(catalogueTreeOf(unit))
     forceSelections.set(owner, force)
   }
   // A VS pick's price is VS Data's for the whole list, copies counted across it; one VS Data leaves unpriced has none.
@@ -208,7 +221,7 @@ function detachmentLockErrors(
 ) {
   return picked.flatMap((unit) => {
     if (data.units[unit.key]?.catalogueId) return []
-    const offeredBy = detachmentsUnlocking(loaded, data.catalogueId, unit.entryId, roster)
+    const offeredBy = detachmentsUnlocking(loaded, data.catalogueId, unit.entryId, { ids: data.detachmentIds, selections: roster })
     if (!offeredBy) return []
     const message = offeredBy.length ? `needs the ${offeredBy.join(' or ')} detachment` : 'is not available with the chosen detachments'
     return [{ entryId: unit.entryId, entryName: unit.name, message }]
@@ -224,12 +237,12 @@ function detachmentLockErrors(
  * plainest possible version of the same question answered twice.
  */
 function labelUnitsOf(
-  picked: readonly { name: string; selection: Selection; toggles: BuiltUnit['toggles'] }[],
-  pointsBySelection: ReadonlyMap<Selection, number>,
+  picked: readonly { key: number; name: string; toggles: BuiltUnit['toggles'] }[],
+  unitPoints: ReadonlyMap<number, number>,
 ): LabelUnit[] {
   return picked.map((unit) => ({
     name: unit.name,
-    points: pointsBySelection.get(unit.selection) ?? 0,
+    points: unitPoints.get(unit.key) ?? 0,
     warlord: hasWarlordToggle(unit.toggles),
   }))
 }
@@ -249,15 +262,15 @@ const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUn
  * tree only for the other picks' conditions. In a list VS Data cannot place, their own roster limits stay the catalogue's.
  */
 function vsPicksOf(
-  picked: readonly { key: number; selection: Selection; vs?: unknown }[],
+  picked: readonly { key: number; selection?: Selection; vs?: unknown }[],
   vsPrices: ReadonlyMap<number, number>,
-  ownLimits: boolean,
+  ownLimits: (unit: { key: number }) => boolean,
 ) {
   const vs = picked.filter((unit) => unit.vs)
   return {
-    checked: new Set(vs.map((unit) => unit.selection)),
-    priced: new Set(vs.flatMap((unit) => (vsPrices.has(unit.key) ? [unit.selection] : []))),
-    ownLimits,
+    checked: new Set(vs.map((unit) => catalogueTreeOf(unit))),
+    priced: new Set(vs.flatMap((unit) => (vsPrices.has(unit.key) ? [catalogueTreeOf(unit)] : []))),
+    ownLimits: new Set(vs.flatMap((unit) => (ownLimits(unit) ? [catalogueTreeOf(unit)] : []))),
   }
 }
 
@@ -267,13 +280,19 @@ function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated:
   return points
 }
 
-function adjustUnitPoints(
+/**
+ * What each pick costs, by its place in the list, and what that adds to the catalogue's total: VS Data's price for a pick
+ * VS Data prices, which the catalogue's evaluation leaves at nothing; for any other pick, the catalogue's points moved to
+ * VS Data's price of its datasheet or the field manual's, read from its catalogue tree.
+ */
+function unitPointsOf(
   loaded: LoadedCatalogue,
   data: PriceInput,
   picked: ReturnType<typeof rosterForces>['picked'],
   vsPrices: ReadonlyMap<number, number>,
-  pointsBySelection: Map<Selection, number>,
+  catalogued: ReadonlyMap<Selection, number>,
 ) {
+  const points = new Map<number, number>()
   let adjustment = 0
   const copies = new Map<string, number>()
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).chosen.flatMap(
@@ -285,18 +304,58 @@ function adjustUnitPoints(
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
-    const vsData =
-      vsPrices.get(unit.key) ?? vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
-    const mfmUnit = pickedMfmUnit(loaded, data, unit)
+    const priced = vsPrices.get(unit.key)
+    if (priced !== undefined) {
+      points.set(unit.key, priced)
+      adjustment += priced
+      continue
+    }
+    const own = catalogued.get(catalogueTreeOf(unit)) ?? 0
+    const vsData = vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
     const difference =
       vsData !== null
-        ? vsData - (pointsBySelection.get(unit.selection) ?? 0)
+        ? vsData - own
         : unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy, data.detachmentIds) +
-          mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, { primaryCatalogueId: data.catalogueId, mustering: true })
-    pointsBySelection.set(unit.selection, (pointsBySelection.get(unit.selection) ?? 0) + difference)
+          mfmOptionAdjustment(loaded.index, unit, pickedMfmUnit(loaded, data, unit), detachments, {
+            primaryCatalogueId: data.catalogueId,
+            mustering: true,
+          })
+    points.set(unit.key, own + difference)
     adjustment += difference
   }
-  return adjustment
+  return { points, adjustment }
+}
+
+/** Each pick read in its saved rules version, said once: the list's own checks read it by its datasheet alone. */
+function savedVersionNotes(loaded: LoadedCatalogue, picked: readonly { name: string; vs?: BuiltUnit['vs'] }[]) {
+  const current = loaded.vsRoster?.construction.rulesVersion.update
+  return picked.flatMap((unit) => {
+    const rulesVersion = unit.vs?.rulesVersion
+    const saved = rulesVersion ? savedVersionOf(loaded, rulesVersion)?.vsRoster?.construction.rulesVersion.update : undefined
+    return saved && current
+      ? [
+          `${unit.name} is kept as saved under ${saved}, since ${current} no longer has its loadout. Remove it and add it again to field it under ${current}.`,
+        ]
+      : []
+  })
+}
+
+/** What is wrong with a pick read in its saved rules version, by that version's VS Data: its own models and wargear. */
+function savedVersionErrors(
+  loaded: LoadedCatalogue,
+  data: PriceInput,
+  picked: readonly { key: number; vs?: BuiltUnit['vs'] }[],
+  checkedUnits: readonly CheckedUnit[],
+) {
+  const versions = new Set(picked.flatMap((unit) => unit.vs?.rulesVersion ?? []))
+  return [...versions].flatMap((rulesVersion) => {
+    const kept = new Set(picked.flatMap((unit) => (unit.vs?.rulesVersion === rulesVersion ? [unit.key] : [])))
+    const units = checkedUnits.flatMap((unit) => {
+      const vs = kept.has(unit.key) ? picked.find((candidate) => candidate.key === unit.key)?.vs?.unit : undefined
+      return vs ? [{ ...unit, vs }] : []
+    })
+    return vsPickErrors(savedVersionOf(loaded, rulesVersion)?.vsRoster, data, units)
+  })
 }
 
 /** Each saved pick's datasheet and, for a VS pick, the unit VS Data built, by its place in the list. */
@@ -309,12 +368,19 @@ const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltU
  * A VS pick's Enhancement as the list shows it, where the catalogue's tree holds none: one of a Detachment the list does
  * not take still costs its points, so it is named, and VS Data's checker refuses it.
  */
-function withVsEnhancement(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>, specials: ReturnType<typeof selectedSpecials>) {
-  const enhancement = vs.unit.enhancement ? vsDefinitionsOf(loaded)?.get('enhancement', vs.unit.enhancement) : undefined
-  if (!enhancement || specials.enhancements.length || specials.upgrades.length) return specials
-  return enhancement.data.type === 'upgrade'
-    ? { ...specials, upgrades: [enhancement.name] }
-    : { ...specials, enhancements: [enhancement.name] }
+/** The VS Data a VS pick reads: its saved rules version's where it is read there, else the list's. */
+const vsDefinitionsIn = (loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>) =>
+  vsDefinitionsOf((vs.rulesVersion && savedVersionOf(loaded, vs.rulesVersion)) || loaded)
+
+/** A VS pick's Enhancement or Upgrade, as VS Data names the one it takes. */
+function vsSpecials(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>): ReturnType<typeof selectedSpecials> {
+  const enhancement = vs.unit.enhancement ? vsDefinitionsIn(loaded, vs)?.get('enhancement', vs.unit.enhancement) : undefined
+  const names = enhancement ? [enhancement.name] : []
+  return {
+    enhancements: enhancement?.data.type === 'upgrade' ? [] : names,
+    upgrades: enhancement?.data.type === 'upgrade' ? names.map(withoutUpgrade) : [],
+    specialSelections: new Set(names.map(routeSlug)),
+  }
 }
 
 /**
@@ -423,7 +489,7 @@ function selectionProblems(data: PriceInput, picked: ReturnType<typeof rosterFor
   const saved = data.units.map((pick, key) => (byKey.get(key)?.vs ? { entryId: pick.entryId } : pick))
   return unavailableRosterSelections(saved, picked, (key, choiceKey, optionId) => {
     const unit = byKey.get(key)
-    return unit?.size.options?.length ? resolveUnitChoice(unit.selection, choiceKey, optionId, loaded.index) : null
+    return unit?.size.options?.length ? resolveUnitChoice(catalogueTreeOf(unit), choiceKey, optionId, loaded.index) : null
   })
 }
 
@@ -451,9 +517,13 @@ export function calculateRosterTotals(
   const { picked, forceSelections, vsPrices } = rosterForces(loaded, data, detachmentSelection, sharedBuiltUnitsFor(loaded))
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
-  const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId }, vsPicksOf(picked, vsPrices, false))
-  const pointsBySelection = selectionPointsOf(forces, evaluated)
-  const adjustment = adjustUnitPoints(loaded, data, picked, vsPrices, pointsBySelection)
+  const evaluated = evaluateForces(
+    forces,
+    loaded.index,
+    { primaryCatalogueId: data.catalogueId },
+    vsPicksOf(picked, vsPrices, () => false),
+  )
+  const { points: unitPoints, adjustment } = unitPointsOf(loaded, data, picked, vsPrices, selectionPointsOf(forces, evaluated))
   return {
     points: evaluated.points + adjustment,
     label:
@@ -462,7 +532,7 @@ export function calculateRosterTotals(
         factionName: factionNameOf(loaded, data.catalogueId, loadedRules),
         detachmentNames: chosen.map((option) => option.name),
         limit: data.limit,
-        units: labelUnitsOf(picked, pointsBySelection),
+        units: labelUnitsOf(picked, unitPoints),
       }),
   }
 }
@@ -559,6 +629,7 @@ function calculateRoster(
     ),
   ]
   const purchased = chosen.map((option) => ({
+    id: option.id,
     name: option.name,
     points: detachmentPoints(loaded, data.catalogueId, option.id, referenceFor(option)),
   }))
@@ -679,43 +750,91 @@ function calculateRoster(
   const keywordsFor = (catalogueId: string, at: number) => rosterKeywordsFor(catalogueId)[at]?.keywords ?? []
   const catalogueOfUnit = (unit: (typeof picked)[number]) => unitCatalogueId(data, unit)
   const keywordNamesOf = (unit: (typeof picked)[number]) => {
-    const at = selectionIndex.get(unit.selection)
+    const at = selectionIndex.get(catalogueTreeOf(unit))
     return keywordNames(at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at), loaded.index)
   }
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
   // unit's card. Project each built unit once and keep the result with it.
   const modelKindsFor = (unit: (typeof picked)[number]) =>
-    unit.vs?.models ?? remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
+    unit.vs?.models ??
+    remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, catalogueTreeOf(unit), loaded.index, options))
   // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
   // limits then stand only for the datasheets VS Data leaves to it.
-  const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit }))
-  const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
-  const whole = evaluateForces(forces, loaded.index, options, vsPicksOf(picked, vsPrices, vsData === null))
-  const selectionPoints = selectionPointsOf(forces, whole)
-  const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
-  const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
-  const restrictions = rules?.factionRestrictions.get(factionSlug)
-  // Keywords and Toughness are only inputs to these two construction rule sets.
+  const placed = vsDataPlaces(loaded.vsRoster, data)
+  // A unit VS Data's own limits cannot hold keeps the catalogue's, as two Emperor's Champions.
+  const unheld = vsDataUnheld(
+    loaded.vsRoster,
+    data,
+    picked.map((unit) => ({ ...unit, vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined })),
+  )
+  // A VS pick's tree leaves the catalogue's evaluation once nothing there could count it: VS Data places the list, prices
+  // the pick and holds it by its own limits, and the list holds no catalogue pick. It stays in `selections`, which unit
+  // cards, abilities and attachments still read.
+  const left = new Set(
+    !placed || picked.some((unit) => !unit.vs)
+      ? []
+      : picked.flatMap((unit) => (vsPrices.has(unit.key) && !unheld.has(unit.key) ? [unit] : [])),
+  )
+  const leftTrees = new Set([...left].map((unit) => catalogueTreeOf(unit)))
+  const evaluated = forces.map((force) => force.filter((selection) => !leftTrees.has(selection)))
+  const whole = evaluateForces(
+    evaluated,
+    loaded.index,
+    options,
+    vsPicksOf(picked, vsPrices, (unit) => !placed || unheld.has(unit.key)),
+  )
+  const selectionPoints = selectionPointsOf(evaluated, whole)
+  const { points: unitPoints, adjustment } = unitPointsOf(loaded, data, picked, vsPrices, selectionPoints)
+  const points = whole.points + adjustment
+  // VS Data's ally points limits count what each unit costs the list.
+  // A pick read in its saved rules version is checked there on its own, and by its datasheet in the list's.
+  const checkedUnits = picked.map((unit) => ({
+    ...unit,
+    vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined,
+    points: unitPoints.get(unit.key) ?? 0,
+  }))
+  const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
+  const vsData = vsChecked?.errors ?? null
+  // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
+  // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
+  // the catalogue's total counts every unit.
+  const keyOf = new Map(picked.map((unit) => [catalogueTreeOf(unit), unit.key]))
+  // A pick costs what the list pays for it; anything else in a force, what the catalogue charges.
+  const pointsOf = (selection: Selection) => {
+    const key = keyOf.get(selection)
+    return key === undefined ? (selectionPoints.get(selection) ?? 0) : (unitPoints.get(key) ?? 0)
+  }
+  const pointCapResult = pointCapErrors(evaluated, loaded.index, options, pointsOf)
+  const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
+  const pointCaps = pointCapResult.errors.filter(
+    (error) => !(pointCapResult.counted.get(error) ?? []).every((selection) => allyLimited.has(keyOf.get(selection) ?? -1)),
+  )
+  // Keywords and Toughness are only inputs to King of the Colosseum's construction rules.
   // Projecting every contextual datasheet for an ordinary roster would revisit the whole roster once per unit.
-  const constructionUnits =
-    restrictions || isKotcLimit(data.limit)
-      ? picked.map((unit) => {
-          const catalogueId = catalogueOfUnit(unit)
-          const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
-            selections,
-            unitSelectionIndex: selectionIndex.get(unit.selection),
-            keywordIds: keywordsFor(catalogueId, selectionIndex.get(unit.selection) ?? -1),
-          })
-          return {
-            entryId: unit.entryId,
-            name: unit.name,
-            keywords: sheet?.keywords ?? [],
-            toughness: toughnessOf(sheet?.profiles ?? []),
-            warlord: hasWarlordToggle(unit.toggles),
-          }
-        })
-      : []
+  const vsUnits = vsUnitsOf(data, picked)
+  const constructionUnits = isKotcLimit(data.limit)
+    ? picked.map((unit) => {
+        const catalogueId = catalogueOfUnit(unit)
+        // A VS pick's keywords are VS Data's, given by its Detachment as the War Dogs' BATTLELINE in a Houndpack Lance;
+        // its Toughness is the datasheet's printed one either way.
+        const vsKeywords = unit.vs ? vsPickKeywords(loaded, data, vsUnits, unit.key) : null
+        const sheet = vsKeywords
+          ? datasheetIn(loaded, catalogueId, unit.entryId)
+          : datasheetIn(loaded, catalogueId, unit.entryId, {
+              selections,
+              unitSelectionIndex: selectionIndex.get(catalogueTreeOf(unit)),
+              keywordIds: keywordsFor(catalogueId, selectionIndex.get(catalogueTreeOf(unit)) ?? -1),
+            })
+        return {
+          entryId: unit.entryId,
+          name: unit.name,
+          keywords: vsKeywords ?? sheet?.keywords ?? [],
+          toughness: toughnessOf(sheet?.profiles ?? []),
+          warlord: hasWarlordToggle(unit.toggles),
+        }
+      })
+    : []
   /** Ignore limits broken inside a unit with no player choices; never suppress a limit on the unit itself or on a player-selected upgrade. */
   const composedByCatalogue = new Map<string, string>()
   if (whole.errors.some((error) => error.limit)) {
@@ -739,18 +858,26 @@ function calculateRoster(
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedByKey = new Map(picked.map((unit) => [unit.key, unit]))
-  const pickedSelections = data.units.map((_, key) => pickedByKey.get(key)?.selection)
+  const pickedSelections = data.units.map((_, key) => {
+    const unit = pickedByKey.get(key)
+    return unit && catalogueTreeOf(unit)
+  })
   const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
   const specialsByKey = new Map(
-    picked.map((unit) => {
-      const specials = selectedSpecials(
-        unit.choices,
-        enhancementNames.size ? wargearOf(unit.selection, loaded.index) : [],
-        upgradeNames,
-        enhancementNames,
-      )
-      return [unit.key, unit.vs ? withVsEnhancement(loaded, unit.vs, specials) : specials] as const
-    }),
+    picked.map((unit) => [
+      unit.key,
+      // VS Data records no Enhancement a Detachment requires, as Pantheon of Woe's Singularity Matrix on the C'tan Shard of
+      // the Deceiver, so a VS pick taking none of its own still shows the one its catalogue tree is forced to take. Goes
+      // once a reader of richardsolomou/vs-data#232's required Enhancements lands.
+      unit.vs?.unit.enhancement
+        ? vsSpecials(loaded, unit.vs)
+        : selectedSpecials(
+            unit.choices,
+            enhancementNames.size ? wargearOf(catalogueTreeOf(unit), loaded.index) : [],
+            upgradeNames,
+            enhancementNames,
+          ),
+    ]),
   )
   // Core rules: no unit, attached units included, has more than one enhancement, and an upgrade is one.
   const enhancementsPerUnitErrors = [...attachedByHost].flatMap(([host, keys]) => {
@@ -769,9 +896,20 @@ function calculateRoster(
    * rather than for anything in it. The count is the data's own: a second copy of an
    * upgrade costs no enhancement, so the army's total already excludes it.
    */
-  const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
-  const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
-  const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
+  const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, evaluated, options)
+  // The catalogue counts the Enhancements of the picks it still evaluates, and VS Data those of the picks that left it.
+  const leftDefinitions = left.size ? vsDefinitionsOf(loaded) : null
+  const enhancementsHeld =
+    (whole.costs[ENHANCEMENT_COST] ?? 0) +
+    (leftDefinitions
+      ? countedEnhancements(
+          leftDefinitions,
+          [...left].flatMap((unit) => (unit.vs ? [unit.vs.unit] : [])),
+        )
+      : 0)
+  const leftToCatalogue = new Set(
+    picked.filter((unit) => unheld.has(unit.key) || !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name),
+  )
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
   // What VS Data's checker says instead: a datasheet's own copy limit, a keyword's roster limit (a limit on the category
   // itself, not one a unit puts on its models through it) other than one only datasheets left to the catalogue meet, and
@@ -780,7 +918,7 @@ function calculateRoster(
   const vsCopyLimits = new Set(vsData?.filter((error) => error.message.startsWith('is limited to')).map((error) => error.entryId))
   const copyLimited = new Set(
     picked.flatMap((unit) => {
-      if (!vsCopyLimits.has(unit.entryId)) return []
+      if (!vsCopyLimits.has(unit.entryId) || unheld.has(unit.key)) return []
       const definition = loaded.index.definitions.get(unit.entryId)
       return [unit.entryId, ...(definition ? [targetOf(definition, loaded.index.definitions).id] : [])]
     }),
@@ -796,10 +934,8 @@ function calculateRoster(
     ((error.limit !== undefined && copyLimited.has(error.entryId)) ||
       (rosterScoped(error.entryId) && !leftToCatalogue.has(error.entryName)) ||
       enhancementOptions.has(error.entryId))
-  // The catalogue keeps the Detachment a datasheet needs where VS Data does not record it yet (Deathwatch in a chapter),
-  // and says it once where both do.
-  const detachmentLocks = detachmentLockErrors(loaded, data, picked, roster)
-  const locked = new Set(detachmentLocks.map((error) => error.entryId))
+  // VS Data says which Detachments a unit needs wherever it places the list, so the catalogue's locks stand only beside none.
+  const detachmentLocks = vsData === null ? detachmentLockErrors(loaded, data, picked, roster) : []
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
     ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),
@@ -817,18 +953,19 @@ function calculateRoster(
       data.detachmentIds,
     ),
     // King of the Colosseum's own Detachment count, which the player can waive, stands for VS Data's.
-    ...(vsData?.filter(
-      (error) =>
-        !(error.message.startsWith('needs one of these Detachments') && locked.has(error.entryId)) &&
-        !(isKotcLimit(data.limit) && error.message === 'needs one to three Detachments'),
-    ) ?? factionRestrictionViolations(restrictions, constructionUnits)),
-    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
+    ...(vsData?.filter((error) => !(isKotcLimit(data.limit) && error.message === 'needs one to three Detachments')) ??
+      vsDataRefusedUnits(loaded, data, picked)),
+    ...(isKotcLimit(data.limit)
+      ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? [], enhancementsHeld)
+      : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLocks,
     ...(vsData === null ? vsPickErrors(loaded.vsRoster, data, checkedUnits) : []),
-    ...pointCaps.errors,
+    ...savedVersionErrors(loaded, data, picked, checkedUnits),
+    ...pointCaps,
     ...enhancementsPerUnitErrors,
-    ...(vsData === null && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
+    // King of the Colosseum's own Enhancement count stands for this one.
+    ...(vsData === null && !isKotcLimit(data.limit) && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {
             entryId: 'enhancements',
@@ -851,6 +988,7 @@ function calculateRoster(
     return {
       kind: 'assessment' as const,
       points,
+      detachments: purchased,
       detachmentError,
       errors,
       units: picked.map((unit) => {
@@ -861,7 +999,6 @@ function calculateRoster(
 
   // The units a rule lets the player pick as the battle begins for its deployment ability, which battle setup offers: a
   // chosen detachment's rule, or one of a unit's own abilities, wargear or Enhancements.
-  const vsUnits = vsUnitsOf(data, picked)
   const offeredPicks = uniqueBy(
     [
       ...detachmentSpecials.flatMap(({ detail }) =>
@@ -872,7 +1009,7 @@ function calculateRoster(
       ...picked.flatMap((unit) => [
         ...offeredPicksIn(loaded, catalogueOfUnit(unit), unit.entryId, {
           selections,
-          unitSelectionIndex: selectionIndex.get(unit.selection),
+          unitSelectionIndex: selectionIndex.get(catalogueTreeOf(unit)),
         }),
         ...specialsByKey.get(unit.key)!.enhancements.flatMap((enhancement) => {
           const text = findEnhancementDescription(enhancementDescriptions, chosen, enhancement)
@@ -899,7 +1036,7 @@ function calculateRoster(
     unitLimits: data.includeUnitLimits
       ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
           id,
-          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections, vsChecked),
           vs: vsFirstPickOf(loaded, data, id),
         }))
       : undefined,
@@ -911,7 +1048,7 @@ function calculateRoster(
       factionName,
       detachmentNames: chosen.map((option) => option.name),
       limit: data.limit,
-      units: labelUnitsOf(picked, selectionPoints),
+      units: labelUnitsOf(picked, unitPoints),
     }),
     detachment: chosen[0]?.name ?? null,
     detachments: purchased,
@@ -928,7 +1065,8 @@ function calculateRoster(
     errors,
     unhandled: [
       ...whole.unhandled,
-      ...pointCaps.unhandled.filter((note) => !whole.unhandled.includes(note)),
+      ...pointCapResult.unhandled.filter((note) => !whole.unhandled.includes(note)),
+      ...savedVersionNotes(loaded, picked),
       ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
     ],
     selections,
@@ -936,14 +1074,19 @@ function calculateRoster(
       const catalogueId = catalogueOfUnit(unit)
       const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
-      const unitSelectionIndex = selectionIndex.get(unit.selection)
+      const unitSelectionIndex = selectionIndex.get(catalogueTreeOf(unit))
+      // A VS pick takes the keyword naming its datasheet from the printed datasheet, which needs no catalogue tree.
       const unitKeywords = unit.vs
-        ? vsKeywordsWithName(unit, vsPickKeywords(loaded, data, vsUnits, unit.key), keywordNamesOf(unit))
+        ? vsKeywordsWithName(
+            unit,
+            vsPickKeywords(loaded, data, vsUnits, unit.key),
+            datasheetIn(loaded, catalogueId, unit.entryId)?.keywords ?? [],
+          )
         : keywordNamesOf(unit)
       const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const companion = pickedByKey.get(key)
-        const companionSelectionIndex = companion ? selectionIndex.get(companion.selection) : undefined
+        const companionSelectionIndex = companion ? selectionIndex.get(catalogueTreeOf(companion)) : undefined
         return companionSelectionIndex !== undefined && companion !== unit ? [companionSelectionIndex] : []
       })
       const deployment = deploymentRules(
@@ -961,9 +1104,13 @@ function calculateRoster(
           !(deployment.formationOptions as readonly string[]).includes(pick.ability) &&
           !(deployment.prebattleRules as readonly string[]).includes(pick.ability),
       )
-      const catalogued = wargearOf(unit.selection, loaded.index)
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
-      const vsDefinitions = unit.vs ? vsDefinitionsOf(loaded) : null
+      const vsDefinitions = unit.vs ? vsDefinitionsIn(loaded, unit.vs) : null
+      // An Enhancement VS Data's checker would refuse the unit is not offered, though one already taken stays to be undone.
+      const refused =
+        vsData === null
+          ? new Set<string>()
+          : vsDataEnhancementsRefused(loaded.vsRoster, data, { ...unit, vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined })
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           // A VS pick's options are VS Data's, priced by it, a bundle naming what it holds.
@@ -972,8 +1119,8 @@ function calculateRoster(
             const pieceCounts = inside.map(([id, n]) => ({ name: vsDefinitions.get('wargear', id)?.name ?? id, count: n * option.count }))
             return pieceCounts.length ? { ...option, pieces: pieceCounts.map((piece) => piece.name), pieceCounts } : option
           }
-          const pieceCounts = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options)
-          const ownPieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, loaded.index, options)
+          const pieceCounts = choiceOptionWargear(choice.key, option.id, catalogueTreeOf(unit), loaded.index, options)
+          const ownPieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, catalogueTreeOf(unit), loaded.index, options)
           const mfmPoints = mfmOptionPoints(mfmDetachments, mfmUnit, choice.name, option.name, ownPieces, option.count)
           const priced = mfmPoints === null ? option : { ...option, points: mfmPoints }
           return pieceCounts.length ? { ...priced, pieces: pieceCounts.map((piece) => piece.name), pieceCounts } : priced
@@ -983,35 +1130,38 @@ function calculateRoster(
         return {
           ...choice,
           kind,
-          options: choiceOptions.map((option) => {
-            const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
-            const enhancement = vsDefinitions?.get('enhancement', option.id)
-            const filed = enhancement
-              ? {
-                  detachment: chosen.find((detachment) => loaded.vsRoster?.detachments[detachment.id] === enhancement.data.detachment)?.id,
-                  vsDataId: enhancement.id,
-                }
-              : vsDataEnhancement(option.id)
-            const detachment = filed?.detachment ?? enhancementDetachment(option.id, option.name)
-            const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
-            const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
-            return {
-              ...option,
-              description,
-              keywordRules: rulesReferencedIn(loaded, [description]),
-              ...(detachment ? { detachment } : {}),
-              ...(filed ? { vsDataId: filed.vsDataId } : {}),
-              // A device that holds no words judges the option in combat and suggests its reminder from these.
-              ...(combat === undefined ? {} : { combat }),
-              ...(reminder ? { reminder } : {}),
-            }
-          }),
+          options: choiceOptions
+            .filter((option) => option.count > 0 || !refused.has(option.id))
+            .map((option) => {
+              const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
+              const enhancement = vsDefinitions?.get('enhancement', option.id)
+              const filed = enhancement
+                ? {
+                    detachment: chosen.find((detachment) => loaded.vsRoster?.detachments[detachment.id] === enhancement.data.detachment)
+                      ?.id,
+                    vsDataId: enhancement.id,
+                  }
+                : vsDataEnhancement(option.id)
+              const detachment = filed?.detachment ?? enhancementDetachment(option.id, option.name)
+              const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
+              const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
+              return {
+                ...option,
+                description,
+                keywordRules: rulesReferencedIn(loaded, [description]),
+                ...(detachment ? { detachment } : {}),
+                ...(filed ? { vsDataId: filed.vsDataId } : {}),
+                // A device that holds no words judges the option in combat and suggests its reminder from these.
+                ...(combat === undefined ? {} : { combat }),
+                ...(reminder ? { reminder } : {}),
+              }
+            }),
         }
       })
       const models = modelKindsFor(unit)
       const replacementPairs = unit.vs
         ? new Map<string, ReplacementSource[]>()
-        : legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, { ...options, roster })
+        : legalReplacementPairs(unit.entryId, catalogueTreeOf(unit), describedChoices, models, loaded.index, { ...options, roster })
       const choices = describedChoices.map((choice) => ({
         ...choice,
         options: choice.options.map((option) => {
@@ -1028,25 +1178,28 @@ function calculateRoster(
       const allegiance = unit.vs?.unit.allegiance && vsDefinitions?.get('allegiance', unit.vs.unit.allegiance)?.name
       const wargear = unit.vs
         ? [...unit.vs.wargear, ...(allegiance ? [{ name: allegiance, count: 1 }] : [])]
-        : heldWargear(models, choices, catalogued)
+        : heldWargear(models, choices, wargearOf(catalogueTreeOf(unit), loaded.index))
+      // A VS pick's wargear is VS Data's, which holds no Enhancement, so only a catalogue pick's needs sorting.
       const specialWargear = new Set(
-        unit.choices.flatMap((choice) =>
+        (unit.vs ? [] : unit.choices).flatMap((choice) =>
           specialKind(choice, upgradeNames)
             ? choiceOptionsForPricing(choice)
                 .filter((option) => option.count > 0)
                 .flatMap((option) =>
-                  choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options).map((piece) => routeSlug(piece.name)),
+                  choiceOptionWargear(choice.key, option.id, catalogueTreeOf(unit), loaded.index, options).map((piece) =>
+                    routeSlug(piece.name),
+                  ),
                 )
             : [],
         ),
       )
-      const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
+      const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, catalogueTreeOf(unit)))
       const held = unit.vs
         ? wargear
         : wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name)))
       const modelLines = remember(builtModelLines, unit.source, () =>
         modelLinesOf(
-          unit.vs?.carriers ?? combatCarriers(unit.selection, loaded.index, options),
+          unit.vs?.carriers ?? combatCarriers(catalogueTreeOf(unit), loaded.index, options),
           held,
           unit.size.models,
           datasheetIn(loaded, catalogueId, unit.entryId),
@@ -1058,7 +1211,7 @@ function calculateRoster(
         key: unit.key,
         entryId: unit.entryId,
         name: unit.name,
-        points: selectionPoints.get(unit.selection) ?? 0,
+        points: unitPoints.get(unit.key) ?? 0,
         size: {
           min: unit.size.min,
           max: unit.size.max,

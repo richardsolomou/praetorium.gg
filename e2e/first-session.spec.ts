@@ -83,12 +83,12 @@ test('an import names a missing unit and lets the guest correct the text before 
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
 })
 
-test('the first roster names each missing setup choice', async ({ page }) => {
+test('the first roster waits for each setup choice', async ({ page }) => {
   const setup = await visitorSetup(page)
   const start = setup.getByRole('button', { name: 'Create roster', exact: true })
-  await expect(start).toHaveAccessibleDescription('Choose your faction.')
+  await expect(start).toBeDisabled()
   await chooseFaction(setup, 'Necrons')
-  await expect(start).toHaveAccessibleDescription('Choose a detachment.')
+  await expect(start).toBeDisabled()
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await expect(start).toBeEnabled()
   await start.click()

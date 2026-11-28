@@ -201,7 +201,7 @@ it('rejects a web domain with TLS disabled', async () => {
 
 it('restores the previous asset route if hosted verification fails', async () => {
   const original =
-    'http:\n  routers:\n    web:\n      rule: Host(`praetorium.gg`)\n      service: app\n      entryPoints: [websecure]\n      tls: {certResolver: letsencrypt}\n  services:\n    app: {loadBalancer: {servers: [{url: "http://app:3000"}]}}\n'
+    'http:\n  routers:\n    web:\n      rule: Host(`praetorium.gg`)\n      service: app\n      entryPoints: [websecure]\n      tls: {certResolver: letsencrypt}\n    web-assets:\n      rule: Host(`praetorium.gg`) && PathPrefix(`/assets/`)\n      service: web-assets\n      entryPoints: [websecure]\n  services:\n    app: {loadBalancer: {servers: [{url: "http://app:3000"}]}}\n    web-assets: {loadBalancer: {servers: [{url: "https://s3.praetorium.gg"}]}}\n'
   let current = original
   const writes: string[] = []
   const request: typeof fetch = async (_url, options) => {
@@ -221,5 +221,5 @@ it('restores the previous asset route if hosted verification fails', async () =>
     }),
   ).rejects.toThrow('CDN unavailable')
   expect(writes.at(-1)).toBe(original)
-  expect(writes[0]).toContain('web-assets')
+  expect(writes[0]).not.toContain('web-assets')
 })

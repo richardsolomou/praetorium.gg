@@ -95,6 +95,17 @@ it('names detachments through a misspelt faction prefix and a promotional suffix
   ).toEqual(['Cursed Legion', 'Black Spear Task Force'])
 })
 
+it('finds a detachment by its VS Data id where the catalogue spells its name otherwise', () => {
+  const votann = {
+    id: 'votann-catalogue',
+    slug: 'leagues-of-votann',
+    displayName: 'Leagues of Votann',
+    vsFaction: { id: 'leagues-of-votann', name: 'Leagues of Votann' },
+    detachments: [{ name: 'Dêlve Assault Shift', vsId: 'leagues-of-votann.delve-assault-shift' }],
+  }
+  expect(importDetachment('detachment-leagues-of-votann-delve-assault-shift', votann, [votann])).toBe('Dêlve Assault Shift')
+})
+
 it('names a detachment the catalogue does not hold from the faction it is filed under', () => {
   expect(importDetachment('detachment-space-marines-hammer-of-avernii', null, IMPORT_FACTIONS)).toBe('Hammer of Avernii')
 })

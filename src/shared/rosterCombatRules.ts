@@ -1,17 +1,19 @@
 import { attachmentErrors } from '../core/attach'
 import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
-import { hasTextTokens, withoutText } from '../core/sourceText'
+import { catalogueTreeOf } from '../core/roster'
+import { hasTextTokens } from '../core/sourceText'
 import type { TextFactsByKey } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, allowancesIn, combatFactsIn, offeredOptionsOf } from './textFacts'
 import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
-import { allowancesWhile, type BattleChoiceAllowance, namesAllowedOptions } from '../core/battleChoices'
+import { allowancesWhile, type BattleChoiceAllowance } from '../core/battleChoices'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetAbilitiesIn } from './catalogue'
-import { combatCarriers } from '../core/combatLoadout'
+import { combatCarriers, type CombatCarrier } from '../core/combatLoadout'
+import { vsCarriersFiring } from './vsCarrierProfiles'
 import type { Datasheet } from '../contracts/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
@@ -21,7 +23,7 @@ import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContex
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
 import { keywordIdsBySelection, keywordNames } from '../core/evaluate'
-import { namespaceCarriers } from '../core/combatLoadouts'
+import { isWeaponProfile, loadoutSheet, namespaceCarriers } from '../core/combatLoadouts'
 import { attachedProfilePrefix } from '../core/combatScenario'
 import { byId, remember } from '../core/collections'
 import { WEAPON_ABILITY_KINDS } from '../core/combatKeywords'
@@ -73,38 +75,31 @@ function battleChoiceAllowancesFor(
   )
   const offered = combatant.rules.map((rule) => ({
     name: rule.name,
-    words: withoutText(rule.description),
     options: offeredOptionsOf(rule.description, facts).map((options) => options.toLowerCase()),
   }))
   return allowancesWhile(stated, combatant.companions.length > 0).map((allowance) => ({
     ...allowance,
-    rules: offered
-      .filter((rule) => rule.options.includes(allowance.options.toLowerCase()) || namesAllowedOptions(allowance, rule.words))
-      .map((rule) => rule.name),
+    rules: offered.filter((rule) => rule.options.includes(allowance.options.toLowerCase())).map((rule) => rule.name),
   }))
 }
 
 /**
- * A VS pick's datasheet with every weapon profile the datasheet holds, as its catalogue tree is built at the default loadout
- * and lists only the weapons that carries; the simulator finds each weapon VS Data's carriers hold among them by name.
+ * A VS pick's datasheet and carriers as the simulator fields them: its catalogue tree follows its VS Data choices only
+ * where the options map places them (`vsShellSpreads`), so each carried weapon names the profiles it fires and the
+ * datasheet counts each weapon from the carriers VS Data fields.
  */
-function withEveryWeapon(
+function vsFielding(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
   sheet: Datasheet | null,
-  carriers: readonly unknown[] | undefined,
+  carriers: CombatCarrier[] | undefined,
+  catalogue: () => CombatCarrier[],
 ) {
-  if (!sheet || !carriers) return sheet
-  const held = new Set(sheet.profiles.map((profile) => profile.id))
-  const every = datasheetIn(loaded, catalogueId, entryId)?.profiles ?? []
-  return {
-    ...sheet,
-    profiles: [
-      ...sheet.profiles,
-      ...every.filter((profile) => !held.has(profile.id) && (profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')),
-    ],
-  }
+  if (!sheet || !carriers) return { sheet, carriers }
+  const weapons = (datasheetIn(loaded, catalogueId, entryId)?.profiles ?? []).filter(isWeaponProfile)
+  const firing = vsCarriersFiring(carriers, [...sheet.profiles.filter(isWeaponProfile), ...weapons], catalogue())
+  return { sheet: loadoutSheet(sheet, weapons, firing), carriers: firing }
 }
 
 export function rosterCombatant(
@@ -137,18 +132,20 @@ export function rosterCombatant(
   const selectedPick = data.picks[data.pickIndex]
   if (!selectedPick) return null
   const selectedUnit = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)
-  const sheet = describeDatasheetAbilities(
+  const catalogueCarriers = (selectionIndex: number) =>
+    combatCarriers(context.selections[selectionIndex]!, loaded.index, {
+      primaryCatalogueId: data.catalogueId,
+      roster: context.selections.filter((_, at) => at !== selectionIndex),
+    })
+  const fielded = vsFielding(
     loaded,
-    selectedPick.catalogueId ?? data.catalogueId,
-    withEveryWeapon(
-      loaded,
-      data.catalogueId,
-      selectedPick.entryId,
-      datasheetIn(loaded, data.catalogueId, selectedPick.entryId, context),
-      selectedUnit?.carriers,
-    ),
-    rules,
+    data.catalogueId,
+    selectedPick.entryId,
+    datasheetIn(loaded, data.catalogueId, selectedPick.entryId, context),
+    selectedUnit?.carriers,
+    () => catalogueCarriers(context.unitSelectionIndex),
   )
+  const sheet = describeDatasheetAbilities(loaded, selectedPick.catalogueId ?? data.catalogueId, fielded.sheet, rules)
   if (!sheet) return null
   const members = [data.pickIndex, ...attachedUnit(data.picks, data.pickIndex)].filter((index) => !data.inactivePicks?.includes(index))
   const projectionErrors: { entryId: string; entryName: string; message: string }[] = []
@@ -169,26 +166,18 @@ export function rosterCombatant(
           .filter((candidate) => members.includes(candidate.pickIndex) && candidate.pickIndex !== pickIndex)
           .map((candidate) => candidate.selectionIndex),
       }
-      const selected = describeDatasheetAbilities(
+      const member = vsFielding(
         loaded,
-        pick.catalogueId ?? data.catalogueId,
-        withEveryWeapon(
-          loaded,
-          data.catalogueId,
-          pick.entryId,
-          datasheetIn(loaded, data.catalogueId, pick.entryId, memberContext),
-          unit.carriers,
-        ),
-        rules,
+        data.catalogueId,
+        pick.entryId,
+        datasheetIn(loaded, data.catalogueId, pick.entryId, memberContext),
+        unit.carriers,
+        () => catalogueCarriers(unit.selectionIndex),
       )
+      const selected = describeDatasheetAbilities(loaded, pick.catalogueId ?? data.catalogueId, member.sheet, rules)
       if (!selected) return unavailable()
       const prefix = attachedProfilePrefix(pickIndex)
-      const carriers =
-        unit.carriers ??
-        combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
-          primaryCatalogueId: data.catalogueId,
-          roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
-        })
+      const carriers = member.carriers ?? catalogueCarriers(unit.selectionIndex)
       return [
         {
           pickIndex,
@@ -245,8 +234,8 @@ export function rosterCombatant(
           : data.picks.map((pick, index) => (index === replaceIndex ? candidate : pick))
       const proposedSelections =
         replaceIndex === undefined
-          ? [...selections, built.selection]
-          : selections.map((selection, index) => (index === replaceIndex ? built.selection : selection))
+          ? [...selections, catalogueTreeOf(built)]
+          : selections.map((selection, index) => (index === replaceIndex ? catalogueTreeOf(built) : selection))
       const groupIds = new Set(proposed.flatMap((pick, index) => (attachmentHost(proposed, index) === hostIndex ? [pick.entryId] : [])))
       if (
         attachmentErrors(proposed, loaded.index, proposedSelections, keywords, data.detachmentIds).some((error) =>
@@ -280,7 +269,7 @@ export function rosterCombatant(
             attachmentErrors(
               [candidate, { ...selectedPick, attachedTo: 0 }],
               loaded.index,
-              [built.selection, selections[0]],
+              [catalogueTreeOf(built), selections[0]],
               [],
               data.detachmentIds,
             ).length
@@ -296,13 +285,10 @@ export function rosterCombatant(
     : {}
   return {
     selected: sheet,
-    models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,
-    carriers:
-      selectedUnit?.carriers ??
-      combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
-        primaryCatalogueId: data.catalogueId,
-        roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),
-      }),
+    models: selectedUnit!.models,
+    /** The size the pick asked for that its rules do not field, when they moved it. */
+    refusedModels: selectedUnit!.refusedModels,
+    carriers: fielded.carriers ?? catalogueCarriers(context.unitSelectionIndex),
     rules: rosterCombatRules(loaded, rules, data, context, sheet),
     companions,
     attachmentOptions,
@@ -346,8 +332,9 @@ function rosterCombatRules(
   ]
   const supportKeywords = [sheet.keywords]
   const models = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models
-  const recordedCombat = (description: string) => combatFactsIn(description, loaded.index.textFacts)
-  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>) => {
+  const recordedCombat = (description: string, holder?: string) => combatFactsIn(description, loaded.index.textFacts, holder)
+  /** `holder` is the datasheet rule or profile the description is, which identical words on another datasheet may not read alike. */
+  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>, holder?: string) => {
     const placed: CombatRule = {
       ...rule,
       appliedDefences: (['save', 'invulnerable-save', 'toughness'] as const).filter(
@@ -362,7 +349,7 @@ function rosterCombatRules(
     }
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
-    const recorded = recordedCombat(rule.description)
+    const recorded = recordedCombat(rule.description, holder)
     // A token without combat facts does something unknown, which the simulator lists as not calculated.
     if (recorded === undefined && hasTextTokens(rule.description)) {
       candidates.push({ ...placed, keywords: sheet.keywords })
@@ -394,6 +381,7 @@ function rosterCombatRules(
           ),
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
+      ability.id,
     )
   }
   for (const { unit, source } of others) {
@@ -410,6 +398,7 @@ function rosterCombatRules(
           ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
         },
         { origin: 'support', attached: attached.includes(unit.pickIndex) },
+        ability.id,
       )
     }
   }

@@ -4,9 +4,13 @@ import { vsFirstPick } from '../core/unitChoices'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import native from './vsNativeUnits.json' with { type: 'json' }
+import { vsSwornIn } from './vsDataShell'
 
 /** Datasheets the builder offers what the catalogue does, by `scripts/vsDataChoiceParity.ts`, or differs only where VS Data follows the app. */
 const NATIVE: ReadonlySet<string> = new Set(native)
+
+/** Whether the builder adds a VS Data unit as a VS pick. */
+export const isVsNative = (unit: string) => NATIVE.has(unit)
 
 /**
  * The pick a newly added unit starts as, by VS Data IDs, for a datasheet the builder fields by VS Data: as its datasheet
@@ -21,11 +25,12 @@ export function vsFirstPickOf(
   if (catalogueEditionId(list.catalogueId)) return undefined
   const definitions = vsDefinitionsOf(loaded)
   const unit = vsUnitIdOf(loaded, list.catalogueId, entryId)
-  if (!definitions || !unit || !NATIVE.has(unit)) return undefined
+  if (!definitions || !unit || !isVsNative(unit)) return undefined
   const roster = {
     faction: loaded.vsRoster?.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)] ?? '',
     detachments: list.detachmentIds.flatMap((id) => loaded.vsRoster?.detachments[id] ?? []),
   }
-  const { unit: _unit, size: _size, models = {}, options = {}, ...held } = vsFirstPick(definitions, unit, { roster })
+  const sworn = vsSwornIn(loaded.vsRoster, entryId)
+  const { unit: _unit, size: _size, models = {}, options = {}, ...held } = vsFirstPick(definitions, unit, { roster }, sworn)
   return { models, options, ...held }
 }

@@ -19,6 +19,10 @@ export function canonicalJson(value: unknown): string {
 
 export const capitalised = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
 
+/** A keyword VS Data writes in capitals, as the catalogue writes it: each word capitalised. */
+export const keywordName = (keyword: string) =>
+  keyword.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase())
+
 /** At most `max` characters, the last an ellipsis when the text is cut. */
 export const clipped = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
 

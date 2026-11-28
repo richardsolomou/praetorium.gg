@@ -120,6 +120,16 @@ export function keywordsOf(definitions: VsDataDefinitions, roster: VsRoster, pic
   return unitKeywords(unit.data, roster, picked.allegiance, sizeOnly ? undefined : carried(definitions, picked))
 }
 
+/**
+ * A picked unit's keywords with those of each model it fields, as a unit has all its models' keywords: what limits and
+ * allies count it by. The Warlord and Enhancement checks read one model's keywords at a time instead.
+ */
+export function countedKeywordsOf(definitions: VsDataDefinitions, roster: VsRoster, picked: VsRosterUnit): string[] {
+  const counts = modelCounts(definitions, picked)
+  const fielded = definitions.modelsOf(picked.unit).flatMap((model) => ((counts.get(model.id) ?? 0) > 0 ? (model.data.keywords ?? []) : []))
+  return [...new Set([...keywordsOf(definitions, roster, picked), ...fielded])]
+}
+
 const holdsAll = (keywords: readonly string[], wanted: readonly string[]) => wanted.every((keyword) => keywords.includes(keyword))
 const upper = (keywords: readonly string[]) => keywords.map((keyword) => keyword.toUpperCase())
 
@@ -151,6 +161,18 @@ export function carried(definitions: VsDataDefinitions, picked: VsRosterUnit): M
     }
   }
   return held
+}
+
+/**
+ * How many Enhancements `units` count towards a roster's limit, as `checkVsRoster` counts them: each first copy of one,
+ * an Upgrade's included, and never one `outsideLimit`.
+ */
+export function countedEnhancements(definitions: VsDataDefinitions, units: readonly VsRosterUnit[]): number {
+  const counted = units.flatMap((picked) => {
+    const enhancement = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
+    return enhancement && !enhancement.data.outsideLimit ? [enhancement.id] : []
+  })
+  return new Set(counted).size
 }
 
 /** Whether an Enhancement's eligibility admits this unit, before the roster's Warlord is considered. */
@@ -217,6 +239,7 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
         ? costRowFor(rows, {
             detachments: roster.detachments.map((id) => definitions.get('detachment', id)?.name ?? id),
             armies: armiesOf(definitions, roster.faction),
+            mix: Object.fromEntries(counts),
             models: definitions
               .modelsOf(unit.id)
               .map((model) => `${counts.get(model.id) ?? 0} ${model.name}`)
@@ -363,6 +386,98 @@ export function checkVsUnit(definitions: VsDataDefinitions, picked: VsRosterUnit
 }
 
 /**
+ * How many copies of `unit` the roster may hold, by the limits `checkVsRoster` reads: its own for the battle size, its
+ * faction's keyword limits and its ally entry's, each less what the roster's other units already count against it. An
+ * ally limit other units lift (`free`) grows with them, and `unlockedBy` names their keywords where that limit is the
+ * one that binds. The limit is null where nothing limits the unit.
+ */
+export function vsUnitAllowance(
+  definitions: VsDataDefinitions,
+  roster: VsRoster,
+  unit: string,
+): { limit: number | null; unlockedBy: string | null } {
+  const record = definitions.get('unit', unit)
+  if (!record) return { limit: null, unlockedBy: null }
+  const size = roster.battleSize ? definitions.get('battle-size', roster.battleSize)?.data : undefined
+  const faction = definitions.get('faction', roster.faction)?.data
+  const others = roster.units.filter((picked) => picked.unit !== unit && definitions.get('unit', picked.unit))
+  const othersKeywords = others.map((picked) => countedKeywordsOf(definitions, roster, picked))
+  const keywords = countedKeywordsOf(definitions, roster, { unit, size: record.data.sizes[0] })
+  const found: { limit: number; unlockedBy: string | null }[] = []
+  const own =
+    record.data.limits?.find((row) => row.battleSize === roster.battleSize && holds(row.when, roster))?.perRoster ??
+    record.data.perRoster ??
+    size?.duplicates
+  if (own !== undefined) found.push({ limit: own, unlockedBy: null })
+  for (const shared of faction?.unitLimits ?? []) {
+    const { max } = shared.detachments?.find((row) => roster.detachments.includes(row.detachment)) ?? shared
+    if (max === undefined || !holdsAll(keywords, shared.keywords)) continue
+    const counted = othersKeywords.filter((held) => holdsAll(held, shared.keywords)).length
+    found.push({ limit: Math.max(0, max - counted), unlockedBy: null })
+  }
+  const allies = faction?.allies ?? []
+  const entryOf = (id: string) =>
+    allies.findIndex(
+      (ally) => ally.units.includes(id) && (!ally.detachments || ally.detachments.some((d) => roster.detachments.includes(d))),
+    )
+  const entry = entryOf(unit)
+  const ally = entry < 0 ? undefined : allies[entry]!
+  const entryKeywords = othersKeywords.filter((_, at) => entryOf(others[at]!.unit) === entry)
+  for (const limit of ally?.limits ?? []) {
+    if (limit.battleSize !== roster.battleSize || !holdsAll(keywords, limit.keywords)) continue
+    // A unit that both backs and fills a free allowance frees each copy itself, so this limit never holds it.
+    if ((limit.free ?? []).some((free) => holdsAll(keywords, free.keywords) && holdsAll(keywords, free.per))) continue
+    const members = entryKeywords.filter((held) => holdsAll(held, limit.keywords))
+    // The members counted once `copies` more are taken, freed in the order `checkVsRoster` frees them.
+    const counted = (copies: number) => {
+      const added = Array.from({ length: copies }, () => keywords)
+      const under = [...members, ...added]
+      const freed = new Set<number>()
+      for (const free of limit.free ?? []) {
+        const backing = [...othersKeywords, ...added].filter((held) => holdsAll(held, free.per)).length
+        const lifted = under.flatMap((held, at) => (!freed.has(at) && holdsAll(held, free.keywords) ? [at] : [])).slice(0, backing)
+        for (const at of lifted) freed.add(at)
+      }
+      return under.length - freed.size
+    }
+    let copies = 0
+    while (counted(copies + 1) <= limit.max) copies++
+    const lifting = (limit.free ?? []).find((free) => holdsAll(keywords, free.keywords))
+    found.push({ limit: copies, unlockedBy: lifting ? keywordNames(lifting.per) : null })
+  }
+  // An entry whose units must all fall under one of its limits takes none of this unit beside members of another.
+  const sets = (ally?.limits ?? []).filter((limit) => limit.battleSize === roster.battleSize).map((limit) => limit.keywords)
+  const under = [...entryKeywords, keywords].filter((held) => sets.some((set) => holdsAll(held, set)))
+  const joins = sets.some((set) => holdsAll(keywords, set))
+  if (ally?.oneLimit && joins && !sets.some((set) => under.every((held) => holdsAll(held, set)))) found.push({ limit: 0, unlockedBy: null })
+  if (!found.length) return { limit: null, unlockedBy: null }
+  const limit = Math.min(...found.map((candidate) => candidate.limit))
+  // A limit other units lift is the one to grow only when nothing else holds the unit to the same number.
+  const binding = found.filter((candidate) => candidate.limit === limit)
+  return { limit, unlockedBy: binding.every((candidate) => candidate.unlockedBy) ? binding[0]!.unlockedBy : null }
+}
+
+/**
+ * Whether the unit's faction limits it by its own name in a keyword the unit does not hold exactly, as when a release
+ * spells the name's apostrophe differently in the two: `checkVsRoster` compares keywords exactly, so it cannot hold the
+ * unit to that limit, and neither can `vsUnitAllowance`.
+ */
+export function vsNameLimitUnheld(definitions: VsDataDefinitions, roster: VsRoster, unit: string): boolean {
+  const record = definitions.get('unit', unit)
+  if (!record) return false
+  const name = sameName(record.name)
+  const held = countedKeywordsOf(definitions, roster, { unit, size: record.data.sizes[0] })
+  return (definitions.get('faction', roster.faction)?.data.unitLimits ?? []).some(
+    (limit) => limit.keywords.some((keyword) => sameName(keyword) === name) && !holdsAll(held, limit.keywords),
+  )
+}
+
+const sameName = (text: string) => text.toUpperCase().replaceAll('’', "'")
+
+const keywordNames = (keywords: readonly string[]) =>
+  keywords.map((keyword) => keyword.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' ')
+
+/**
  * Every reason the roster is not legal under these definitions, in roster order: VS Data's `checkRoster`
  * (`src/roster-definitions/roster.ts`), with Enhancement eligibility read from each Enhancement's rule facts. The
  * points limit and the Detachment points budget are format rules a roster may waive, so `battleFormat.ts` checks them.
@@ -433,7 +548,8 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
     if (!current('unit', picked.unit, at)) return
     const unit = definitions.get('unit', picked.unit)!
     const keywords = keywordsOf(definitions, roster, picked)
-    keywordsAt[at] = keywords
+    const counted = countedKeywordsOf(definitions, roster, picked)
+    keywordsAt[at] = counted
     const entry = entryOf(unit.id)
     const offered = allies.filter((ally) => ally.units.includes(unit.id))
     if (entry >= 0) members[entry]!.push(at)
@@ -454,7 +570,7 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       size?.duplicates
     if (copies.get(unit.id) === (limit ?? Infinity) + 1) add('roster-limit', `${unit.name} is limited to ${limit} per roster`)
     for (const shared of unitLimits) {
-      if (!holdsAll(keywords, shared.keywords)) continue
+      if (!holdsAll(counted, shared.keywords)) continue
       shared.count++
       if (shared.count === (shared.max ?? Infinity) + 1)
         add('unit-limit', `a roster holds at most ${shared.max} ${shared.keywords.join(' ')} units`)
@@ -526,9 +642,12 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   allies.forEach((ally, at) => {
     const units = members[at]!
     const allyPoints = units.reduce((sum, i) => sum + (price.units[i]?.points ?? 0), 0)
+    // The allies are named by the factions of the units the roster takes under the entry, as Deathwatch or Chaos Daemons.
+    const factions = [...new Set(units.flatMap((i) => definitions.get('unit', roster.units[i]!.unit)?.data.faction ?? []))]
+    const named = factions.map((id) => definitions.get('faction', id)?.name ?? id).join(' and ')
     for (const row of ally.points ?? [])
       if (row.battleSize === battleSize && allyPoints > row.max)
-        rosterProblem('ally-points', `allied units cost at most ${row.max} points, cost ${allyPoints}`)
+        rosterProblem('ally-points', `allied ${named} units cost at most ${row.max} points, cost ${allyPoints}`)
     for (const limit of ally.limits ?? []) {
       if (limit.battleSize !== battleSize) continue
       const under = units.filter((i) => holdsAll(keywordsAt[i]!, limit.keywords))

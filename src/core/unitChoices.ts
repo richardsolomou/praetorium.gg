@@ -779,14 +779,25 @@ const rosterOf = (context: VsChoiceContext): VsRoster => ({
 })
 const wargearName = (definitions: VsDataDefinitions, id: string) => definitions.get('wargear', id)?.name ?? id
 
-/** A unit as the builder first adds it: as its datasheet first fields it, holding the first allegiance one it must take offers. */
-export function vsFirstPick(definitions: VsDataDefinitions, unitId: string, context: VsChoiceContext = {}): VsRosterUnit {
+/**
+ * A unit as the builder first adds it: as its datasheet first fields it, with the allegiance `sworn` names where a
+ * catalogue datasheet stands for one (one Soul Grinder datasheet per god) and the wargear that allegiance requires. A
+ * required allegiance with one choice is taken; one with several is left for the player to choose, as the app asks,
+ * rather than taking the first.
+ */
+export function vsFirstPick(definitions: VsDataDefinitions, unitId: string, context: VsChoiceContext = {}, sworn?: string): VsRosterUnit {
   const detachments = context.roster?.detachments ?? []
-  const required = definitions
-    .get('unit', unitId)
-    ?.data.allegiances?.find((offer) => offer.required && (!offer.detachment || detachments.includes(offer.detachment)))
+  const offers = definitions.get('unit', unitId)?.data.allegiances ?? []
+  const required = offers.find((offer) => offer.required && (!offer.detachment || detachments.includes(offer.detachment)))
+  const offer = sworn ? offers.find((candidate) => candidate.choices.includes(sworn)) : required
+  const allegiance = sworn && offer ? sworn : required?.choices.length === 1 ? required.choices[0] : undefined
   const first = vsFirstFielding(definitions, unitId)
-  return required?.choices[0] ? { ...first, allegiance: required.choices[0] } : first
+  if (!allegiance) return first
+  const weapon = offer?.requires?.[allegiance]
+  const option = weapon && vsUnitOptions(definitions, first).find((candidate) => candidate.choices.some((choice) => choice.id === weapon))
+  const held = option ? Object.values(first.options?.[option.id] ?? {}).reduce((total, count) => total + count, 0) : 0
+  const armed = option && weapon ? vsWithChoice(definitions, first, option.id, { [weapon]: held || 1 }) : first
+  return { ...armed, allegiance }
 }
 
 /** Models whose count the player sets within the unit's size, when there are two or more of them to divide it between. */

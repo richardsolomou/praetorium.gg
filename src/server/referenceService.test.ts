@@ -75,7 +75,7 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
     summaries: ruleSummaryFinder(null),
   }
 
-  expect(referenceUnits(corpus, loaded, null, 'test-faction', { battleSize: 1_000, detachment: 'vanguard' })).toMatchObject({
+  expect(referenceUnits(corpus, loaded, 'test-faction', { battleSize: 1_000, detachment: 'vanguard' })).toMatchObject({
     faction: { id: 'cat', slug: 'test-faction', name: 'Test Faction' },
     battleSize: 1_000,
     detachment: { name: 'Vanguard', rules: [{ name: 'Forward Positions' }] },
@@ -136,23 +136,22 @@ const lords = bookOf({
 })
 
 it('leaves Legends datasheets out of a planning list unless asked for them', () => {
-  expect(referenceUnits(lordsCorpus(), lords, null, 'cat')?.units.map((unit) => unit.name)).toEqual(['Immortals', 'Overlord'])
+  expect(referenceUnits(lordsCorpus(), lords, 'cat')?.units.map((unit) => unit.name)).toEqual(['Immortals', 'Overlord'])
 })
 
 it('names only the leaders a matched play list can take', () => {
-  expect(referenceUnits(lordsCorpus(), lords, null, 'cat')?.units.find((unit) => unit.name === 'Immortals')?.canBeLedBy).toEqual([
+  expect(referenceUnits(lordsCorpus(), lords, 'cat')?.units.find((unit) => unit.name === 'Immortals')?.canBeLedBy).toEqual(['Overlord'])
+})
+
+it('narrows a planning list to the units a query names', () => {
+  expect(referenceUnits(lordsCorpus(), lords, 'cat', { query: 'lord', nonMatchedPlay: true })?.units.map((unit) => unit.name)).toEqual([
+    'Lord [Legends]',
     'Overlord',
   ])
 })
 
-it('narrows a planning list to the units a query names', () => {
-  expect(
-    referenceUnits(lordsCorpus(), lords, null, 'cat', { query: 'lord', nonMatchedPlay: true })?.units.map((unit) => unit.name),
-  ).toEqual(['Lord [Legends]', 'Overlord'])
-})
-
 it('lists the units a mistyped query is close to when none contain it', () => {
-  expect(referenceUnits(lordsCorpus(), lords, null, 'cat', { query: 'Imortals' })?.units.map((unit) => unit.name)).toEqual(['Immortals'])
+  expect(referenceUnits(lordsCorpus(), lords, 'cat', { query: 'Imortals' })?.units.map((unit) => unit.name)).toEqual(['Immortals'])
 })
 
 it('rejects a detachment outside the requested faction', () => {
@@ -168,7 +167,7 @@ it('rejects a detachment outside the requested faction', () => {
   } as CanonicalCatalogue
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
 
-  expect(referenceUnits(corpus, loaded, null, 'cat', { detachment: 'missing' })).toBeNull()
+  expect(referenceUnits(corpus, loaded, 'cat', { detachment: 'missing' })).toBeNull()
 })
 
 function chapterWithCodexDetachment() {
@@ -241,14 +240,14 @@ function chapterWithCodexDetachment() {
 
 it('plans a chapter with a detachment its codex holds', () => {
   const { corpus, loaded, current } = chapterWithCodexDetachment()
-  const planned = referenceUnits(corpus, loaded, null, 'chapter', { detachment: 'Gladius Task Force' }, current)
+  const planned = referenceUnits(corpus, loaded, 'chapter', { detachment: 'Gladius Task Force' }, current)
   expect(planned?.detachment).toMatchObject({ id: 'gladius', catalogueId: 'current~cat' })
   expect(planned?.units.find((unit) => unit.name === 'Intercessors')?.referenceId).toBe('datasheet:current~cat:intercessors')
 })
 
 it("surveys a chapter's detachments, including its codex's current one, when none is chosen", () => {
   const { corpus, loaded, current } = chapterWithCodexDetachment()
-  expect(referenceUnits(corpus, loaded, null, 'chapter', {}, current)?.detachments).toEqual([
+  expect(referenceUnits(corpus, loaded, 'chapter', {}, current)?.detachments).toEqual([
     {
       name: 'Gladius Task Force',
       points: 1,
@@ -282,7 +281,7 @@ it("cites an allied unit's page under the faction that owns it, not another fact
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
 
   expect(
-    referenceUnits(corpus, loaded, null, 'army', {}, new Set(['cat', 'cat-1', 'mfm~cat-2']))?.units.find((unit) => unit.name === 'Assassin')
+    referenceUnits(corpus, loaded, 'army', {}, new Set(['cat', 'cat-1', 'mfm~cat-2']))?.units.find((unit) => unit.name === 'Assassin')
       ?.referenceId,
   ).toBe('datasheet:agents:assassin')
 })
@@ -320,7 +319,7 @@ it.each([
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
 
   expect(
-    referenceUnits(corpus, loaded, null, 'cat', {}, new Set(['cat', 'cat-1', 'cat-2']))?.units.find((unit) => unit.name === 'Armiger')
+    referenceUnits(corpus, loaded, 'cat', {}, new Set(['cat', 'cat-1', 'cat-2']))?.units.find((unit) => unit.name === 'Armiger')
       ?.referenceId,
   ).toBe(referenceId)
 })
@@ -505,6 +504,15 @@ it.each(['Tau Empire', "T'au Empire"])('resolves %s to the faction however its a
     detachments: [],
   } as unknown as CanonicalCatalogue
   expect(referenceFaction({ catalogue } as ReferenceCorpus, name)?.id).toBe('tau')
+})
+
+it.each(['Asuryani', 'asuryani', 'aeldari'])('resolves the VS Data faction name %s to the faction that plays it', (name) => {
+  const catalogue = {
+    datasheets: [{ catalogueId: 'craftworlds', faction: 'Aeldari', referenceRoute: { catalogueId: 'aeldari', slug: 'unit' } }],
+    detachments: [],
+  } as unknown as CanonicalCatalogue
+  const factions = [{ id: 'mfm~craftworlds', vsFaction: { id: 'aeldari', name: 'Asuryani' } }] as unknown as ReferenceCorpus['factions']
+  expect(referenceFaction({ catalogue, factions } as ReferenceCorpus, name)?.id).toBe('craftworlds')
 })
 
 it('reads a datasheet record from an id its slug has since moved from', () => {

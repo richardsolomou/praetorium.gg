@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from './vsDataConstruction'
-import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster } from './vsDataRoster'
+import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsNameLimitUnheld, vsUnitAllowance } from './vsDataRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const construction: VsDataConstruction = {
@@ -13,6 +13,28 @@ const construction: VsDataConstruction = {
       other: record('Other', {}),
       chapter: record('Chapter', { parent: 'host', excludedDetachments: ['host.guard'] }),
       titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
+      band: record('Band', { unitLimits: [{ keywords: ['CHARACTER'], max: 1 }] }),
+      keep: record('Keep', {
+        allies: [
+          {
+            units: ['band.boss', 'host.walker'],
+            oneLimit: true,
+            limits: [
+              { keywords: ['CHARACTER'], battleSize: 'small', max: 3 },
+              { keywords: ['VEHICLE'], battleSize: 'small', max: 3 },
+            ],
+          },
+        ],
+      }),
+      order: record('Order', { unitLimits: [{ keywords: ['EMPEROR’S CHAMPION'], max: 1 }] }),
+      court: record('Court', {
+        allies: [
+          {
+            units: ['band.boss', 'band.retinue'],
+            limits: [{ keywords: ['CHARACTER'], battleSize: 'small', max: 1, free: [{ keywords: ['CHARACTER'], per: ['CREW'] }] }],
+          },
+        ],
+      }),
     },
     'battle-size': { small: record('Small', { points: 500, enhancements: 1 }) },
     detachment: {
@@ -34,7 +56,13 @@ const construction: VsDataConstruction = {
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),
+      'host.pack': record('Pack', { faction: 'host', keywords: ['INFANTRY'], sizes: [6] }),
       'titan.engine': record('Engine', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
+      'band.boss': record('Boss', { faction: 'band', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
+      'band.retinue': record('Retinue', { faction: 'band', keywords: ['INFANTRY'], sizes: [2] }),
+      'court.crew': record('Crew', { faction: 'court', keywords: ['INFANTRY'], sizes: [1] }),
+      'order.champion': record('Emperor’s Champion', { faction: 'order', keywords: ['CHARACTER', "EMPEROR'S CHAMPION"], sizes: [1] }),
+      'order.herald': record('Emperor’s Champion', { faction: 'order', keywords: ['CHARACTER', 'EMPEROR’S CHAMPION'], sizes: [1] }),
     },
     model: {
       'host.walker.walker': record('Walker', {
@@ -51,7 +79,13 @@ const construction: VsDataConstruction = {
       'host.envoy.envoy': record('Envoy', { unit: 'host.envoy', min: 1, max: 1, wargear: {} }),
       'host.squad.leader': record('Leader', { unit: 'host.squad', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
       'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: {} }),
+      'host.pack.hunter': record('Hunter', { unit: 'host.pack', min: 3, max: 6, wargear: {} }),
+      'host.pack.hound': record('Hound', { unit: 'host.pack', min: 0, max: 3, wargear: {} }),
       'titan.engine.engine': record('Engine', { unit: 'titan.engine', min: 1, max: 1, wargear: {} }),
+      'band.boss.boss': record('Boss', { unit: 'band.boss', min: 1, max: 1, wargear: {} }),
+      'band.retinue.master': record('Master', { unit: 'band.retinue', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
+      'band.retinue.follower': record('Follower', { unit: 'band.retinue', min: 1, max: 1, wargear: {} }),
+      'court.crew.hand': record('Hand', { unit: 'court.crew', min: 1, max: 1, keywords: ['CREW'], wargear: {} }),
     },
     'roster-option': {
       'host.rider.mount': record('Mount', { unit: 'host.rider', choose: { min: 0, max: 1 }, choices: ['host.rider.bike'] }),
@@ -159,6 +193,19 @@ const construction: VsDataConstruction = {
                 },
               ],
             },
+            {
+              id: 'host.pack',
+              name: 'Pack',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { composition: 'three and three', models: 6, points: 115, mix: { 'host.pack.hunter': 3, 'host.pack.hound': 3 } },
+                    { composition: 'six', models: 6, points: 170, mix: { 'host.pack.hunter': 6 } },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -198,6 +245,11 @@ describe('priceVsRoster', () => {
   it('prices a unit in another faction’s army at the row for other armies', () => {
     expect(priceVsRoster(definitions, roster([{ unit: 'host.agent' }], 'other', [])).points).toBe(50)
   })
+
+  it('prices a unit at the row whose mix its model counts are', () => {
+    const pack = { unit: 'host.pack', models: { 'host.pack.hunter': 6, 'host.pack.hound': 0 } }
+    expect(priceVsRoster(definitions, roster([pack])).points).toBe(170)
+  })
 })
 
 describe('keywordsOf', () => {
@@ -219,6 +271,21 @@ describe('keywordsOf', () => {
 
 describe('checkVsRoster', () => {
   const codes = (units: VsRoster['units']) => checkVsRoster(definitions, roster(units)).map((problem) => problem.code)
+
+  const courtCodes = (units: VsRoster['units']) => checkVsRoster(definitions, roster(units, 'court', [])).map((problem) => problem.code)
+
+  it('counts an ally a Character model leads towards an allied CHARACTER limit', () => {
+    expect(courtCodes([{ unit: 'band.boss' }, { unit: 'band.retinue' }])).toContain('ally-limit')
+  })
+
+  it('frees an allied CHARACTER for each unit whose model holds the keyword the allowance names', () => {
+    expect(courtCodes([{ unit: 'band.boss' }, { unit: 'band.boss' }, { unit: 'court.crew' }])).not.toContain('ally-limit')
+  })
+
+  it('counts a unit a Character model leads towards a CHARACTER limit', () => {
+    const band = roster([{ unit: 'band.boss' }, { unit: 'band.retinue' }], 'band', [])
+    expect(checkVsRoster(definitions, band).map((problem) => problem.code)).toContain('unit-limit')
+  })
 
   it('refuses an Enhancement to a unit that is not a Character', () => {
     expect(codes([{ unit: 'host.agent', enhancement: 'host.guard.relic' }])).toEqual(['enhancement-keywords'])
@@ -312,5 +379,33 @@ describe('checkVsRoster', () => {
 
   it('lets a squad’s Character leader be the Warlord', () => {
     expect(codes([{ unit: 'host.squad', warlord: 'host.squad.leader' }])).toEqual([])
+  })
+})
+
+describe('vsUnitAllowance', () => {
+  it('allows another allied CHARACTER for each unit holding the keyword its allowance names', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'court.crew' }], 'court', []), 'band.boss').limit).toBe(2)
+  })
+
+  it('names the keywords that lift the ally limit holding a unit back', () => {
+    expect(vsUnitAllowance(definitions, roster([], 'court', []), 'band.boss').unlockedBy).toBe('Crew')
+  })
+
+  it('takes no unit of an ally entry beside members of another of its limits where they must share one', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'host.walker' }], 'keep', []), 'band.boss').limit).toBe(0)
+  })
+
+  it('counts the roster’s other units against a shared keyword limit', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'band.retinue' }], 'band', []), 'band.boss').limit).toBe(0)
+  })
+})
+
+describe('vsNameLimitUnheld', () => {
+  it('finds a faction limit naming the unit in a spelling its keywords do not hold exactly', () => {
+    expect(vsNameLimitUnheld(definitions, roster([], 'order', []), 'order.champion')).toBe(true)
+  })
+
+  it('leaves a unit whose keywords hold its faction’s name limit exactly', () => {
+    expect(vsNameLimitUnheld(definitions, roster([], 'order', []), 'order.herald')).toBe(false)
   })
 })

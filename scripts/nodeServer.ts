@@ -18,6 +18,7 @@ import { isEntryPoint } from './lib/entryPoint.ts'
 import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
 import { startCatalogueRefresh } from './lib/catalogueRefreshProcess.ts'
 import { serveLiveCatalogueAsset } from './lib/liveCatalogueAssets.ts'
+import { bucketAssets } from './lib/bucketAssets.ts'
 import { startupRemainingMs } from './lib/startupBudget.ts'
 
 const execFile = promisify(execFileCallback)
@@ -257,9 +258,17 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
     if ('writeHead' in response && !response.headersSent) send(response, 502)
     else response.destroy()
   }
+  const storage = viteOrigin ? null : publicAssetsR2Client()
+  const otherReleaseAsset =
+    storage &&
+    bucketAssets(path.join(nodeBuildDirectory(), 'public/assets'), {
+      base: storage.base,
+      fetch: (url, init) => storage.client.fetch(url, init),
+    })
   const server = createServer((request, response) => {
     forwardVisitor(request)
     if (process.env.CATALOGUE_LIVE_DIR && serveLiveCatalogueAsset(request, response, process.env.CATALOGUE_LIVE_DIR)) return
+    if (otherReleaseAsset?.(request, response, () => proxy.web(request, response, { target: appOrigin }, appError))) return
     if (
       process.env.PRAETORIUM_LOCAL_DEV === 'true' &&
       ['/praetorium/', '/catalogue/', '/avatars/'].some((prefix) => request.url?.startsWith(prefix))

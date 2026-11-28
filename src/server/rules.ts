@@ -4,7 +4,6 @@ import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { uniqueBy } from '../core/collections'
 import { loadDatacardsSteps } from './datacards'
-import { factionRestrictions } from '../shared/datacards'
 import { factionsFromDatacards } from './datacardFactions'
 import { missionTerrain } from './missionTerrain'
 import { kotcTerrain } from './kotcTerrain'
@@ -189,7 +188,6 @@ export function* loadRulesSteps(
   }
   return {
     abilityDescriptions,
-    factionRestrictions: factionRestrictions(datacards),
     factionKeys: factions.factionKeys,
     factionParents: factions.factionParents,
     byDetachment: factions.byDetachment,

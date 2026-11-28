@@ -14,8 +14,9 @@ import {
 } from '../shared/pricing'
 import { heldWargear } from '../shared/heldWargear'
 import { deploymentRules } from '../shared/rosterDeployment'
-import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
+import { isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
 import { descriptionKey } from '../shared/datacards'
+import { vsRosterData } from '../shared/vsDataLegality'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { loadoutPicks } from '../core/rosterCopies'
 import { bookOf, categories, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
@@ -53,7 +54,6 @@ const rulesWithout = {
   factionKeys: new Map(),
   detachmentReferences: new Map(),
   detachmentDetails: new Map(),
-  factionRestrictions: new Map(),
 } as Partial<LoadedRules> as LoadedRules
 
 it('prices a saved fixed composition after resizing its equipped models', () => {
@@ -279,6 +279,62 @@ describe('the enhancements an army may hold', () => {
 
   it('is four in a Strike Force army', () => {
     expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
+  })
+
+  // The army limit's errors and King of the Colosseum's own Enhancement rule, whatever else either raises.
+  const enhancementMessages = (errors: readonly { entryId: string; message: string }[] = []) =>
+    errors.flatMap((error) =>
+      error.entryId === 'enhancements' || (error.entryId === 'kotc' && error.message.includes('Enhancements')) ? [error.message] : [],
+    )
+
+  it('is two at King of the Colosseum, said once where VS Data cannot place the list', () => {
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 600,
+        units: Array.from({ length: 5 }, (_, at) => ({ entryId: `lord-${at}` })),
+      },
+      loaded,
+      rulesWithout,
+    )
+    expect(enhancementMessages(priced?.errors)).toEqual(['allows at most 2 Enhancements, has 5'])
+  })
+
+  it('is two at King of the Colosseum where VS Data places the list but records no such size', () => {
+    const size = (name: string, points: number, enhancements: number) => ({ name, data: { formatVersion: 2, points, enhancements } })
+    const vsRoster = vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update: 'test' },
+        unavailable: [],
+        points: [],
+        definitions: {
+          faction: { host: { name: 'Host', data: { formatVersion: 2 } } },
+          detachment: { 'host.guard': { name: 'Guard', data: { formatVersion: 2, faction: 'host' } } },
+          unit: { 'host.lord': { name: 'Lord one', data: { formatVersion: 2, faction: 'host', keywords: ['CHARACTER'], sizes: [1] } } },
+          'battle-size': { incursion: size('Incursion', 1000, 2), 'strike-force': size('Strike Force', 2000, 4) },
+        },
+      },
+      { books: { cat: 'host' }, detachments: {}, units: { 'lord-0': 'host.lord' }, enhancements: {} },
+      null,
+      (id) => (id === 'lord-0' ? 'Lord one' : undefined),
+    )
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 600,
+        units: Array.from({ length: 3 }, (_, at) => ({ entryId: `lord-${at}` })),
+      },
+      { ...loaded, vsRoster },
+      rulesWithout,
+    )
+    expect(enhancementMessages(priced?.errors)).toEqual(['allows at most 2 Enhancements, has 3'])
   })
 })
 
@@ -638,7 +694,6 @@ describe('force disposition', () => {
         ['death-guard', new Map([['flyblown-host', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
       ]),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     } as Partial<LoadedRules> as LoadedRules
 
     expect(
@@ -708,7 +763,6 @@ describe('force disposition', () => {
           ]),
         ],
       ]),
-      factionRestrictions: new Map(),
     } as Partial<LoadedRules> as LoadedRules
 
     expect(
@@ -766,7 +820,6 @@ describe('enhancement descriptions', () => {
       })
       const rules = {
         factionKeys: new Map([['test-catalogue', 'test-catalogue']]),
-        factionRestrictions: new Map(),
         detachmentReferences: new Map(),
         detachmentDetails: new Map([
           [
@@ -860,7 +913,6 @@ describe('enhancement descriptions', () => {
     })
     const rules = {
       factionKeys: new Map([['test-catalogue', 'test-catalogue']]),
-      factionRestrictions: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map([
         [
@@ -952,7 +1004,6 @@ describe('catalogue-backed deployment rules', () => {
           ]),
         ],
       ]),
-      factionRestrictions: new Map(),
     }) as Partial<LoadedRules> as LoadedRules
 
   it('derives every supported pre-battle option from ability names', () => {
@@ -1250,28 +1301,6 @@ describe('catalogue-backed deployment rules', () => {
   })
 })
 
-describe('faction army restrictions', () => {
-  it('reports prohibited datasheets and keywords through roster legality', () => {
-    const restrictions = { excludedNames: new Map([['scout squad', null]]), excludedKeywords: new Set(['psyker']) }
-    const units = [
-      { entryId: 'scouts', name: 'Scout Squad', keywords: ['Infantry'], toughness: 4, warlord: false },
-      { entryId: 'librarian', name: 'Librarian', keywords: ['Character', 'Psyker'], toughness: 4, warlord: false },
-    ]
-    expect(factionRestrictionViolations(restrictions, units).map((error) => error.entryId)).toEqual(['scouts', 'librarian'])
-  })
-
-  it('lets a unit carrying the exempting keyword through a named exclusion', () => {
-    // The Black Templars may not take the Codex Impulsor, but their own — the one with
-    // their keyword — is theirs to take.
-    const restrictions = { excludedNames: new Map([['impulsor', 'black templars']]), excludedKeywords: new Set<string>() }
-    const units = [
-      { entryId: 'codex', name: 'Impulsor', keywords: ['Vehicle', 'Faction: Adeptus Astartes'], toughness: 10, warlord: false },
-      { entryId: 'own', name: 'Impulsor', keywords: ['Vehicle', 'Faction: Black Templars'], toughness: 10, warlord: false },
-    ]
-    expect(factionRestrictionViolations(restrictions, units).map((error) => error.entryId)).toEqual(['codex'])
-  })
-})
-
 describe('King of the Colosseum army construction', () => {
   const unit = (entryId: string, keywords: string[], toughness: number, warlord = false) => ({
     entryId,
@@ -1288,6 +1317,7 @@ describe('King of the Colosseum army construction', () => {
         [unit('leader', ['Infantry', 'Character'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4), unit('tank', ['Vehicle'], 9)],
         600,
         [],
+        0,
       ),
     ).toEqual([])
   })
@@ -1295,7 +1325,7 @@ describe('King of the Colosseum army construction', () => {
   it('requires exactly one Character Warlord', () => {
     const infantry = unit('infantry', ['Infantry'], 4)
     const character = unit('character', ['Infantry', 'Character'], 4)
-    expect(kotcViolations(1, [{ ...infantry, warlord: true }, character], 600, []).map((error) => error.message)).toEqual([
+    expect(kotcViolations(1, [{ ...infantry, warlord: true }, character], 600, [], 0).map((error) => error.message)).toEqual([
       'Warlord must have the Character keyword',
     ])
     expect(
@@ -1307,6 +1337,7 @@ describe('King of the Colosseum army construction', () => {
         ],
         600,
         [],
+        0,
       ).map((error) => error.message),
     ).toEqual(['needs exactly 1 Warlord, has 2', 'Warlord must have the Character keyword'])
   })
@@ -1364,6 +1395,7 @@ describe('King of the Colosseum army construction', () => {
       [unit('hero', ['Infantry', 'Epic Hero'], 10), unit('tank', ['Vehicle'], 9), unit('tank', ['Vehicle'], 9)],
       600,
       [],
+      0,
     )
     expect(errors.map((error) => error.message)).toEqual([
       'needs exactly 1 detachment, has 2',
@@ -1378,12 +1410,12 @@ describe('King of the Colosseum army construction', () => {
 
   it('stops enforcing a restriction the roster has waived', () => {
     const army = [unit('hero', ['Infantry', 'Character', 'Epic Hero'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4)]
-    expect(kotcViolations(1, army, 600, []).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
-    expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'])).toEqual([])
+    expect(kotcViolations(1, army, 600, [], 0).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
+    expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'], 0)).toEqual([])
   })
 
   it('waives only the rule named, leaving the rest of the format intact', () => {
-    const errors = kotcViolations(2, [unit('hero', ['Infantry', 'Epic Hero'], 10)], 600, ['kotc-toughness'])
+    const errors = kotcViolations(2, [unit('hero', ['Infantry', 'Epic Hero'], 10)], 600, ['kotc-toughness'], 0)
     expect(errors.map((error) => error.message)).toEqual([
       'needs exactly 1 detachment, has 2',
       'needs at least 2 Infantry units',
@@ -1397,10 +1429,10 @@ describe('King of the Colosseum army construction', () => {
       { entryId: 'mystery', name: 'mystery', keywords: ['Infantry', 'Character'], toughness: null, warlord: true },
       unit('troops', ['Infantry', 'Battleline'], 4),
     ]
-    expect(kotcViolations(1, army, 600, []).map((error) => error.message)).toEqual([
+    expect(kotcViolations(1, army, 600, [], 0).map((error) => error.message)).toEqual([
       'cannot verify its Toughness from the synced catalogue',
     ])
-    expect(kotcViolations(1, army, 600, ['kotc-toughness'])).toEqual([])
+    expect(kotcViolations(1, army, 600, ['kotc-toughness'], 0)).toEqual([])
   })
 
   it('lets a waived datasheet cap take as many copies as the catalogue allows', () => {
@@ -1410,8 +1442,8 @@ describe('King of the Colosseum army construction', () => {
       unit('troops', ['Infantry'], 4),
       unit('troops', ['Infantry'], 4),
     ]
-    expect(kotcViolations(1, army, 600, []).map((error) => error.message)).toEqual(['allows at most 1 of this datasheet, has 3'])
-    expect(kotcViolations(1, army, 600, ['kotc-datasheet-copies'])).toEqual([])
+    expect(kotcViolations(1, army, 600, [], 0).map((error) => error.message)).toEqual(['allows at most 1 of this datasheet, has 3'])
+    expect(kotcViolations(1, army, 600, ['kotc-datasheet-copies'], 0)).toEqual([])
   })
 })
 
@@ -1882,5 +1914,71 @@ describe('a datasheet VS Data prices', () => {
 
   it('adds the VS Data price of a priced item it takes, once', () => {
     expect(price({ arms: 'lance' })).toBe(90)
+  })
+})
+
+describe('a pick saved in an earlier rules version its list no longer holds', () => {
+  const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+  /** One rules version's VS Data, its squad fielding `model` at `points`. */
+  const version = (update: string, model: string, points: number) =>
+    vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update },
+        unavailable: [],
+        points: [
+          {
+            id: 'test',
+            factions: [
+              {
+                id: 'host',
+                detachments: [],
+                units: [{ id: 'host.squad', name: 'Squad', tiers: [{ copies: { from: 1 }, costs: [{ models: 1, points }] }] }],
+              },
+            ],
+          },
+        ],
+        definitions: {
+          faction: { host: record('Host', {}) },
+          unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }) },
+          model: { [`host.squad.${model}`]: record(model, { unit: 'host.squad', min: 1, max: 1, wargear: {} }) },
+        },
+      },
+      { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad' }, enhancements: {} },
+      null,
+      (id) => (id === 'squad' ? 'Squad' : undefined),
+    )
+  const legacy = version('MFM 1.4', 'veteran', 90)
+  const loaded = {
+    ...bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: pointsCost(100) }] }),
+    vsRoster: version('MFM 1.6', 'trooper', 80),
+    vsRosterIn: (rulesVersion: string) => (rulesVersion === 'legacy' ? legacy : null),
+  }
+  const price = (veterans: number) =>
+    calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 2000,
+        units: [{ entryId: 'squad', vs: { models: { 'host.squad.veteran': veterans }, options: {} }, rulesVersion: 'legacy' }],
+      },
+      loaded,
+      rulesWithout,
+    )
+
+  it('costs what its saved rules version charges', () => {
+    expect(price(1)?.points).toBe(90)
+  })
+
+  it('says the unit is kept as saved, and how to field it under the current rules', () => {
+    expect(price(1)?.unhandled).toContain(
+      'Squad is kept as saved under MFM 1.4, since MFM 1.6 no longer has its loadout. Remove it and add it again to field it under MFM 1.6.',
+    )
+  })
+
+  it('is checked by its saved rules version', () => {
+    expect(price(2)?.errors.some((error) => error.entryId === 'squad')).toBe(true)
   })
 })

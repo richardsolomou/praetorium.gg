@@ -7,8 +7,9 @@ import { buildUnit } from '../../src/core/roster'
 import { hasWarlordToggle } from '../../src/core/unitChoices'
 import { wargearOf } from '../../src/core/wargear'
 import { wargearKey } from '../../src/core/wargearNames'
-import { ARTICLE, vsSpelling } from '../../src/shared/wargearSpellings'
+import { leaves, vsSpelling } from '../../src/shared/wargearSpellings'
 import { same } from '../../src/shared/vsDataModelNames'
+import { vsModels } from '../../src/shared/importedVsPicks'
 import type { Counts, VsDataDefinitions } from '../../src/core/vsDataConstruction'
 import { checkVsUnit, type VsRoster, type VsRosterUnit } from '../../src/core/vsDataRoster'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
@@ -39,13 +40,6 @@ const add = (bag: Map<string, number>, key: string, n: number) => {
   const next = (bag.get(key) ?? 0) + n
   if (next) bag.set(key, next)
   else bag.delete(key)
-}
-
-/** A wargear ID as the named items it holds. */
-export function leaves(definitions: VsDataDefinitions, id: string, n: number, into: Map<string, number>) {
-  const inner = definitions.get('wargear', id)?.data.includes
-  if (inner && Object.keys(inner).length) for (const [part, m] of Object.entries(inner)) leaves(definitions, part, n * m, into)
-  else add(into, wargearKey(definitions.get('wargear', id)?.name ?? id).replace(ARTICLE, ''), n)
 }
 
 /**
@@ -102,37 +96,6 @@ function selectionsFor(
   return best
 }
 
-/** The named items a VS Data unit carries: its models' and its own wargear, changed by the options it takes. */
-export function vsWargear(definitions: VsDataDefinitions, read: VsRosterUnit) {
-  const bag = new Map<string, number>()
-  const counts = read.models ?? {}
-  for (const model of definitions.modelsOf(read.unit))
-    for (const [id, n] of Object.entries(model.data.wargear)) leaves(definitions, id, n * (counts[model.id] ?? model.data.min), bag)
-  for (const [id, n] of Object.entries(definitions.get('unit', read.unit)?.data.wargear ?? {})) leaves(definitions, id, n, bag)
-  for (const [optionId, chosen] of Object.entries(read.options ?? {})) {
-    const replaces = definitions.get('roster-option', optionId)?.data.replaces ?? {}
-    for (const [choice, n] of Object.entries(chosen)) {
-      leaves(definitions, choice, n, bag)
-      for (const [id, m] of Object.entries(replaces)) leaves(definitions, id, -m * n, bag)
-    }
-  }
-  return bag
-}
-
-/** Every named item a VS Data unit can carry, which the reviewed spellings read BSData's names against. */
-export function vsKnownWargear(definitions: VsDataDefinitions, unit: string) {
-  const known = new Set(
-    vsWargear(definitions, { unit, models: Object.fromEntries(definitions.modelsOf(unit).map((model) => [model.id, 1])) }).keys(),
-  )
-  for (const option of definitions.optionsOf(unit))
-    for (const choice of option.data.choices) {
-      const into = new Map<string, number>()
-      leaves(definitions, choice, 1, into)
-      for (const name of into.keys()) known.add(name)
-    }
-  return known
-}
-
 /** What the catalogue's own checks report of one built unit in its roster, beyond what they report of the roster alone. */
 export function catalogueUnitErrors(index: CatalogueIndex, roster: readonly Selection[], primaryCatalogueId: string, unit: Selection) {
   const said = (selections: readonly Selection[]) =>
@@ -158,26 +121,6 @@ export function modelsByName(selection: Selection, index: CatalogueIndex) {
   if (target?.type === 'model') add(found, same(root?.name ?? target.name ?? ''), selection.count ?? 1)
   walk(selection, 1)
   return found
-}
-
-/** The VS Data model counts for a built unit of `total` models: by name where they tell, else fixed models and one variable. */
-export function vsModels(definitions: VsDataDefinitions, unit: string, named: ReadonlyMap<string, number>, total: number) {
-  const models = definitions.modelsOf(unit)
-  const byName = new Map(models.map((model) => [same(model.name), model]))
-  const counts: Record<string, number> = Object.fromEntries(models.map((model) => [model.id, 0]))
-  let matched = 0
-  for (const [name, count] of named) {
-    const model = byName.get(name)
-    if (!model) continue
-    counts[model.id] = (counts[model.id] ?? 0) + count
-    matched += count
-  }
-  if (matched === total) return counts
-  const bounds = models.map((model) => ({ id: model.id, ...(model.data.bySize?.find((row) => row.size === total) ?? model.data) }))
-  const variable = bounds.filter(({ min, max }) => min !== max)
-  const fixed = bounds.filter(({ min, max }) => min === max).reduce((sum, { min }) => sum + min, 0)
-  if (variable.length > 1) return null
-  return Object.fromEntries(bounds.map((model) => [model.id, model === variable[0] ? total - fixed : model.min]))
 }
 
 export type ReadGap = { unit?: number; reason: string }

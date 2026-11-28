@@ -4,8 +4,8 @@ import { importRosterInput } from './rosterImport'
 const mocks = vi.hoisted(() => ({ exchange: false, catalogueFor: vi.fn() }))
 vi.mock('./app', () => ({
   app: () => ({
-    factionsFor: async () => ({ factions: [{ id: 'mfm~necrons-root', name: 'Necrons', isDefault: true }] }),
-    factionFor: async (id: string) => (id === 'necrons-root' ? { id, name: 'Necrons' } : null),
+    factionsFor: async () => ({ factions: [{ id: 'mfm~necrons-root', name: 'Necrons', bookNames: ['Necrons'], isDefault: true }] }),
+    factionFor: async (id: string) => (id === 'necrons-root' ? { id, name: 'Necrons', bookNames: ['Necrons'] } : null),
     catalogueFor: mocks.catalogueFor,
     rulesFor: async () => null,
     catalogueTranslations: () => new Map(),

@@ -1,8 +1,19 @@
 import type { PointsCost, VsDataDefinitions } from '../core/vsDataConstruction'
-import { circumstance, costRowFor, pointsAt } from '../core/vsDataPoints'
+import { circumstance, costRowFor, pointsAt, sameName } from '../core/vsDataPoints'
+import { modelLine } from './vsDataUnitLines'
 import type { MfmUnit } from './mfm'
 
-type Tier = { copies: { from: number; to?: number }; costs: { models: number; points: number; composition?: string }[] }
+type Tier = {
+  copies: { from: number; to?: number }
+  costs: {
+    models: number
+    points: number
+    composition?: string
+    mix?: Readonly<Record<string, number>>
+    /** The models a `mix` holds, as a datasheet's composition writes them: "3 × Wolf Guard Headtaker, 3 × Hunting Wolf". */
+    mixNames?: string
+  }[]
+}
 
 /**
  * A rules version's VS Data prices, by the BSData IDs its saved lists hold: each datasheet VS Data defines with the
@@ -37,8 +48,8 @@ const priced = (points: PointsCost['points']) => (typeof points === 'number' ? p
  * The IDs a rules version's saved lists hold, each with the VS Data ID it reads as there: its own key first, then the
  * bare one. A datasheet one ID stands for in several factions is also held as `<book>/<ID>`, read through `inBook`.
  */
-export function idsIn(map: Readonly<Record<string, string>>, edition: string | null) {
-  const read = new Map<string, string>()
+export function idsIn<T = string>(map: Readonly<Record<string, T>>, edition: string | null) {
+  const read = new Map<string, T>()
   for (const [key, id] of Object.entries(map)) if (!key.includes('~')) read.set(key, id)
   const prefix = edition ? `${edition}~` : null
   if (prefix) for (const [key, id] of Object.entries(map)) if (key.startsWith(prefix)) read.set(key.slice(prefix.length), id)
@@ -83,25 +94,45 @@ export function vsPointsIndex(
       .flatMap((snapshot) => snapshot.factions.find((faction) => faction.id === unit.data.faction)?.units ?? [])
       .find((candidate) => candidate.id === id)
     if (!row) return null
+    // In the order VS Data writes the mix, as its composition reads.
+    const mixNames = (mix: Readonly<Record<string, number>>) =>
+      Object.entries(mix)
+        .flatMap(([model, n]) => (n ? [modelLine(definitions.get('model', model)?.name ?? model, n)] : []))
+        .join(', ')
     const tiers = row.tiers.map((tier) => ({
       copies: tier.copies,
       costs: tier.costs.flatMap((cost) => {
         const points = priced(cost.points)
-        return points === null ? [] : [{ models: cost.models, points, ...(cost.composition ? { composition: cost.composition } : {}) }]
+        return points === null
+          ? []
+          : [
+              {
+                models: cost.models,
+                points,
+                ...(cost.composition ? { composition: cost.composition } : {}),
+                ...(cost.mix ? { mix: cost.mix, mixNames: mixNames(cost.mix) } : {}),
+              },
+            ]
       }),
     }))
     const wargear = (row.wargear ?? []).flatMap((item) => {
       const points = priced(item.points)
       return points === null ? [] : [{ item: definitions.get('wargear', item.item)?.name ?? item.item, points }]
     })
-    // A size priced by its mix of models, which the field manual's shape cannot say, leaves the datasheet to it.
+    // A size priced by a mix of models no `mix` names, which the field manual's shape cannot say, leaves the datasheet to
+    // it; one whose rows give their mixes leaves only that size unpriced, for a pick read by its size alone.
     if (
       tiers.some((tier) =>
         tier.costs.some(
           (cost) =>
             !circumstance(cost.composition) &&
             tier.costs.some(
-              (other) => other !== cost && other.models === cost.models && !circumstance(other.composition) && other.points !== cost.points,
+              (other) =>
+                other !== cost &&
+                other.models === cost.models &&
+                !circumstance(other.composition) &&
+                other.points !== cost.points &&
+                !(cost.mix && other.mix),
             ),
         ),
       )
@@ -158,7 +189,7 @@ const rangeOf = ({ from, to }: Tier['copies']) => (to === undefined ? `[${from},
 
 /**
  * A datasheet's VS Data prices in the field manual's shape, for a list of the book `catalogueId` with `detachments`:
- * at each size, the cost row `costRowFor` takes there. A size whose rows leave the price open has none.
+ * at each size, the cost row `costRowFor` takes there. A size whose rows leave the price open is `unpriced`.
  */
 export function vsMfmUnit(
   index: VsPointsIndex | undefined,
@@ -174,16 +205,72 @@ export function vsMfmUnit(
   const context = { detachments: detachments.flatMap((id) => index.detachments[id]?.name ?? []), armies }
   return {
     name: entryId,
-    pricing: unit.tiers.map((tier) => ({
-      range: rangeOf(tier.copies),
-      costs: [...new Set(tier.costs.map((cost) => cost.models))].flatMap((models) => {
+    pricing: unit.tiers.map((tier) => {
+      const sizes = [...new Set(tier.costs.map((cost) => cost.models))].map((models) => {
         const rows = tier.costs.filter((cost) => cost.models === models)
         const row = rows.length === 1 ? rows[0] : costRowFor(rows, context)
-        return row && typeof row.points === 'number' ? [{ models, points: row.points }] : []
-      }),
-    })),
+        return { models, points: typeof row?.points === 'number' ? row.points : null }
+      })
+      const unpriced = sizes.flatMap(({ models, points }) => (points === null ? [models] : []))
+      return {
+        range: rangeOf(tier.copies),
+        costs: sizes.flatMap(({ models, points }) => (points === null ? [] : [{ models, points }])),
+        // A size its rows leave open stays in the table, so no count is charged between the sizes either side of it.
+        ...(unpriced.length ? { unpriced } : {}),
+      }
+    }),
     wargear: unit.wargear,
   }
+}
+
+/**
+ * A datasheet's VS Data cost rows as its page prints them, for a list of the book `catalogueId`: every size of every
+ * copy tier, its `copies` as that tier's range, and a row for another army, a Detachment or an army it is taken into
+ * labelled with VS Data's name for it, or for one mix of models with their names (`mix`).
+ */
+export function vsCostRows(index: VsPointsIndex | undefined, catalogueId: string, entryId: string) {
+  const unit = inBook(index?.units, catalogueId, entryId)
+  if (!index || !unit) return null
+  const armyOf = (name: string) =>
+    Object.entries(index.factions).find(([id, faction]) => sameName(id.replaceAll('-', ' '), name) || sameName(faction.name, name))
+  const own = index.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+  const owners = new Set([own, own ? index.factions[own]?.parent : undefined].filter(Boolean))
+  // Only another army is a condition: the datasheet's own army's row is what its list pays.
+  const army = (name: string) => {
+    const found = armyOf(name)
+    return found && owners.has(found[0]) ? null : (found?.[1].name ?? name)
+  }
+  const detachment = (name: string) => Object.values(index.detachments).find((entry) => sameName(entry.name, name))?.name ?? name
+  const inArmy = (composition = '') => (composition.startsWith('in an army of ') ? composition.slice('in an army of '.length) : null)
+  // Whether a row is what the datasheet's own list pays at its size: its own army's, or one naming no circumstance.
+  const ownRow = (composition?: string) => {
+    const named = inArmy(composition)
+    return named ? army(named) === null : !circumstance(composition)
+  }
+  const labelled = (composition: string | undefined, siblings: readonly { composition?: string }[]) => {
+    const inDetachment = /^in the (.+) Detachment$/.exec(composition ?? '')
+    if (inDetachment) return { faction: null, detachment: detachment(inDetachment[1]!) }
+    const named = inArmy(composition)
+    if (named) return { faction: army(named), detachment: null }
+    // A row for other armies is the one its own list pays where no row is its own army's, as for an Assassin.
+    const allied = composition?.startsWith('as ') && siblings.some((other) => ownRow(other.composition))
+    return { faction: null, detachment: null, ...(allied ? { allied: composition!.slice('as '.length) } : {}) }
+  }
+  const rows = unit.tiers.flatMap((tier) =>
+    tier.costs.map((cost) => ({
+      models: String(cost.models),
+      cost: String(cost.points),
+      keyword: null,
+      ...labelled(
+        cost.composition,
+        tier.costs.filter((other) => other !== cost && other.models === cost.models),
+      ),
+      ...(cost.mixNames ? { mix: cost.mixNames } : {}),
+      ...(tier.copies.from === 1 && tier.copies.to === undefined ? {} : { copies: rangeOf(tier.copies) }),
+    })),
+  )
+  // Rows a release tells apart only by the models their composition names, which `vsPointsIndex` keeps one price of, print once.
+  return [...new Map(rows.map((row) => [JSON.stringify(row), row])).values()]
 }
 
 /** A Detachment's VS Data points and Enhancements in the field manual's shape. */

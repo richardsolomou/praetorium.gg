@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { vsDataDefinitions } from '../core/vsDataConstruction'
-import { vsMfmDetachment, vsMfmUnit, vsPointsIndex } from './vsDataPoints'
+import { mfmPrice } from './mfm'
+import { vsCostRows, vsMfmDetachment, vsMfmUnit, vsPointsIndex } from './vsDataPoints'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const definitions = vsDataDefinitions({
@@ -14,6 +15,12 @@ const definitions = vsDataDefinitions({
       'host.tank': record('Tank', { faction: 'host', keywords: [], sizes: [1] }),
       'host.relic-tank': record('Relic Tank', { faction: 'host', keywords: [], sizes: [1], legends: true }),
       'host.pack': record('Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
+      'host.mixed-pack': record('Mixed Pack', { faction: 'host', keywords: [], sizes: [3, 6, 12] }),
+      'host.assassin': record('Assassin', { faction: 'host', keywords: [], sizes: [1] }),
+    },
+    model: {
+      'host.mixed-pack.hunter': record('Hunter', { unit: 'host.mixed-pack', min: 3, max: 12, wargear: {} }),
+      'host.mixed-pack.hound': record('Hound', { unit: 'host.mixed-pack', min: 0, max: 3, wargear: {} }),
     },
   },
   points: [
@@ -53,6 +60,34 @@ const definitions = vsDataDefinitions({
                 },
               ],
             },
+            {
+              id: 'host.assassin',
+              name: 'Assassin',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { composition: 'as Imperium', models: 1, points: 100 },
+                    { composition: 'in the Guard Detachment', models: 1, points: 115 },
+                  ],
+                },
+              ],
+            },
+            {
+              id: 'host.mixed-pack',
+              name: 'Mixed Pack',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { models: 3, points: 60 },
+                    { models: 6, points: 115, mix: { 'host.mixed-pack.hunter': 3, 'host.mixed-pack.hound': 3 } },
+                    { models: 6, points: 170, mix: { 'host.mixed-pack.hunter': 6 } },
+                    { models: 12, points: 230 },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -64,6 +99,8 @@ const names: Record<string, string> = {
   'bs-relic': 'Relic Tank [Legends]',
   'bs-banner': 'Banner',
   'bs-pack': 'Pack',
+  'bs-mixed-pack': 'Mixed Pack',
+  'bs-assassin': 'Assassin',
   'bs-shared': 'Shared Tank',
   'bs-gone': 'Gone Tank',
 }
@@ -76,6 +113,8 @@ const index = vsPointsIndex(
       'bs-tank': 'host.tank',
       'bs-relic': 'host.relic-tank',
       'bs-pack': 'host.pack',
+      'bs-mixed-pack': 'host.mixed-pack',
+      'bs-assassin': 'host.assassin',
       'bs-shared': 'host.tank',
       'bs-other/bs-shared': 'host.relic-tank',
       'bs-gone': 'host.tank',
@@ -118,8 +157,29 @@ describe('vsMfmUnit', () => {
     expect(vsMfmUnit(index, 'bs-host', 'bs-pack')).toBeNull()
   })
 
+  it('prices a datasheet whose mixed size gives each row’s mix from VS Data at its other sizes', () => {
+    expect(vsMfmUnit(index, 'bs-host', 'bs-mixed-pack')?.pricing[0]?.costs).toEqual([
+      { models: 3, points: 60 },
+      { models: 12, points: 230 },
+    ])
+  })
+
+  it('leaves a mixed size read by its size alone unpriced, never at the next size up', () => {
+    expect(mfmPrice(vsMfmUnit(index, 'bs-host', 'bs-mixed-pack')!, 6, 1)).toBeNull()
+  })
+
   it('prices a Warhammer Legends datasheet from VS Data', () => {
     expect(price('bs-host', 'bs-relic')).toBe(200)
+  })
+})
+
+describe('vsCostRows', () => {
+  it('prints a row for other armies unlabelled where no row is its own army’s, as the one its own list pays', () => {
+    expect(vsCostRows(index, 'bs-host', 'bs-assassin')?.find((row) => row.cost === '100')).not.toHaveProperty('allied')
+  })
+
+  it('labels a row priced by its mix of models with their names', () => {
+    expect(vsCostRows(index, 'bs-host', 'bs-mixed-pack')?.find((row) => row.cost === '115')?.mix).toBe('3 × Hunter, 3 × Hound')
   })
 })
 

@@ -1,9 +1,18 @@
 import type { CombatInput, CombatPhase } from './combat'
-import { combatSchema } from './combat'
+import { combatSchema, rerollRank } from './combat'
 import type { CombatAttacker } from './combatScenario'
 import { combatTarget } from './combatProfiles'
 import type { CombatCarrier } from './combatLoadout'
-import { combatRuleDefences, effectModels, withBearerEffects, type ActiveCombatRule, type CombatRuleEffect } from './combatRules'
+import {
+  combatRuleDefences,
+  combatRuleProjected,
+  effectModels,
+  withBearerEffects,
+  type ActiveCombatRule,
+  type CombatRuleEffect,
+} from './combatRules'
+import { combatTextKey } from './combatRuleCompiler'
+import { datasheetCharacteristicKind } from './datasheetStructure'
 
 export type CombatMember = Omit<CombatAttacker, 'companions'> & {
   startingModels?: number
@@ -104,7 +113,10 @@ export function combatUnitTarget(defender: CombatMember, phase?: CombatPhase, at
       damageDivisor: group.damageDivisor ?? part.target!.damageDivisor ?? 1,
     })),
   )
-  const target: CombatInput['target'] = { groups, feelNoPain: null }
+  // The engine re-rolls saves for the whole unit, so a member's re-roll holds only where every member has it.
+  const saveRerolls = built.map((part) => part.target!.saveReroll ?? 'none')
+  const saveReroll = saveRerolls.reduce((weakest, roll) => (rerollRank[roll] < rerollRank[weakest] ? roll : weakest))
+  const target: CombatInput['target'] = { groups, feelNoPain: null, ...(saveReroll === 'none' ? {} : { saveReroll }) }
   const parsed = combatSchema.shape.target.safeParse(target)
   return parsed.success
     ? {
@@ -128,6 +140,8 @@ const GROUP_DEFENCES = [
   'save',
   'improveSave',
   'toughness',
+  'wounds',
+  'printedWounds',
   'feelNoPain',
   'psychicFeelNoPain',
   'mortalFeelNoPain',
@@ -140,11 +154,14 @@ function limitedDefences(member: CombatMember) {
   const effects = new Map<CombatRuleEffect, string>()
   let carriers: readonly CombatCarrier[] = member.carriers
   const fielded = member.carriers.filter((carrier) => carrier.models > 0 && !carrier.unitWide)
-  const rules = (member.rules ?? []).map((rule) => ({
+  const rules = withoutProjectedWounds(member).map((rule) => ({
     ...rule,
     effects: rule.effects.flatMap((effect) => {
       const models =
-        effect.role === 'defender' && GROUP_DEFENCES.some((field) => effect[field] !== undefined)
+        effect.role === 'defender' &&
+        (GROUP_DEFENCES.some((field) => effect[field] !== undefined) ||
+          effect.unitStat?.kind === 'toughness' ||
+          effect.unitStat?.kind === 'wounds')
           ? effectModels(effect, rule, member)
           : undefined
       if (!models) return [effect]
@@ -182,4 +199,43 @@ function limitedDefences(member: CombatMember) {
     }),
   }))
   return { rules, carriers, marks, effects }
+}
+
+/**
+ * A member's rules without the Wounds changes the catalogue already counts in its models' Wounds characteristic: one it
+ * credits to the rule, or one in a profile it prints for the rule's bearers, as "Assault Terminator w/ Storm Shield".
+ * Where another rule sets Wounds, which replaces that characteristic, an added Wounds stays as `printedWounds`.
+ */
+function withoutProjectedWounds(member: CombatMember): readonly ActiveCombatRule[] {
+  const lines = member.sheet.profiles.flatMap((profile) =>
+    profile.values.some((value) => datasheetCharacteristicKind(value.name) === 'wounds') ? [profile] : [],
+  )
+  const modifiers = lines.flatMap((profile) =>
+    profile.values.flatMap((value) => (datasheetCharacteristicKind(value.name) === 'wounds' ? (value.modifiers ?? []) : [])),
+  )
+  const printed = (rule: ActiveCombatRule) =>
+    [rule.name, ...(rule.appliedAs ?? [])].some((name) =>
+      lines.some((profile) => combatTextKey(profile.name).includes(combatTextKey(name))),
+    )
+  const counted = (rule: ActiveCombatRule) => combatRuleProjected(rule, modifiers) || printed(rule)
+  const resets = (member.rules ?? []).some(
+    (rule) => !counted(rule) && rule.effects.some((effect) => effect.unitStat?.kind === 'wounds' && effect.unitStat.set !== undefined),
+  )
+  return (member.rules ?? []).map((rule) =>
+    counted(rule)
+      ? {
+          ...rule,
+          effects: rule.effects.flatMap((effect) => {
+            const { wounds, unitStat, ...rest } = effect
+            if (wounds === undefined && unitStat?.kind !== 'wounds') return [effect]
+            const kept = {
+              ...rest,
+              ...(unitStat && unitStat.kind !== 'wounds' ? { unitStat } : {}),
+              ...(resets && wounds !== undefined ? { printedWounds: wounds } : {}),
+            }
+            return Object.keys(kept).some((field) => field !== 'role' && field !== 'phases' && field !== 'bearerOnly') ? [kept] : []
+          }),
+        }
+      : rule,
+  )
 }

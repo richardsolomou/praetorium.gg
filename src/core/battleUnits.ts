@@ -38,12 +38,24 @@ export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name' | 
   return nicknamedUnit(name, transport.nickname)
 }
 
+type Carrier = Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> & Partial<Pick<UnitState, 'modelLines' | 'lines'>>
+
+/**
+ * What a transport carries that a load can hang on: its wargear and its standing models, as a Tidewall Shieldline's
+ * load grows while its Tidewall Defence Platform stands.
+ */
+function equipmentOf(transport: Carrier) {
+  if (!transport.wargear && !transport.modelLines) return undefined
+  const models = (transport.modelLines ?? []).map((line, at) => ({ name: line.name, count: transport.lines?.[at]?.alive ?? line.models }))
+  return [...(transport.wargear ?? []), ...models]
+}
+
 /** What a transport holds if these passengers ride in it, or why they cannot. */
 export function transportLoadOf(
-  transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
+  transport: Carrier | undefined,
   passengers: readonly (Passenger & Partial<Pick<UnitState, 'key' | 'attachedTo' | 'embarksWithBodyguard' | 'embarkedSpace'>>)[],
 ): TransportLoad | Refusal {
-  const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport?.wargear)
+  const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport && equipmentOf(transport))
   if (!rule) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
   return transportLoad(
     rule,
@@ -56,10 +68,7 @@ export function transportLoadOf(
 }
 
 /** How full a transport is with these passengers, as a player reads it, or null when its capacity is unknown. */
-export function transportAboard(
-  transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
-  passengers: readonly Passenger[],
-): string | null {
+export function transportAboard(transport: Carrier | undefined, passengers: readonly Passenger[]): string | null {
   const load = transportLoadOf(transport, passengers)
   if (!Array.isArray(load)) return null
   if (load.length === 1) return `${load[0]!.used}/${load[0]!.capacity} ${countedIn(load[0]!)}`

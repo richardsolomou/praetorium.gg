@@ -14,6 +14,8 @@ import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { type DefinitionKind, type VsDataDefinitions, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { idsIn } from '../src/shared/vsDataPoints'
 import { readVsDataRelease } from '../src/server/vsDataSummaries'
+import { legacyImportIds } from '../src/server/legacyNames'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const releases = () =>
@@ -42,6 +44,7 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen Game Dat
   it('lead every per-datasheet BSData entry to a record its rules version summarizes', () => {
     const summarized = new Map<string, Set<string>>()
     const missing = Object.entries(bsdataRecords.ids).filter(([key, record]) => {
+      if (record === null) return false
       const edition = key.includes('~') ? key.slice(0, key.indexOf('~')) : ''
       if (!summarized.has(edition))
         summarized.set(edition, new Set(readVsDataRelease(source, edition || undefined)!.records.map((held) => `${held.kind}:${held.id}`)))
@@ -238,5 +241,22 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen VS Data 
       )
     })
     expect(wrong).toEqual([])
+  })
+})
+
+describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData names', () => {
+  // Imports read a book, datasheet or Detachment only by the names frozen for its ID (`scripts/freezeImportNames.ts`).
+  it('name every book, datasheet and Detachment of the current rules version', { timeout: 180_000 }, () => {
+    const { catalogue } = sharedSnapshot(source)
+    const unnamed = [
+      ...catalogue.factions.filter(({ id }) => !legacyImportIds.bookNames.has(id)).map(({ id }) => id),
+      ...catalogue.factions.flatMap(({ id }) =>
+        [...(catalogue.index.datasheets.get(id) ?? [])].filter((entry) => !legacyImportIds.datasheetNames.has(entry)),
+      ),
+      ...[...catalogue.detachments.values()].flatMap(({ options }) =>
+        options.filter((option) => !legacyImportIds.detachmentNames.has(option.id)).map((option) => option.id),
+      ),
+    ]
+    expect([...new Set(unnamed)]).toEqual([])
   })
 })

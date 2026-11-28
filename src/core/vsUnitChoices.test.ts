@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, vsModelKinds, vsUnitChoices, vsUnitToggles, vsWithSpread } from './unitChoices'
+import {
+  VS_ALLEGIANCE,
+  VS_ENHANCEMENT,
+  VS_MODELS,
+  vsFirstPick,
+  vsModelKinds,
+  vsUnitChoices,
+  vsUnitToggles,
+  vsWithSpread,
+} from './unitChoices'
 import { definitions } from './vsUnit.fixtures'
 import { vsFirstFielding, vsUnitDefinitions, vsUnitOptions, vsUnitRecords, vsWithChoice } from './vsDataUnit'
 
@@ -117,6 +126,20 @@ describe('uniform options tied together', () => {
     expect(vsWithSpread(definitions, veterans, 'host.veterans.veteran-pistol', {}, { 'host.sword': 2 }).options).toEqual({
       'host.veterans.veteran-pistol': { 'host.sword': 2 },
       'host.veterans.sergeant-pistol': { 'host.sword': 1 },
+    })
+  })
+})
+
+describe('vsFirstPick', () => {
+  it('leaves a required allegiance of several for the player to choose', () => {
+    expect(
+      vsFirstPick(definitions, 'host.squad', { roster: { faction: 'host', detachments: ['host.vanguard'] } }).allegiance,
+    ).toBeUndefined()
+  })
+
+  it('takes the wargear the allegiance a datasheet stands for requires', () => {
+    expect(vsFirstPick(definitions, 'host.squad', {}, 'host.vanguard.red').options?.['host.squad.trooper-rifle']).toEqual({
+      'host.cannon': 1,
     })
   })
 })

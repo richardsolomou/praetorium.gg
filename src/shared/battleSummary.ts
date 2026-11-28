@@ -12,7 +12,9 @@ export type BattleFaction = {
   displayName: string
   icon: string | null
   edition?: StandingFaction['edition']
-  detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
+  isDefault?: boolean
+  vsFaction?: { id: string; name: string } | null
+  detachments?: readonly { id?: string; name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
 }
 
 /** The faction a fielded catalogue id names, through the retired-id map for a list fielded before its source was replaced. */

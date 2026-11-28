@@ -21,6 +21,7 @@ import { rosterSnapshot } from '../core/rosterSnapshot'
 import { unitBattleDetailsIn } from '../shared/catalogue'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { calculateRosterPrice } from '../shared/pricing'
+import type { BattleFaction } from '../shared/battleSummary'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import { matchParsedRoster } from '../shared/rosterFiles'
 import type { LoadedRules } from '../shared/rules'
@@ -31,6 +32,16 @@ export type ImportCatalogue = {
   factions: readonly ImportFaction[]
   names: BattlebaseNames
 }
+
+/** The battle list's factions as an import reads BattleBase's ids against them: with each Detachment's VS Data ID. */
+export const importFactions = (factions: readonly BattleFaction[], loaded: LoadedCatalogue): ImportFaction[] =>
+  factions.map((faction) => ({
+    ...faction,
+    detachments: faction.detachments?.map((detachment) => ({
+      ...detachment,
+      vsId: detachment.id ? (loaded.vsRoster?.detachments[detachment.id] ?? null) : null,
+    })),
+  }))
 
 /** What replaying one BattleBase battle needs from this app's catalogue and rules. */
 export function battlebaseContext(battle: BattlebaseBattle, catalogue: ImportCatalogue) {

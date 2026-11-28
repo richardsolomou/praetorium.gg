@@ -5,6 +5,7 @@ import { loadCatalogueHistory } from '../../src/server/catalogueHistory'
 import { removedNamesOf } from '../../src/shared/importMismatch'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
 import { importRosterFile } from '../../src/shared/rosterFiles'
+import { importVsMaps } from '../../src/server/importVsMaps'
 import { loadSnapshot } from './catalogueSnapshotLoad'
 import { CORPUS_ROOT, type Listing } from './importCorpusSources'
 import { compilerFingerprint } from './compilerSources'
@@ -58,7 +59,7 @@ export function importCorpusLists(directories: readonly string[], window: { sinc
     listing,
     /** The data version the official app prints in its export's footer, which tells a list built on older data from an importer bug; other builders print their own. */
     dataVersion: Number(file.match(/^Exported with App Version: v[\d.]+ \(\d+\), Data Version: v(\d+)/m)?.[1]) || null,
-    imported: importRosterFile({ file }, catalogue, undefined, rules, translations, removed),
+    imported: importRosterFile({ file }, catalogue, undefined, rules, translations, removed, importVsMaps()),
   }))
   return { catalogue, rules, lists }
 }

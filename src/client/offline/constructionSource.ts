@@ -15,6 +15,7 @@ import {
   type OfflineConstructionCatalogue,
   type OfflineConstructionData,
   type OfflineConstructionRules,
+  type OfflineConstructionVs,
   type OfflineConstructionSource,
   type OfflineReferenceVersion,
   type DownloadedTextFacts,
@@ -26,20 +27,25 @@ import { constructionReads, type ConstructionReadData, type ConstructionReadName
 
 const sharedSources = new WeakMap<OfflineConstructionBase | OfflineConstructionSource, OfflineConstructionSource>()
 
-export function buildConstruction(saved: OfflineConstructionSource) {
+/**
+ * A rules version's construction data built from its source. The current rules', given the whole download, also read a
+ * pick saved in an earlier rules version by that version's part, once it is loaded (`loadConstructionData`).
+ */
+export function buildConstruction(saved: OfflineConstructionSource, data?: OfflineConstructionData) {
   const files = saved.edition ? editionCatalogueFiles(saved.files, saved.edition) : saved.files
   const datacards = unpackRuntimeData<LoadedCatalogue['datacards']>(saved.datacards)
   const definitionFacts = saved.definitionFacts
     ? textFactsByKey(unpackRuntimeData<DownloadedTextFacts | ReadonlyMap<string, TextFacts>>(saved.definitionFacts))
     : undefined
   const vsProfiles = saved.vsProfiles ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsProfiles']>>(saved.vsProfiles) : undefined
+  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
+  // A download saved before roster definitions carried attachments has none, and its lists read the catalogue's alone.
   const index = {
     ...buildIndex(files, saved.revision, {
       get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
     }),
-    ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+    ...(vsRoster?.attachments ? { attachments: vsRoster.attachments } : {}),
   }
-  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
   const catalogue = {
     ...catalogueFromIndex(index, files, datacards, vsRoster),
     ...(saved.keywords ? { keywords: saved.keywords } : {}),
@@ -49,8 +55,26 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
     ...(vsProfiles ? { vsProfiles } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
+    ...(data && !saved.edition ? { vsRosterIn: (rulesVersion: string) => savedVersionRoster(data, rulesVersion) } : {}),
   }
   return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }
+}
+
+const savedRosters = new WeakMap<object, LoadedCatalogue['vsRoster'] | null>()
+
+/**
+ * An earlier rules version's roster definitions and points from its part, where the download has loaded it: only the
+ * part's roster data is restored, as a pick read there needs nothing else of it.
+ */
+function savedVersionRoster(data: OfflineConstructionData, rulesVersion: string) {
+  const part = data.editions?.find((candidate) => candidate.edition?.id === rulesVersion)
+  if (!part || 'base' in part || !part.vsRoster || !data.vsRoster) return null
+  if (!savedRosters.has(part)) {
+    const budget = { remaining: MAX_OFFLINE_BYTES - jsonByteLength(part) }
+    const restored = data.shared ? restoreRuntimeData(part.vsRoster, data.vsRoster, budget) : part.vsRoster
+    savedRosters.set(part, unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(restored))
+  }
+  return savedRosters.get(part) ?? null
 }
 
 /** The construction source for a catalogue's rules version, restored from shared data once per selection. */
@@ -102,12 +126,13 @@ export async function loadConstructionData(
   catalogueId: string | undefined,
   read: (asset: string, limit: number) => Promise<unknown>,
 ): Promise<OfflineConstructionData> {
-  const [catalogue, { rules }] = (await Promise.all([
+  const [catalogue, { rules }, vs] = (await Promise.all([
     read(parts.catalogue, MAX_CONSTRUCTION_PART_BYTES),
     read(parts.rules, MAX_REFERENCE_PART_BYTES),
-  ])) as [OfflineConstructionCatalogue, OfflineConstructionRules]
+    parts.vs ? read(parts.vs, MAX_CONSTRUCTION_PART_BYTES) : {},
+  ])) as [OfflineConstructionCatalogue, OfflineConstructionRules, OfflineConstructionVs]
   let data = assembled.get(catalogue)
-  if (!data) assembled.set(catalogue, (data = { ...catalogue, rules, shared: true, editions: [...catalogue.editions] }))
+  if (!data) assembled.set(catalogue, (data = { ...catalogue, ...vs, rules, shared: true, editions: [...catalogue.editions] }))
   const edition = catalogueId ? catalogueEditionId(catalogueId) : null
   const asset = edition && parts.editions[edition]
   if (!isConstructionData(data)) throw new Error('The saved construction data is invalid')

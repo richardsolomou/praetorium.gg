@@ -124,7 +124,8 @@ test('official and New Recruit rosters keep their units, choices and attachments
   const custodes = await importReviewed(page, custodesOfficial, 10)
   for (const line of [
     'First test (2,000 Points)',
-    '• 2x Adrathic Combi-destructors',
+    // The export writes VS Data's spelling of the wargear, whatever the imported list spelled.
+    '• 2x Adrathic Combi-destructor',
     'Auric Exemplar',
     'Flawless Bladework',
     'Memento Moritoi',
@@ -162,7 +163,8 @@ test('official and New Recruit rosters keep their units, choices and attachments
     'Assault Brethren',
     'Tacticus Attack Force',
     'Force Disposition: Take and Hold',
-    "Enhancement: Imperium's Sword",
+    // A unit imported as a VS pick names its Enhancement as VS Data spells it.
+    /Enhancement: Imperium['’]s Sword/,
     'Eversor Assassin',
   ])
     await expect(templars.locator('pre')).toContainText(line)

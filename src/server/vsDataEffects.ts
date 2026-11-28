@@ -1,13 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { remember } from '../core/collections'
-import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import { textOfFactsKey, type TextFacts, type TextFactsByKey } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey, vsDataRecordOfBsdata } from '../shared/vsData'
 import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
 import { bsdataRecordsIn } from './bsdataRecords'
 import { readCatalogueComposition } from './catalogueComposition'
-import { readSharedJson } from './sharedJson'
+import { readSharedJson, shareRecords } from './sharedJson'
 import { textHash } from './sourceTexts'
 import { readVsDataRelease } from './vsDataSummaries'
 
@@ -45,7 +45,7 @@ export function vsDataTextFacts(
   const file = entry && path.join(root, 'summaries', `${entry.summaries ?? entry.edition.id}.json`)
   const release = entry && readVsDataRelease(root, entry.edition.id)
   if (!file || !release || !fs.existsSync(vsDataEffectsPath(file))) return null
-  const effects = (JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')) as VsDataEffectsFile).effects
+  const effects = shareRecords((JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')) as VsDataEffectsFile).effects)
   const index = vsDataIndex(release.entries)
   // Each whole card string's records, by its hash.
   const printed = new Map<string, string[]>()
@@ -53,21 +53,19 @@ export function vsDataTextFacts(
     for (const { keys, texts } of gdcRuleRecords(readSharedJson(card))) {
       const ref = index.entry(keys)
       if (!ref) continue
-      for (const hash of new Set(texts.flatMap((text) => [textHash(text), textHash(text.trim())])))
-        if (!printed.get(hash)?.includes(vsDataKey(ref))) remember(printed, hash, () => []).push(vsDataKey(ref))
+      for (const hash of new Set(texts.flatMap((text) => [textHash(text), textHash(text.trim())]))) {
+        const holders = printed.get(hash)
+        // An array grown from empty reserves room for seventeen records, where most strings have one.
+        if (!holders) printed.set(hash, [vsDataKey(ref)])
+        else if (!holders.includes(vsDataKey(ref))) holders.push(vsDataKey(ref))
+      }
     }
   // The record each BSData rule, profile or entry is, by VS Data's alias of it or the frozen map, on the datasheet it is one.
   const records = bsdataRecordsIn(release.entries, entry.base ? null : entry.edition.id)
   // The one reading candidates give, those VS Data has read first, as a record without blocks has not been read: the
   // candidate holding every block any of them holds, as each other reads it. VS Data leaves `reachesAttached` off the
   // rule of a unit no Leader joins, where it reaches nothing, so the reading with it serves both.
-  const blocksOf = new Map<string, Map<string, string>>()
-  const blocks = (key: string) =>
-    remember(
-      blocksOf,
-      key,
-      () => new Map(Object.entries(effects[key] ?? {}).map(([block, value]) => [block, JSON.stringify(unreached(value))])),
-    )
+  const blocks = (key: string) => (effects[key] ? blocksOf(effects[key]) : NO_BLOCKS)
   const reaches = (key: string) => blocks(key).get('combat') !== JSON.stringify(effects[key]?.combat)
   const agreed = (keys: readonly string[]) => {
     const read = keys.filter((key) => effects[key]).toSorted((left, right) => Number(reaches(right)) - Number(reaches(left)))
@@ -81,6 +79,12 @@ export function vsDataTextFacts(
     const [core] = cores
     return cores.size === 1 && core && effects[core] ? core : null
   }
+  // The records a catalogue rule or profile is, on the datasheet it is held within where the frozen map files a profile
+  // several datasheets share under each.
+  const recordsOf = (holder: { id: string; within: readonly string[] }) =>
+    [...holder.within.map((sheet) => vsDataRecordOfBsdata(records, holder.id, sheet)), vsDataRecordOfBsdata(records, holder.id)].flatMap(
+      (key) => (key && RULE_RECORD.test(key) ? [key] : []),
+    )
   const joinOf = (factsKey: string): VsDataJoin => {
     const keys = factsKey.startsWith('+') ? factsKey.slice(1).split('+') : [factsKey]
     const tokens = keys.map((key) => ({ transform: key.slice(0, key.indexOf(':')), hash: key.slice(key.indexOf(':') + 1) }))
@@ -89,25 +93,34 @@ export function vsDataTextFacts(
       : []
     const card = agreed(held)
     if (card) return { record: card, by: 'card' }
-    if (keys.length !== 1) return { record: null, by: held.length ? 'ambiguous' : 'none' }
-    // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it are, on the
-    // datasheet each is held within where the frozen map files a profile several datasheets share under each.
-    const holders = definitions.holders?.(factsKey) ?? []
+    if (keys.length !== 1) {
+      // A text of several parts, as a card printing a catalogue text's paragraphs between its own strings, joins the
+      // record every part joins alone; parts all joining one record by card would have joined it above.
+      const parts = keys.map(join)
+      const [first] = parts
+      if (first?.record && parts.every((part) => part.record === first.record)) return { record: first.record, by: 'id' }
+      return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    }
+    // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it are.
     const within = (candidates: readonly string[]) => (held.length ? candidates.filter((key) => held.includes(key)) : candidates)
-    const byId = within([
-      ...new Set(
-        holders.flatMap((holder) =>
-          [
-            ...holder.within.map((sheet) => vsDataRecordOfBsdata(records, holder.id, sheet)),
-            vsDataRecordOfBsdata(records, holder.id),
-          ].flatMap((key) => (key && RULE_RECORD.test(key) ? [key] : [])),
-        ),
-      ),
-    ])
+    const byId = within([...new Set((definitions.holders?.(factsKey) ?? []).flatMap(recordsOf))])
     const found = agreed(byId) ?? standingIn(byId)
     if (found) return { record: found, by: 'id' }
     return { record: null, by: byId.length || held.length ? 'ambiguous' : 'none' }
   }
+  // Where the rules or profiles holding one text are records that do not agree, as `agreed` reads them, each one's own
+  // record, by its id: the text alone joins none of them, or the one its card is, as the words say nothing of which
+  // datasheet prints them.
+  const ownRecords = new Map<string, ReadonlyMap<string, string> | null>()
+  const ownRecordsOf = (factsKey: string) =>
+    remember(ownRecords, factsKey, () => {
+      const own = (definitions.holders?.(factsKey) ?? []).flatMap((holder) => {
+        const candidates = recordsOf(holder)
+        const record = agreed(candidates) ?? standingIn(candidates)
+        return record && effects[record] ? [[holder.id, record] as const] : []
+      })
+      return new Set(own.map(([, record]) => record)).size > 1 && !agreed(own.map(([, record]) => record)) ? new Map(own) : null
+    })
   const joins = new Map<string, VsDataJoin>()
   const facts = new Map<string, TextFacts>()
   const join = (key: string) => remember(joins, key, () => joinOf(key))
@@ -115,7 +128,8 @@ export function vsDataTextFacts(
     join,
     printed: (key) => (WHOLE_STRING.has(key.slice(0, key.indexOf(':'))) ? (printed.get(key.slice(key.indexOf(':') + 1)) ?? []) : []),
     get: (key) => {
-      const { record } = join(key)
+      const text = textOfFactsKey(key)
+      const record = text === key ? join(key).record : ownRecordsOf(text)?.get(key.slice(text.length + 1))
       // A record without blocks is one VS Data has not read yet.
       if (!record || !effects[record]) return undefined
       const read = named(record, effects[record])
@@ -125,6 +139,12 @@ export function vsDataTextFacts(
     },
   }
 }
+
+/** Each record's blocks as compared, by the record, which rules versions holding it alike share (`shareRecords`). */
+const readBlocks = new WeakMap<object, ReadonlyMap<string, string>>()
+const blocksOf = (record: VsDataEffectsFile['effects'][string]) =>
+  remember(readBlocks, record, () => new Map(Object.entries(record).map(([block, value]) => [block, JSON.stringify(unreached(value))])))
+const NO_BLOCKS: ReadonlyMap<string, string> = new Map()
 
 const CORE = 'core-ability:'
 const referenceNames = (blocks: Record<string, unknown> | undefined) =>
