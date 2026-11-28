@@ -30,6 +30,9 @@ it('reads a rules version’s own frozen entry over the one every version shares
 
 it('reads a card’s primarch abilities by the alias its other abilities take', () => {
   const ability = { name: { en: 'Phaeron of the Stars (Aura)' }, description: { en: 'Re-roll a Hit roll of 1.' } }
-  const card = { id: 'necrons', datasheets: [{ id: 'a1-b2', abilities: { primarch: [{ name: { en: 'Triarch Abilities' }, abilities: [ability] }] } }] }
+  const card = {
+    id: 'necrons',
+    datasheets: [{ id: 'a1-b2', abilities: { primarch: [{ name: { en: 'Triarch Abilities' }, abilities: [ability] }] } }],
+  }
   expect(gdcRuleRecords(card).flatMap((record) => record.keys)).toContain('gdc.unit.ability.a1.b2.phaeron.of.the.stars.aura')
 })

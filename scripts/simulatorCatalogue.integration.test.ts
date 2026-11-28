@@ -205,7 +205,10 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   })
 
   it("offers a Sanguinary Priest's Blood Chalice though Chaplain Grimaldus prints its words for a rule VS Data reads apart", () => {
-    const priested = side('Blood Angels', [{ name: 'Intercessor Squad', from: 'Space Marines' }, { name: 'Sanguinary Priest', attachedTo: 0 }])
+    const priested = side('Blood Angels', [
+      { name: 'Intercessor Squad', from: 'Space Marines' },
+      { name: 'Sanguinary Priest', attachedTo: 0 },
+    ])
     expect(offered(priested, marines(), 'defender')).toContain('Blood Chalice')
   })
 
