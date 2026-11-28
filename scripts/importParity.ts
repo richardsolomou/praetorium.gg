@@ -4,7 +4,7 @@
  *
  * Units are recorded as VS Data reads them, so a list reads the same whether a unit came in as a catalogue pick or a VS
  * pick: its VS Data unit through `catalogue/legacy-ids/units.json` (else `bsdata:<entry>`), its Enhancement and
- * allegiance by VS Data ID, and its wargear in VS Data's spellings through the reviewed ones. A VS pick's own
+ * allegiance by VS Data ID, and its wargear in VS Data's spellings through the reviewed ones, its allegiance left out. A VS pick's own
  * selections are recorded beside it, and only counted by `compare`.
  *
  *   pnpm exec tsx scripts/importParity.ts record <out.json> [directory ...]
@@ -22,6 +22,7 @@ import type { RosterPick, VsPick } from '../src/core/roster'
 import { wargearKey } from '../src/core/wargearNames'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { vsDefinitionsOf, vsUnitIdOf } from '../src/shared/vsDataBuild'
+import { same } from '../src/shared/vsDataModelNames'
 import { inBook } from '../src/shared/vsDataPoints'
 import { ARTICLE, vsSpelling } from '../src/shared/wargearSpellings'
 import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
@@ -111,10 +112,11 @@ if (command === 'record') {
                 ? choice.options.filter((option) => option.count > 0).map((option) => enhancementId(option.id) ?? option.name)
                 : [],
             )
+        const named = allegiance && same(allegianceName(allegiance) ?? allegiance)
         const wargear = new Map<string, number>()
         for (const piece of unit.wargear) {
-          // A VS pick's roster line names its allegiance beside its wargear.
-          if (pick.vs && piece.name === allegianceName(allegiance)) continue
+          // An allegiance is no wargear, though a VS pick's roster line names it beside its wargear, as BSData names a mark.
+          if (named && same(piece.name).endsWith(named)) continue
           const key = pick.vs ? wargearKey(piece.name).replace(ARTICLE, '') : vsSpelling(piece.name, vsKeys)
           wargear.set(key, (wargear.get(key) ?? 0) + piece.count)
         }
