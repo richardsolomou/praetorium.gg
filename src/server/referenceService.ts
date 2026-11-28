@@ -189,7 +189,11 @@ export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   return (
     factions.find((candidate) => [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted)) ??
     factions.find((candidate) => current(candidate) && joinKey(candidate.name.split(' · ')[0]!) === key) ??
-    (playing ? factions.find((candidate) => candidate.id === playing.id) : undefined)
+    // A current rules version's book is listed under its book's ID in the current corpus.
+    (playing
+      ? (factions.find((candidate) => candidate.id === playing.id) ??
+        factions.find((candidate) => current(candidate) && bookId(candidate.id) === bookId(playing.id)))
+      : undefined)
   )
 }
 
