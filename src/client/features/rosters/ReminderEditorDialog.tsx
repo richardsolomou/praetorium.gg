@@ -101,8 +101,8 @@ export function ReminderEditorDialog({
 
           <DialogBody>
             {draft.description ? (
-              <div className="max-h-40 overflow-y-auto rounded-lg border border-edge bg-sunken p-3 text-xs">
-                <RuleText text={draft.description} rules={[]} />
+              <div className="rounded-lg border border-edge bg-sunken p-3">
+                <RuleText text={draft.description} rules={[]} className="mt-0" />
               </div>
             ) : null}
 
