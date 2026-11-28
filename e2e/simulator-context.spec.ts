@@ -255,9 +255,13 @@ for (const { context, companion, width, deadline } of editors) {
     const priorLabels = await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))
     const gate = await holdLoadoutReplies(page, companion ? 1 : 0, deadline)
     try {
-      const next = companion ? 'Voidscythe' : 'Tesla carbine'
-      await loadout.getByRole('button', { name: `Select ${next}`, exact: true }).click()
-      await expect(loadout.getByRole('button', { name: `Select ${next}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      // VS Data offers the Overlord's Voidscythe as a count and the Immortals' Tesla carbines as one choice for the squad.
+      const swap = companion
+        ? { take: 'More Voidscythe', taken: loadout.getByLabel('Voidscythe count', { exact: true }), undo: 'Fewer Voidscythe' }
+        : { take: 'Select Tesla carbine', taken: null, undo: 'Remove Tesla carbine' }
+      await loadout.getByRole('button', { name: swap.take, exact: true }).click()
+      if (swap.taken) await expect(swap.taken).toHaveText('1')
+      else await expect(loadout.getByRole('button', { name: swap.undo, exact: true })).toBeVisible()
       await gate.waitForReply()
       const alert = loadout.getByRole('alert').filter({ hasText: 'The loadout comparison took too long. Try again.' })
       await expect(alert).toBeVisible({ timeout: 45_000 })
@@ -275,10 +279,10 @@ for (const { context, companion, width, deadline } of editors) {
       await expect(odds.first()).toBeVisible()
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
 
-      const current = companion ? 'Staff of light' : 'Gauss blaster'
       const beforeEdit = await gate.replies()
-      await loadout.getByRole('button', { name: `Select ${current}`, exact: true }).click()
-      await expect(loadout.getByRole('button', { name: `Select ${current}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await loadout.getByRole('button', { name: swap.undo, exact: true }).click()
+      if (swap.taken) await expect(swap.taken).toHaveText('0')
+      else await expect(loadout.getByRole('button', { name: swap.take, exact: true })).toBeVisible()
       await expect.poll(gate.replies).toBeGreaterThan(beforeEdit)
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
       const currentLabels = await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))
