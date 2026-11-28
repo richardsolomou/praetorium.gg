@@ -1031,7 +1031,10 @@ function grantedAbilitiesInAttachedUnit(
   rosterKeywordIds?: readonly (readonly string[])[],
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
-  const found = new Map<string, { name: string; models?: string; condition?: string; sources: Set<string>; ids: Set<string> }>()
+  const found = new Map<
+    string,
+    { name: string; models?: string; condition?: string; conditional?: true; sources: Set<string>; ids: Set<string> }
+  >()
   const keywordsBySelection = companionIndexes.length
     ? (rosterKeywordIds ?? keywordIdsBySelection(selections, index, { primaryCatalogueId: catalogueId }))
     : []
@@ -1088,14 +1091,12 @@ function grantedAbilitiesInAttachedUnit(
               if (grant.recipient === 'bearer' && origin !== 'self') continue
               if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
               if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue
-              // VS Data states no words for a further condition, so the chip names the rule whose summary gives it.
-              const condition =
-                [grant.condition, grant.conditional && `while ${profile.name} applies`].filter(Boolean).join(' ') || undefined
-              const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}:${condition?.toLowerCase() ?? ''}`
+              const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}:${grant.condition?.toLowerCase() ?? ''}:${grant.conditional ?? ''}`
               const granted = found.get(key) ?? {
-                name: condition && !grant.name.endsWith('*') ? `${grant.name}*` : grant.name,
+                name: grant.condition && !grant.name.endsWith('*') ? `${grant.name}*` : grant.name,
                 models: grant.models,
-                condition,
+                condition: grant.condition,
+                conditional: grant.conditional,
                 sources: new Set(),
                 ids: new Set(),
               }
@@ -1110,15 +1111,21 @@ function grantedAbilitiesInAttachedUnit(
   }
   collect([unitSelectionIndex], 'self')
   collect(companionIndexes, 'companion')
-  return [...found.values()].map(({ name, models, condition, sources, ids }) => ({
-    id: `granted:${[...ids].toSorted().join(':')}`,
-    name,
-    source: [...sources].toSorted().join(', '),
-    description: null,
-    kind: 'core',
-    ...(models ? { models } : {}),
-    ...(condition ? { condition } : {}),
-  }))
+  return [...found.values()].map(({ name, models, condition, conditional, sources, ids }) => {
+    const rules = [...sources].toSorted()
+    // VS Data types no words for a further condition, so the chip names the rules whose summaries give it. The name stays
+    // as granted, since the simulator reads a Feel No Pain by it.
+    const stated = [condition, conditional && `while ${rules.join(' or ')} applies`].filter(Boolean).join(' ')
+    return {
+      id: `granted:${[...ids].toSorted().join(':')}`,
+      name,
+      source: rules.join(', '),
+      description: null,
+      kind: 'core' as const,
+      ...(models ? { models } : {}),
+      ...(stated ? { condition: stated } : {}),
+    }
+  })
 }
 
 function linkedAbilityNames(
@@ -1339,13 +1346,15 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
 function withGrantsOverLinks(own: Datasheet['abilities'], granted: Datasheet['abilities']): Datasheet['abilities'] {
   const name = (ability: Datasheet['abilities'][number]) => ability.name.trim().toLowerCase()
   const linked = new Map(own.filter((ability) => ability.kind === 'core' && !ability.source).map((ability) => [name(ability), ability]))
-  const replaced = new Set(granted.flatMap((ability) => (ability.condition && linked.has(name(ability)) ? [name(ability)] : [])))
+  const replaced = new Set(
+    granted.flatMap((ability) => (name(ability).endsWith('*') && linked.has(name(ability)) ? [name(ability)] : [])),
+  )
   return [
     ...own.filter((ability) => ability.kind !== 'core' || ability.source || !replaced.has(name(ability))),
     ...granted.flatMap((ability) => {
       if (replaced.has(name(ability))) return [{ ...ability, description: ability.description ?? linked.get(name(ability))!.description }]
       // A grant of a core ability every model links already, as Tempormortis's Fights First to a Judiciar, adds nothing.
-      return linked.has(name(ability).replace(/\*$/, '')) && !ability.models ? [] : [ability]
+      return linked.has(name(ability)) && !ability.models ? [] : [ability]
     }),
   ]
 }

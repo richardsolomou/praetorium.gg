@@ -11,6 +11,10 @@ export type KeywordRule = { name: string; description: string }
 export const KEYWORD_TAG_CLASS =
   'chip inline-flex min-h-6 items-center justify-center border-parchment/50 bg-parchment/10 py-0.5 leading-none text-parchment'
 
+/** A granted ability's name with the asterisk its condition gives it. */
+export const conditionalName = (name: string, condition: string | undefined) =>
+  condition ? `${name.replace(/\*$/, '')}*` : name
+
 export function Keyword({
   name,
   rules,
@@ -24,12 +28,13 @@ export function Keyword({
   className?: string
   /** What put this keyword here, when something in the list did rather than the datasheet. */
   note?: string
-  /** The attacks a granted ability is limited to, which the asterisk on its name stands for. */
+  /** When a granted ability holds, which an asterisk on its name stands for. */
   condition?: string
   /** Whether an added rule uses the stronger derived-value colour. */
   highlightNote?: boolean
 }) {
   const reference = condition ? name.replace(/\*$/, '') : name
+  const shown = conditionalName(name, condition)
   const rule = rules
     .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
@@ -47,11 +52,11 @@ export function Keyword({
   return (
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-parchment'} hover:text-bone`}
-      title={rule?.name ?? name}
+      title={rule?.name ?? shown}
       body={condition || explained ? body : undefined}
       note={note}
     >
-      {name}
+      {shown}
     </HoverTooltip>
   )
 }

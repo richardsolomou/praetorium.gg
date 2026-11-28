@@ -7,7 +7,7 @@ import {
 } from '../../../core/datasheetStructure'
 import { RuleText } from '../../components/RuleText'
 import { InvulnerableSaves, useInvulnerableSaves } from '../../components/InvulnerableSaves'
-import { unitKeywordsText } from '../../components/Keyword'
+import { conditionalName, unitKeywordsText } from '../../components/Keyword'
 import { ruleProfileSections, weaponProfileGroups, weaponShapedProfile } from '../../datasheet'
 
 type Profile = Datasheet['profiles'][number]
@@ -90,7 +90,13 @@ export function RosterPrintDatasheet({ sheet }: { sheet: Datasheet }) {
           {shared.length ? (
             <div>
               <dt>Shared abilities</dt>
-              <dd>{shared.map((ability) => ability.name).join(', ')}</dd>
+              <dd>
+                {shared
+                  .map((ability) =>
+                    ability.condition ? `${conditionalName(ability.name, ability.condition)} (only ${ability.condition})` : ability.name,
+                  )
+                  .join(', ')}
+              </dd>
             </div>
           ) : null}
         </dl>
