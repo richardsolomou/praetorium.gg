@@ -1,4 +1,4 @@
-import { detachmentLimit, detachmentPointBudget, enforces, type FormatRuleId } from '../../core/battle'
+import { type BattleSize, detachmentLimit, detachmentPointBudget, enforces, type FormatRuleId } from '../../core/battle'
 import { routeSlug } from '../../core/slug'
 import { countLabel } from '../text'
 
@@ -91,13 +91,15 @@ export function detachmentRefusal(
   selected: readonly (OfferedDetachment & { points?: number | null })[],
   limit: number,
   waived: readonly FormatRuleId[] = [],
+  /** The battle sizes the list's rules version records. */
+  sizes?: readonly BattleSize[],
 ): DetachmentRefusal | null {
   const most = detachmentLimit(limit, waived)
   if (selected.length >= most) return { kind: 'count', reason: `An army can include at most ${countLabel(most, 'detachment')}.` }
   // A detachment the army can never add explains that first: waiving detachment points would not let it in.
   const conflict = detachmentConflict(detachment, selected)
   if (conflict) return { kind: 'conflict', reason: conflict }
-  const allowance = detachmentPointBudget(limit)
+  const allowance = detachmentPointBudget(limit, sizes)
   if (allowance !== null && detachment.points != null && enforces(waived, 'detachment-points')) {
     const left = allowance - selected.reduce((total, other) => total + (other.points ?? 0), 0)
     if (detachment.points > left)
