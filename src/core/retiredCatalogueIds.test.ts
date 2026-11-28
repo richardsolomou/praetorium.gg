@@ -50,6 +50,14 @@ describe('retired catalogue ids', () => {
     expect(picksForRulesVersion([{ entryId: calgar.retired, vs }], ultramarines.current)[0]?.vs).toEqual(vs)
   })
 
+  it('keeps the retained rules version a pick by VS Data IDs was saved in when its list converts', () => {
+    const vs = { models: { 'space-marines.marneus-calgar.marneus-calgar': 1 }, options: {} }
+    expect(
+      picksForRulesVersion([{ entryId: calgar.retired, vs }], ultramarines.current, `legacy-profiles~${ultramarines.retired}`)[0]
+        ?.rulesVersion,
+    ).toBe('legacy-profiles')
+  })
+
   it('preserves original identities when selecting a retained version', () => {
     expect(picksForRulesVersion([{ entryId: calgar.retired }], `legacy-profiles~${ultramarines.retired}`)).toEqual([
       { entryId: calgar.retired },
