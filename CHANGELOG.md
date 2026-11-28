@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.280.14 (2026-11-28)
+
+### Patch Changes
+
+- 7266060: [rosters] A Chaos Daemons list with the Shadow Legion Detachment is no longer offered the Daemon characters that Detachment can't take.
+- 7266060: [rosters] A Titanicus Traitoris army can only take Chaos Knights and Unaligned Forces allies.
+- 7266060: [rosters] A list holding a Detachment from another army is told about every unit its army can't take, as the official app's data has it.
+
 ## 0.280.13 (2026-11-28)
 
 ### Patch Changes
