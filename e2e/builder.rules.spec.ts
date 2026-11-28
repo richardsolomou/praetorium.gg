@@ -524,8 +524,13 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
 
   const setup = await openRosterSetup(page)
   await chooseOption(page, 'Battle size', /^Incursion/)
-  await expect(setup.getByText('3/2 DP used')).toBeVisible()
-  await expect(setup.getByRole('alert')).toContainText('This detachment costs 3 DP')
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true, pressed: true }).click()
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true }).click()
+  await expect(setup.getByText('3 DP used', { exact: true })).toBeVisible()
+  await expect(setup.getByRole('button', { name: 'Review changes' })).toBeEnabled()
+  await expect(setup.getByRole('button', { name: 'Select Cryptek Conclave, unavailable' })).toHaveAccessibleDescription(
+    'Needs 2 DP, 0 left',
+  )
   await chooseOption(page, 'Battle size', /^Strike Force/)
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()

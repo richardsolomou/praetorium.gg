@@ -18,7 +18,7 @@ You can also start with **Start a roster** on a faction or detachment page, or *
 
 ## Detachment points
 
-The counter shows **DP used** against your allowance: 2 DP at Incursion and 3 DP at Strike Force and Onslaught. It covers every list, a single detachment included, so a 3 DP detachment is too much for Incursion.
+You can take one detachment at any DP cost, including a 3 DP detachment at Incursion. When you combine detachments, their total can be up to 2 DP at Incursion or 3 DP at Strike Force and Onslaught. At Incursion, that means two 1 DP detachments fit and a 2 DP detachment already uses the full allowance. The **DP used** counter tracks your selection.
 
 ## Your own points limit
 

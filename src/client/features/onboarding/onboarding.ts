@@ -349,7 +349,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Pick a detachment',
     description:
-      'Each detachment costs DP and brings rules, enhancements, and stratagems. Keep DP used within your budget. Its icon opens the reference before you commit.',
+      'Each detachment brings rules, enhancements, and stratagems. Take one at any DP cost, or combine detachments within your DP budget. Its icon opens the reference.',
     placement: 'right',
     next: 'roster-create',
   },

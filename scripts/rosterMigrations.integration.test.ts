@@ -130,8 +130,7 @@ it.skipIf(!fs.existsSync(directory))(
     }).toEqual({
       points: 1000,
       errors: [],
-      // The list's lone 3 DP detachment is over Incursion's allowance, as the app counts it.
-      detachmentError: 'This detachment costs 3 DP; detachments at this battle size may cost at most 2 DP.',
+      detachmentError: null,
       unavailable: [],
       enhancements: ['Lord of the Ravenwing'],
       knives: 2,

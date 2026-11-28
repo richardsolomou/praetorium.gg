@@ -778,7 +778,7 @@ describe('force disposition', () => {
       ],
       detachmentPointsSpent: 4,
       detachmentPointsOver: true,
-      detachmentError: 'This combination costs 4 DP; detachments at this battle size may cost at most 3 DP.',
+      detachmentError: 'This combination costs 4 DP. Multiple detachments can cost up to 3 DP total.',
       disposition: 'priority-assets',
       dispositions: ['priority-assets'],
     })
