@@ -55,7 +55,7 @@ export const findImportableRosters = createServerFn({ method: 'POST' })
         }
       }
       // Entry ids are the same in every rules version, so the names BSData gave them in the current one, frozen, name them
-      // all; the catalogue names one added since.
+      // all, the newest last; the catalogue names one added since.
       const known = (id: string) => {
         const name = (legacyImportIds.datasheetNames.get(id) ?? legacyImportIds.entryNames.get(id))?.at(-1)
         if (name !== undefined) return { name, model: legacyModels.has(id) }

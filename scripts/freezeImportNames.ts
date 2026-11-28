@@ -59,7 +59,8 @@ const folder = path.join(import.meta.dirname, '../catalogue/legacy-ids')
 const sorted = <T>(record: Record<string, T>) =>
   Object.fromEntries(Object.entries(record).toSorted(([left], [right]) => (left < right ? -1 : 1)))
 const withAdded = (frozen: Record<string, string[]>, names: Map<string, Set<string>>) => {
-  for (const [id, spelled] of names) frozen[id] = [...new Set([...(frozen[id] ?? []), ...spelled])]
+  // Every name stays; the snapshot's own come last, so the newest spelling is the one a reader takes first.
+  for (const [id, spelled] of names) frozen[id] = [...(frozen[id] ?? []).filter((name) => !spelled.has(name)), ...spelled]
   return sorted(frozen)
 }
 const write = (file: string, content: object, count: number, section: Section) => {

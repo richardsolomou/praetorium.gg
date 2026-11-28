@@ -1,5 +1,5 @@
 import type { RosterPick } from '../core/roster'
-import { removedNamesOf, unmatchedDetachmentReason } from '../shared/importMismatch'
+import { removedNamesOf, unmatchedDetachmentReason, unplacedChoiceReason } from '../shared/importMismatch'
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
@@ -1675,6 +1675,14 @@ Exported with BattleBase, Data Version: v20260812`,
     expect(imported.unplaced).toEqual([
       { unit: 'Tomb Blades', choices: [{ name: 'Tesla carbine', reason: 'this datasheet does not offer it' }] },
     ])
+  })
+
+  it('knows wargear the faction has by the name BSData gave it, frozen, over the catalogue’s', () => {
+    const names = { ...NO_IMPORT_NAMES, entryNames: new Map([['hull-lascannon', ['Hull lascannon']]]) }
+
+    expect(unplacedChoiceReason('Hull lascannon', { loaded, catalogueId: 'necrons', detachmentIds: [], names })).toBe(
+      'this datasheet does not offer it',
+    )
   })
 
   it('names the faction a datasheet belongs to instead', () => {
