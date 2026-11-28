@@ -294,6 +294,13 @@
     ]
   },
   {
+    "reason": "A catalogue unit is offered only the Enhancements VS Data's checker lets it take, which the list check already refused it: Kharseth is an EPIC HERO, and neither Armoured Warhost Enhancement's eligibility admits one.",
+    "entries": [
+      "aeldari / Kharseth roster choices: Armoured Warhost Enhancements: Guiding Presence",
+      "aeldari / Kharseth roster choices: Armoured Warhost Enhancements: Spirit Stone of Raelyth"
+    ]
+  },
+  {
     "reason": "Composition lines of the same model name are combined into one, so a unit that printed several lines for one model now prints one: fewer lines, the same models.",
     "entries": [
       "genestealer-cults / Cadian Command Squad: composition 5 → 2",
