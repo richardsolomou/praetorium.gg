@@ -4,7 +4,7 @@ import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { steppedSizes } from '../core/vsDataBuild'
-import { keywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
+import { countedKeywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
@@ -144,7 +144,10 @@ export function vsPickPrices(
   )
 }
 
-/** A VS pick's keywords in its list: its datasheet's and each conditional one the list or its allegiance gives it. */
+/**
+ * A VS pick's keywords in its list: its datasheet's, each conditional one the list or its allegiance gives it, and those of
+ * each model it fields, since a unit has all its models' keywords, as a squad led by a Character is one.
+ */
 export function vsPickKeywords(
   loaded: LoadedCatalogue,
   list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
@@ -155,7 +158,7 @@ export function vsPickKeywords(
   const built = units[position]?.vs
   if (!definitions || !built || !definitions.get('unit', built.unit.unit)) return null
   // VS Data writes keywords in capitals; a list shows them as the catalogue does, each word capitalised.
-  return keywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map((keyword) =>
+  return countedKeywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map((keyword) =>
     keyword.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase()),
   )
 }

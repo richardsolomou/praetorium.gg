@@ -24,6 +24,7 @@ export const SPELLINGS: Record<string, string | string[]> = {
   'exo-armour-grenade-launcher': 'exoarmour-grenade-launcher',
   'fires-of-tzeentch': 'fire-of-tzeentch',
   'godhammer-lascannon': 'godhammer-lascannons',
+  'goliath-wheels': 'armoured-hull',
   'grav-chute': 'grav-chutes',
   hellspear: 'helspear',
   'hellstrike-missiles': 'hellstrike-missile',
@@ -33,12 +34,15 @@ export const SPELLINGS: Record<string, string | string[]> = {
   'laservolley-cannon': 'laser-volley-cannon',
   'lashing-tongues': 'lashing-tongue',
   'lastrum-storm-bolters': 'lastrum-storm-bolter',
+  'leaders-bio-weapons': 'leaders-cult-weapons',
   'macharius-twin-battlecannon': 'macharius-twin-battle-cannon',
   'magma-cutter': 'magma-cutters',
+  'massive-scything-talons': 'massive-scything-sickle-talons',
   'master-crafted-power-weapon': 'master-crafted-power-sword',
   'multiple-rocket-pods': 'multiple-rocket-pod',
   'novitiate-autogun': 'autogun',
   'nuncio-aquila': 'nuncio-acquila',
+  'outcasts-blades': 'outcasts-weapons',
   'pan-spectral-scanner': 'panspectral-scanner',
   'preceptor-multi-laser': 'questoris-multi-laser',
   'relic-great-axe': 'relic-greataxe',
@@ -66,7 +70,10 @@ export const SPELLINGS: Record<string, string | string[]> = {
 export const ARTICLE = /^the-/
 
 /** A BSData name as VS Data spells it, where the unit's VS Data wargear lacks BSData's spelling. */
-export const vsSpelling = (name: string, vsKeys: ReadonlySet<string>) => {
-  const key = wargearKey(name).replace(ARTICLE, '')
+export const vsSpelling = (name: string, vsKeys: ReadonlySet<string>) => vsKeySpelling(wargearKey(name), vsKeys)
+
+/** A BSData `wargearKey` as VS Data spells it, as `vsSpelling` reads a name. */
+export function vsKeySpelling(bsdataKey: string, vsKeys: ReadonlySet<string>) {
+  const key = bsdataKey.replace(ARTICLE, '')
   return vsKeys.has(key) ? key : ([SPELLINGS[key] ?? []].flat().find((spelling) => vsKeys.has(spelling)) ?? key)
 }
