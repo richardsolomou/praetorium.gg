@@ -208,7 +208,13 @@ export function Loadout({
             <div className="space-y-1.5">
               {profile ? <UnitProfile profile={profile} invulnerable={false} /> : null}
               {profile ? <DatasheetSaves sheet={{ id: unit.entryId, profiles: [profile] }} look="panel" /> : null}
-              <BattleChoices choices={battle.choices} chosen={battle.chosen} onChoose={battle.choose} rules={rules} />
+              <BattleChoices
+                choices={battle.choices}
+                chosen={battle.chosen}
+                onChoose={battle.choose}
+                rules={rules}
+                owners={{ abilities, detachments: ruleOwners }}
+              />
             </div>
             {viewed ? (
               <div className="space-y-6">
