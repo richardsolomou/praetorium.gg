@@ -366,6 +366,8 @@ export function SpecialChoice({
             ) : owner ? (
               <SummaryByName name={option.name} className={PROSE} />
             ) : null
+          const reminder =
+            reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} rule={text} /> : null
           return (
             <ChoiceOption
               key={option.id}
@@ -375,7 +377,7 @@ export function SpecialChoice({
               disabled={controlsDisabled}
               onSelect={editable ? () => choose(option.id) : undefined}
               action={
-                reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} /> : undefined
+                reminder && owner ? <DatasheetUnit.Provider value={owner}>{reminder}</DatasheetUnit.Provider> : (reminder ?? undefined)
               }
             >
               {text ? (

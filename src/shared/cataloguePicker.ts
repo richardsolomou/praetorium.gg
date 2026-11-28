@@ -20,6 +20,7 @@ import { searchDatasheetEntries } from '../core/datasheetSearch'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
+import { vsDataDetachmentsOffering } from './vsDataLegality'
 import { alliedSource, vsDataOffer, vsDataRefused } from './vsDataOffers'
 import { vsDataCheck, vsDataChecks } from './vsDataLegality'
 import { countedKeywordsOf, type VsRoster, vsUnitAllowance } from '../core/vsDataRoster'
@@ -162,11 +163,32 @@ export function listedDatasheets(
 const listedUnitIds = new WeakMap<LoadedCatalogue, Map<string, Set<string>>>()
 const detachmentOffers = new WeakMap<LoadedCatalogue, Map<string, string[] | null>>()
 
-/** The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it. */
-export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
+/**
+ * The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it: the ones
+ * VS Data's ally entries name where VS Data places the list and reads the datasheet, else the catalogue's visibility rules.
+ */
+export function detachmentsUnlocking(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  taken: { ids: readonly string[]; selections: readonly Selection[] },
+) {
   const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return null
+  const offering = vsDataDetachmentsOffering(
+    loaded.vsRoster,
+    { catalogueId, detachmentIds: taken.ids },
+    { entryId, name: entry.name ?? '' },
+  )
+  // Where VS Data offers the unit, the catalogue's visibility rules may still hide it, so an ally entry that names no
+  // Detachment never opens the picker on its own.
+  if (offering)
+    return (loaded.detachments.get(catalogueId)?.options ?? []).flatMap((option) =>
+      offering.includes(loaded.vsRoster?.detachments[option.id] ?? '') ? [option.name] : [],
+    )
   const options = { primaryCatalogueId: catalogueId, mustering: true }
-  if (!entry || !hiddenByRules(entry, loaded.index, { ...options, roster })) return null
+  const roster = taken.selections
+  if (!hiddenByRules(entry, loaded.index, { ...options, roster })) return null
   const listed = cachedIn(
     listedUnitIds,
     loaded,
@@ -253,7 +275,14 @@ function* listUnits(
   )
 
   for (const { id, entry, name } of listedDatasheets(loaded, catalogueId, { factionCards: included, nonMatchedPlay })) {
-    if (detachments.chosen.length && detachmentsUnlocking(loaded, catalogueId, id, detachments.selections)) continue
+    if (
+      detachments.chosen.length &&
+      detachmentsUnlocking(loaded, catalogueId, id, {
+        ids: detachments.chosen.map((option) => option.id),
+        selections: detachments.selections,
+      })
+    )
+      continue
     const target = targetOf(entry, loaded.index.definitions)
     if (refused.has(id)) continue
     const listed = detachmentUnitFacts(loaded, catalogueId, id, detachments.selections)

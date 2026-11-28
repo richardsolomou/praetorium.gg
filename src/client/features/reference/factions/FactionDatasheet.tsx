@@ -13,6 +13,7 @@ import {
   NON_STATLINE_KINDS,
   statlineValues,
 } from '../../../../core/datasheetStructure'
+import { costConditions } from '../../../../core/datasheet'
 import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile } from '../../../../contracts/catalogue'
 import {
   abilitySections,
@@ -347,10 +348,8 @@ function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogue
                   <div key={JSON.stringify(cost)} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
                     <span className="min-w-0">
                       {cost.models} {cost.models === '1' ? 'model' : 'models'}
-                      {[cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).length ? (
-                        <span className="ml-1 text-xs text-dim">
-                          · {[cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).join(' · ')}
-                        </span>
+                      {costConditions(cost).length ? (
+                        <span className="ml-1 text-xs text-dim">· {costConditions(cost).join(' · ')}</span>
                       ) : null}
                     </span>
                     <span className="readout font-semibold">{cost.cost} pts</span>
