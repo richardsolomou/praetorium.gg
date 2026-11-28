@@ -16,6 +16,7 @@ import { heldWargear } from '../shared/heldWargear'
 import { deploymentRules } from '../shared/rosterDeployment'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
 import { descriptionKey } from '../shared/datacards'
+import { vsRosterData } from '../shared/vsDataLegality'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { loadoutPicks } from '../core/rosterCopies'
 import { bookOf, categories, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
@@ -279,6 +280,40 @@ describe('the enhancements an army may hold', () => {
 
   it('is four in a Strike Force army', () => {
     expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
+  })
+
+  it('is the catalogue’s four at a battle size VS Data does not record, as King of the Colosseum', () => {
+    const size = (name: string, points: number, enhancements: number) => ({ name, data: { formatVersion: 2, points, enhancements } })
+    const vsRoster = vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update: 'test' },
+        unavailable: [],
+        points: [],
+        definitions: {
+          faction: { host: { name: 'Host', data: { formatVersion: 2 } } },
+          detachment: { 'host.guard': { name: 'Guard', data: { formatVersion: 2, faction: 'host' } } },
+          unit: { 'host.lord': { name: 'Lord one', data: { formatVersion: 2, faction: 'host', keywords: ['CHARACTER'], sizes: [1] } } },
+          'battle-size': { incursion: size('Incursion', 1000, 2), 'strike-force': size('Strike Force', 2000, 4) },
+        },
+      },
+      { books: { cat: 'host' }, detachments: {}, units: { 'lord-0': 'host.lord' }, enhancements: {} },
+      null,
+      (id) => (id === 'lord-0' ? 'Lord one' : undefined),
+    )
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 600,
+        units: Array.from({ length: 5 }, (_, at) => ({ entryId: `lord-${at}` })),
+      },
+      { ...loaded, vsRoster },
+      rulesWithout,
+    )
+    expect(priced?.errors.map((error) => error.message)).toContain('allow at most 4 in an army, has 5')
   })
 })
 
