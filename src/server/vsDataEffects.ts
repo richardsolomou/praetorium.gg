@@ -82,11 +82,14 @@ export function vsDataTextFacts(
     return cores.size === 1 && core && effects[core] ? core : null
   }
   // The records a catalogue rule or profile is, on the datasheet it is held within where the frozen map files a profile
-  // several datasheets share under each.
-  const recordsOf = (holder: { id: string; within: readonly string[] }) =>
-    [...holder.within.map((sheet) => vsDataRecordOfBsdata(records, holder.id, sheet)), vsDataRecordOfBsdata(records, holder.id)].flatMap(
-      (key) => (key && RULE_RECORD.test(key) ? [key] : []),
-    )
+  // several datasheets share under each, and the id's own record unless that datasheet is frozen as having none.
+  const recordsOf = (holder: { id: string; within: readonly string[] }) => {
+    const none = holder.within.some((sheet) => records.bySheet[`${sheet}/${holder.id}`] === null)
+    return [
+      ...holder.within.map((sheet) => vsDataRecordOfBsdata(records, holder.id, sheet)),
+      ...(none ? [] : [vsDataRecordOfBsdata(records, holder.id)]),
+    ].flatMap((key) => (key && RULE_RECORD.test(key) ? [key] : []))
+  }
   const joinOf = (factsKey: string): VsDataJoin => {
     const keys = factsKey.startsWith('+') ? factsKey.slice(1).split('+') : [factsKey]
     const tokens = keys.map((key) => ({ transform: key.slice(0, key.indexOf(':')), hash: key.slice(key.indexOf(':') + 1) }))
