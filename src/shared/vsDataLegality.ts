@@ -448,11 +448,11 @@ export function vsDataChecks(
   const army = faction ? definitions.get('faction', faction)?.data : undefined
   const own = new Set([faction, army?.parent])
   const allies = army?.allies ?? []
-  const left =
+  const left = () =>
     allies.some((ally) => ally.units.some((allied) => definitions.get('unit', allied)?.data.faction === filed.faction)) &&
     (alliedBy(definitions).get(id) ?? []).some((other) => other !== faction)
   const unnamed =
-    ((filed.legends || isNonMatchedPlayName(unit.name)) && !left) ||
+    ((filed.legends || isNonMatchedPlayName(unit.name)) && !left()) ||
     Boolean(definitions.get('faction', filed.faction)?.data.withoutDetachments)
   const offered = own.has(filed.faction) || allies.some((ally) => ally.units.includes(id))
   return unnamed && !offered ? undefined : id
