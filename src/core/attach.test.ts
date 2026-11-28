@@ -1255,6 +1255,10 @@ describe('a joiner VS Data has a record for', () => {
     expect(captain({})).toEqual(['TACTICAL SQUAD', 'Intercessor Squad'])
   })
 
+  it("keeps the catalogue's reading of the hosts VS Data is not settled on for a joiner", () => {
+    expect(captain({ catalogueHosts: ['Assault Squad'] })).toEqual(['TACTICAL SQUAD', 'ASSAULT SQUAD', 'Intercessor Squad'])
+  })
+
   it("keeps the catalogue's hosts for a joiner whose VS Data hosts are not settled", () => {
     expect(captain({ catalogueHosts: true })).toEqual(['TACTICAL SQUAD', 'ASSAULT SQUAD', 'Intercessor Squad'])
   })
