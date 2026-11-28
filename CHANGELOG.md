@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.280.20 (2026-11-28)
+
+### Patch Changes
+
+- 3f8f525: [battles] Hovering a unit's or Detachment's in-battle rule, such as Martial Ka'tah beside its stances, shows its summary as the datasheet does.
+- 9028872: [battles] Units can embark in an Orion Assault Dropship: 12 Adeptus Custodes Infantry, or a Dreadnought and 6 Adeptus Custodes Infantry.
+- 3f8f525: [simulator] Hovering a unit's own ability or its army rule in the simulator shows the same summary as its datasheet.
+- 9028872: [battles] A Tidewall Shieldline carries up to 22 T'au Empire Infantry models while its Tidewall Defence Platform stands.
+
 ## 0.280.19 (2026-11-28)
 
 ### Patch Changes
