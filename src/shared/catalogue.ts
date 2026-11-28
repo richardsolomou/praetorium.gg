@@ -65,7 +65,8 @@ import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import { vsRecordFactsOf } from './vsDataLegality'
 import { vsDataRecordOfBsdata } from './vsData'
-import { type VsRosterUnit, vsHeldAbilities, vsLinkedAbilities } from '../core/vsDataRoster'
+import { type VsRosterUnit, vsAbilityCarriers, vsHeldAbilities, vsLinkedAbilities } from '../core/vsDataRoster'
+import { plainQuotes } from '../core/text'
 import { compositionLines } from './vsDataUnitLines'
 import { rulesNamed } from './catalogueRules'
 
@@ -464,7 +465,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   const grantedInvulnerableSaves = abilitiesOnly
     ? []
     : context
-      ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
+      ? invulnerableSavesInSelectedUnit(context, loaded)
       : invulnerableSavesOnDatasheet(root, loaded.index)
   const grantedAbilities = context
     ? grantedAbilitiesInAttachedUnit(
@@ -783,7 +784,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     })
     const baseValues = [...values, ...added]
     const characteristicValues =
-      profileType === 'Unit' ? addGrantedInvulnerableSave(baseValues, owner, grantedInvulnerableSaves) : baseValues
+      profileType === 'Unit' ? addGrantedInvulnerableSave(baseValues, owner, grantedInvulnerableSaves, profile.name) : baseValues
     const displayedValues = weapon
       ? addGrantedWeaponAbilities(characteristicValues, profileType, grantedWeaponAbilities)
       : characteristicValues
@@ -989,7 +990,8 @@ const abilitySignature = (ability: Datasheet['abilities'][number]) =>
   JSON.stringify({ id: ability.id, name: ability.name, source: ability.source, description: ability.description, kind: ability.kind })
 
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
-type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
+/** A save on the models whose definitions are `originIds`, or, for one VS Data holds that no profile shows, on its carriers by name. */
+type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[]; models?: readonly string[] }
 
 // The Detachments' rules are read from the catalogue until VS Data links a Detachment to them (richardsolomou/vs-data#233).
 function weaponAbilitiesFromDetachments(
@@ -1217,8 +1219,10 @@ function vsHoldingAt(loaded: LoadedCatalogue, context: DatasheetContext, at: num
     unshown: () =>
       [...held].flatMap((ability) => {
         const facts = shown.has(ability) ? undefined : vsRecordFactsOf(loaded, `ability:${ability}`)
-        return facts ? [{ name: links.names[ability] ?? ability, facts }] : []
+        return facts ? [{ ability, name: links.names[ability] ?? ability, facts }] : []
       }),
+    /** The names of the models carrying the wargear that brings an ability. */
+    carriers: (ability: string) => vsAbilityCarriers(definitions, picked, ability).map((model) => model.name),
   }
 }
 
@@ -1274,17 +1278,21 @@ function weaponAbilitiesInAttachedUnit(context: DatasheetContext, loaded: Loaded
   return [...found.values()]
 }
 
-function invulnerableSavesInSelectedUnit(
-  selections: readonly Selection[],
-  unitSelectionIndex: number | undefined,
-  index: LoadedCatalogue['index'],
-): GrantedInvulnerableSave[] {
+function invulnerableSavesInSelectedUnit(context: DatasheetContext, loaded: LoadedCatalogue): GrantedInvulnerableSave[] {
+  const { selections, unitSelectionIndex } = context
   if (unitSelectionIndex === undefined) return []
-  return invulnerableSavesIn(
+  const { index } = loaded
+  const holding = vsHoldingAt(loaded, context, unitSelectionIndex)
+  const saves = invulnerableSavesIn(
     definitionsInSelections(selections, [unitSelectionIndex], index),
     absentIn(selections, [unitSelectionIndex], index),
     index,
+    holding?.counts,
   )
+  for (const { ability, name, facts } of holding?.unshown() ?? [])
+    if (facts.invulnerableSave)
+      saves.push({ value: facts.invulnerableSave, source: name, originIds: [], models: holding!.carriers(ability) })
+  return saves
 }
 
 /**
@@ -1304,7 +1312,12 @@ function invulnerableSavesOnDatasheet(root: Definition, index: LoadedCatalogue['
   return invulnerableSavesIn([...found.values()], root.absentAbilities, index)
 }
 
-function invulnerableSavesIn(definitions: readonly Definition[], absent: AbsentAbilities, index: LoadedCatalogue['index']) {
+function invulnerableSavesIn(
+  definitions: readonly Definition[],
+  absent: AbsentAbilities,
+  index: LoadedCatalogue['index'],
+  counts: (profileId: string) => boolean = () => true,
+) {
   const found = new Map<string, GrantedInvulnerableSave>()
   for (const definition of definitions) {
     for (const source of definitionAndTarget(definition, index)) {
@@ -1315,7 +1328,7 @@ function invulnerableSavesIn(definitions: readonly Definition[], absent: AbsentA
           description &&
           (invulnerableSaveOf(description, index.textFacts) ??
             (isWrittenInvulnerableSave(profile.name) ? bareValueOf(description, index.textFacts) : null))
-        if (!value) continue
+        if (!value || !counts(profile.id)) continue
         // A save is its own model's alone, by id rather than by its type or keywords, which every model shares.
         const granted = {
           value,
@@ -1351,9 +1364,15 @@ function addGrantedInvulnerableSave(
   values: Datasheet['profiles'][number]['values'],
   owner: readonly string[],
   saves: readonly GrantedInvulnerableSave[],
+  model: string,
 ) {
   if (values.some((value) => value.name === 'InSv')) return values
-  const save = saves.find((candidate) => candidate.originIds.some((id) => owner.includes(id)))
+  // VS Data writes a typographic apostrophe where the catalogue may write a straight one.
+  const save = saves.find(
+    (candidate) =>
+      candidate.originIds.some((id) => owner.includes(id)) ||
+      candidate.models?.some((name) => plainQuotes(name).toLowerCase() === plainQuotes(model).toLowerCase()),
+  )
   if (!save) return values
   // A model's own written save is its characteristic, not one the roster grants, so VS Data's typed save may stand for it.
   if (isWrittenInvulnerableSave(save.source)) return [...values, { name: 'InSv', value: save.value }]
