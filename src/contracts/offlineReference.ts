@@ -29,6 +29,11 @@ export type OfflineConstructionSource = {
   /** The rules version's VS Data stat lines; a download saved before datasheets printed them has none. */
   vsProfiles?: RuntimeData
   rules: RuntimeData
+  /**
+   * The names BSData gave every entry a list can name, frozen by ID for every rules version, which imports read New
+   * Recruit's lists by; a download saved before they had their own part has none, and imports name entries from its catalogue.
+   */
+  importEntryNames?: RuntimeData
 }
 
 /** Each distinct facts once, and every text key by the facts it reads, as many texts share one VS Data record's. */
@@ -61,17 +66,20 @@ export type OfflineConstructionCatalogue = Omit<OfflineConstructionSource, 'rule
 /** The current rules' VS Data construction data, apart so neither it nor the catalogue's nears a part's limit. */
 export type OfflineConstructionVs = Pick<OfflineConstructionSource, 'vsRoster' | 'vsPoints' | 'vsProfiles'>
 export type OfflineConstructionRules = Pick<OfflineConstructionSource, 'revision' | 'rules'>
+/** The frozen entry names imports read, apart from the rules so neither part nears its limit. */
+export type OfflineConstructionImportNames = Pick<OfflineConstructionSource, 'importEntryNames'>
 
 /**
  * The published download as separate gzip JSON parts, so a device stores them compressed and decodes only the parts a
  * page reads. Reference queries outside the core are in `parts` by `referencePart`; construction data has the current
- * rules' catalogue, rules and VS Data apart, and each other rules version on its own, sharing the current rules' data. A
- * download published before VS Data had its own part keeps it in the catalogue's.
+ * rules' catalogue, rules, VS Data and import names apart, and each other rules version on its own, sharing the current
+ * rules' data. A download published before VS Data had its own part keeps it in the catalogue's, and one published before
+ * the import names had theirs has none.
  */
 export type OfflineReferenceVersion = {
   revision: string
   reference: { core: string; search: string; parts: Record<string, string> }
-  construction: { catalogue: string; rules: string; vs?: string; editions: Record<string, string> }
+  construction: { catalogue: string; rules: string; vs?: string; importNames?: string; editions: Record<string, string> }
 }
 export type OfflineAppVersion = { revision: string; css: string; script: string }
 
@@ -130,6 +138,7 @@ export function referenceAssets(version: OfflineReferenceVersion) {
     version.construction.catalogue,
     version.construction.rules,
     ...(version.construction.vs ? [version.construction.vs] : []),
+    ...(version.construction.importNames ? [version.construction.importNames] : []),
     ...Object.values(version.construction.editions),
   ]
 }

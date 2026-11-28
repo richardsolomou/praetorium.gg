@@ -6,6 +6,7 @@ import type { OfflineConstructionBase, OfflineConstructionSource } from '../../c
 import { calculateRosterAssessment } from '../../shared/pricing'
 import { battleRules, constructionRead, loadLocalRules, localConstruction } from './construction'
 import { buildConstruction } from './constructionSource'
+import { NO_IMPORT_NAMES } from '../../shared/importNames'
 import { datacardOf } from '../../shared/datasheetJoin'
 import { datasheetIn } from '../../shared/catalogue'
 import { attachmentErrors } from '../../core/attach'
@@ -361,4 +362,15 @@ it('lets a unit join the hosts VS Data gives it, as the server does', () => {
   )
   const { catalogue } = buildConstruction({ ...saved, vsRoster: packRuntimeData(vsRoster) })
   expect(attachmentErrors([{ entryId: 'lord', attachedTo: 1 }, { entryId: 'squad' }], catalogue.index)).toEqual([])
+})
+
+it('names imported entries from the frozen import names part', () => {
+  const saved = source(80)
+  const entryNames = new Map([['unit', ['Frozen Unit']]])
+  const { rules } = buildConstruction({
+    ...saved,
+    rules: packRuntimeData({ importNames: { ...NO_IMPORT_NAMES } }),
+    importEntryNames: packRuntimeData(entryNames),
+  })
+  expect(rules.importNames?.entryNames).toEqual(entryNames)
 })
