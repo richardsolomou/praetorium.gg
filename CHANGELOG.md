@@ -1,5 +1,34 @@
 # praetorium
 
+## 0.280.36 (2026-11-28)
+
+### Patch Changes
+
+- 6804576: [rosters] A Crucible Champion of the Chapter or Librarius Adept no longer leads Chaplain Grimaldus, and a Crucible Node or Prime Organism no longer leads Raveners.
+- 6804576: [rosters] On earlier rules versions, characters no longer join units their datasheets do not list, such as bikers with Ravenwing Black Knights, Belial with a Terminator Assault Squad and Captain Titus with Wardens of Ultramar.
+- 6804576: [rosters] Space Marine characters no longer lead the Imperial Agents' Legends Fortis, Spectrus and Indomitor Kill Teams or Deathwatch Terminator Squad, and the Watch Master, Watch Captain Artemis, Inquisitor Eisenhorn and Inquisitor in Terminator Armour no longer lead the codex Deathwatch Kill Teams or Deathwatch Terminator Squad.
+- 6804576: [rosters] A Lieutenant, Ancient, Apothecary, Ancient in Terminator Armour or Wardens of Ultramar no longer joins a Legends Assault Squad, Command Squad, Relic Terminator Squad or Deathwing Command Squad, and Captain Titus no longer joins a Legends Command Squad.
+- ba951e8: [reference] Space Marine character pages no longer list another chapter's squads the character can't be fielded with.
+- 6804576: [rosters] Characters no longer join a Vanguard Veteran Squad with Jump Packs, or a Legends Vanguard Veteran Squad their datasheet does not list.
+- 6804576: [rosters] Eldrad Ulthran and a Farseer no longer lead a Warlock Conclave.
+- 6804576: [rosters] Krom Dragongaze no longer leads Wolf Guard Headtakers or Wolf Guard Terminators, and a Wolf Guard Pack Leader no longer supports Wolf Guard Headtakers.
+- 9738d13: [reference] A datasheet's Leader and Support lists name each unit as its datasheet is named, in every rules version.
+- 5b58361: [reference] A Leader list reads a keyword host as units of that keyword, and lists every datasheet a host printed for several of them names, as both Acolyte Hybrids datasheets.
+- 7bd7e61: [rosters] The Crucible Enthroned Agent and Martial Agent now count towards the Agents of the Imperium Character limit.
+- 7bd7e61: [rosters] Death Guard lists no longer offer Gellerpox Infected and Mutoid Vermin, which are Chaos Space Marines Legends units.
+- 7bd7e61: [rosters] Castellum Stronghold and Imperial Fortress Walls can only be taken at Onslaught, as their Mighty Edifice rule says.
+- 113331a: [rosters] Grey Knights Servitors [Legends] cost 60 points again, not 50.
+- d2215fc: [battles] King of the Colosseum games offer both Colosseums whichever rules version they play, where some rules versions offered only one or none.
+- 9738d13: [reference] A transport that carries one model of a kind, as the Orion Assault Dropship's Dreadnought, says "1 model".
+- 7f274d2: [rosters] 154 more datasheets, among them Intercessors, Boyz, Termagants, Chaos Terminators, Guardian Defenders and Skorpekh Destroyers, are now built as the official app prints them, with its sizes, weapon counts and wargear.
+- 7f274d2: [rosters] Wulfen take a death totem, Wulfen with Storm Shields no shield wargear, and Scourges' Solarite their pistol and power weapon, as their datasheets print.
+- 7f274d2: [rosters] A World Eaters Rhino, the Warhound Titan and the Moiraxes start on the loadout their datasheets print, in the builder and the combat simulator.
+- 7f274d2: [rosters] Datasheets built as the official app prints them carry its keywords: plural ones such as BEASTS and WARLOCKS, full names such as ELDRAD ULTHRAN, and none of BSData's list categories such as Harlequin Allies or Terminator Armour.
+- 7f274d2: [rosters] Death Company with Jump Packs, Tyranid Warriors with Ranged Bio-weapons, Titans, Moiraxes and the Overlord take as many special weapons as the official app allows.
+- 7f274d2: [rosters] A Ravenwing Command Squad can be the Warlord.
+- 21f5439: [rosters] Deleting the Warlord hands the role to the character added first even when that character is built as the official app prints it.
+- bfde8a9: [reference] Wolf Guard Battle Leaders [Legends] show their own Tactical Precision, which gives Lethal Hits against every target, not the Lieutenant's.
+
 ## 0.280.35 (2026-11-28)
 
 ### Patch Changes
