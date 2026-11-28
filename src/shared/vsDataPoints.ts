@@ -93,10 +93,10 @@ export function vsPointsIndex(
       .flatMap((snapshot) => snapshot.factions.find((faction) => faction.id === unit.data.faction)?.units ?? [])
       .find((candidate) => candidate.id === id)
     if (!row) return null
+    // In the order VS Data writes the mix, as its composition reads.
     const mixNames = (mix: Readonly<Record<string, number>>) =>
-      definitions
-        .modelsOf(id)
-        .flatMap((model) => (mix[model.id] ? [`${mix[model.id]} ${model.name}`] : []))
+      Object.entries(mix)
+        .flatMap(([model, n]) => (n ? [`${n} ${definitions.get('model', model)?.name ?? model}`] : []))
         .join(', ')
     const tiers = row.tiers.map((tier) => ({
       copies: tier.copies,

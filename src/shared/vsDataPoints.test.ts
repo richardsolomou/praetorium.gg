@@ -175,7 +175,7 @@ describe('vsMfmUnit', () => {
 
 describe('vsCostRows', () => {
   it('prints a row for other armies unlabelled where no row is its own army’s, as the one its own list pays', () => {
-    expect(vsCostRows(index, 'bs-host', 'bs-assassin')?.find((row) => row.cost === '100')?.allied).toBeUndefined()
+    expect(vsCostRows(index, 'bs-host', 'bs-assassin')?.find((row) => row.cost === '100')).not.toHaveProperty('allied')
   })
 
   it('labels a row priced by its mix of models with their names', () => {

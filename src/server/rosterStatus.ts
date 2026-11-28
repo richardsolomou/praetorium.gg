@@ -4,7 +4,7 @@ import { rosterUseProblem } from '../core/rosterLegality'
 
 type PricedList = Parameters<typeof rosterUseProblem>[0] & {
   units: readonly { key: number; size: { models: number }; enhancements: readonly string[]; upgrades: readonly string[] }[]
-  detachments: readonly { name: string }[]
+  detachments?: readonly { name: string }[]
 }
 
 export type RosterVerdict = { problem: 'over-limit' | 'not-legal' | null; contents: ListContents }
@@ -34,7 +34,7 @@ export function rosterVerdict(
     contents: {
       catalogueId: roster.catalogueId,
       detachmentIds: [...roster.detachmentIds],
-      ...(priced ? { detachments: priced.detachments.map((detachment) => detachment.name) } : {}),
+      ...(priced?.detachments ? { detachments: priced.detachments.map((detachment) => detachment.name) } : {}),
       datasheets: roster.picks.map((pick, key) => ({ id: pick.entryId, models: modelsByPick.get(key) ?? null })),
       enhancements: uniqueNames(priced?.units.flatMap((unit) => unit.enhancements) ?? []),
       upgrades: uniqueNames(priced?.units.flatMap((unit) => unit.upgrades) ?? []),
