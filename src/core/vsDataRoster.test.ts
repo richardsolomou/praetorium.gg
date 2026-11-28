@@ -5,6 +5,7 @@ import {
   keywordsOf,
   priceVsRoster,
   type VsRoster,
+  vsAbilityCarriers,
   vsHeldAbilities,
   vsNameLimitUnheld,
   vsUnitAllowance,
@@ -116,7 +117,7 @@ const construction: VsDataConstruction = {
       'host.walker.claw': record('Claw', {}),
       'host.rider.bike': record('Bike', { rules: ['host.rider.charge'] }),
       'host.walker.cannon': record('Cannon', {}),
-      'host.walker.lance': record('Lance', {}),
+      'host.walker.lance': record('Lance', { rules: ['host.walker.skewer'] }),
       'host.walker.two-lances': record('2 Lance', { includes: { 'host.walker.lance': 2 } }),
       'host.captain.shield': record('Shield', { rules: ['host.captain.ward'] }),
     },
@@ -441,5 +442,28 @@ describe('vsHeldAbilities', () => {
 
   it('holds an ability some wargear brings only with that wargear, though the unit names it', () => {
     expect(vsHeldAbilities(definitions, rider)).not.toContain('host.rider.charge')
+  })
+})
+
+describe('vsAbilityCarriers', () => {
+  const carriers = (picked: Parameters<typeof vsAbilityCarriers>[1], ability: string) =>
+    vsAbilityCarriers(definitions, picked, ability).map((model) => model.id)
+
+  it('finds the model fielded with the wargear that brings an ability', () => {
+    expect(carriers({ unit: 'host.captain', models: { 'host.captain.captain': 1 } }, 'host.captain.ward')).toEqual(['host.captain.captain'])
+  })
+
+  it('finds the carrier of an option whose choice includes the wargear that brings an ability', () => {
+    const walker = {
+      unit: 'host.walker',
+      models: { 'host.walker.walker': 1 },
+      options: { 'host.walker.cannons': { 'host.walker.two-lances': 1 } },
+    }
+    expect(carriers(walker, 'host.walker.skewer')).toEqual(['host.walker.walker'])
+  })
+
+  it('finds none for an option that names no carrier', () => {
+    const mounted = { unit: 'host.rider', models: { 'host.rider.rider': 1 }, options: { 'host.rider.mount': { 'host.rider.bike': 1 } } }
+    expect(carriers(mounted, 'host.rider.charge')).toEqual([])
   })
 })
