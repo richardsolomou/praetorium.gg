@@ -1,6 +1,7 @@
 import type { EvaluationError } from '../core/evaluate'
 import { groupBy } from '../core/collections'
 import { enforces, formatDatasheetLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
+import { KOTC_ENHANCEMENTS } from '../core/battleFormat'
 import { type FactionRestrictions, restrictedBy } from './datacards'
 
 type KotcUnit = {
@@ -37,7 +38,13 @@ export const warlordCountProblem = (warlords: number) =>
  * told about it: the restriction the player switched off is the restriction they
  * agreed with their table not to play.
  */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit: number, waived: readonly string[]) {
+export function kotcViolations(
+  detachments: number,
+  units: readonly KotcUnit[],
+  limit: number,
+  waived: readonly string[],
+  enhancements: number,
+) {
   const errors: EvaluationError[] = []
   const add = (message: string, unit?: KotcUnit, broken?: EvaluationError['limit']) =>
     errors.push({
@@ -47,6 +54,11 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
       ...(broken && { limit: broken }),
     })
   if (enforces(waived, 'detachments') && detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
+  if (enforces(waived, 'kotc-enhancements') && enhancements > KOTC_ENHANCEMENTS)
+    add(`allows at most ${KOTC_ENHANCEMENTS} Enhancements, has ${enhancements}`, undefined, {
+      max: KOTC_ENHANCEMENTS,
+      measured: enhancements,
+    })
   if (enforces(waived, 'kotc-infantry') && units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2)
     add('needs at least 2 Infantry units')
   if (enforces(waived, 'kotc-warlord')) {

@@ -282,7 +282,7 @@ describe('the enhancements an army may hold', () => {
     expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
   })
 
-  it('is the catalogue’s four at a battle size VS Data does not record, as King of the Colosseum', () => {
+  it('is two at King of the Colosseum, said once where VS Data records no such size', () => {
     const size = (name: string, points: number, enhancements: number) => ({ name, data: { formatVersion: 2, points, enhancements } })
     const vsRoster = vsRosterData(
       {
@@ -308,12 +308,14 @@ describe('the enhancements an army may hold', () => {
         disposition: null,
         waivedRules: ['warlord'],
         limit: 600,
-        units: Array.from({ length: 5 }, (_, at) => ({ entryId: `lord-${at}` })),
+        units: Array.from({ length: 3 }, (_, at) => ({ entryId: `lord-${at}` })),
       },
       { ...loaded, vsRoster },
       rulesWithout,
     )
-    expect(priced?.errors.map((error) => error.message)).toContain('allow at most 4 in an army, has 5')
+    expect(priced?.errors.flatMap((error) => (/enhancements/i.test(error.message) ? [error.message] : []))).toEqual([
+      'allows at most 2 Enhancements, has 3',
+    ])
   })
 })
 
@@ -1323,6 +1325,7 @@ describe('King of the Colosseum army construction', () => {
         [unit('leader', ['Infantry', 'Character'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4), unit('tank', ['Vehicle'], 9)],
         600,
         [],
+        0,
       ),
     ).toEqual([])
   })
@@ -1330,7 +1333,7 @@ describe('King of the Colosseum army construction', () => {
   it('requires exactly one Character Warlord', () => {
     const infantry = unit('infantry', ['Infantry'], 4)
     const character = unit('character', ['Infantry', 'Character'], 4)
-    expect(kotcViolations(1, [{ ...infantry, warlord: true }, character], 600, []).map((error) => error.message)).toEqual([
+    expect(kotcViolations(1, [{ ...infantry, warlord: true }, character], 600, [], 0).map((error) => error.message)).toEqual([
       'Warlord must have the Character keyword',
     ])
     expect(
@@ -1342,6 +1345,7 @@ describe('King of the Colosseum army construction', () => {
         ],
         600,
         [],
+        0,
       ).map((error) => error.message),
     ).toEqual(['needs exactly 1 Warlord, has 2', 'Warlord must have the Character keyword'])
   })
@@ -1399,6 +1403,7 @@ describe('King of the Colosseum army construction', () => {
       [unit('hero', ['Infantry', 'Epic Hero'], 10), unit('tank', ['Vehicle'], 9), unit('tank', ['Vehicle'], 9)],
       600,
       [],
+      0,
     )
     expect(errors.map((error) => error.message)).toEqual([
       'needs exactly 1 detachment, has 2',
@@ -1413,12 +1418,12 @@ describe('King of the Colosseum army construction', () => {
 
   it('stops enforcing a restriction the roster has waived', () => {
     const army = [unit('hero', ['Infantry', 'Character', 'Epic Hero'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4)]
-    expect(kotcViolations(1, army, 600, []).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
-    expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'])).toEqual([])
+    expect(kotcViolations(1, army, 600, [], 0).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
+    expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'], 0)).toEqual([])
   })
 
   it('waives only the rule named, leaving the rest of the format intact', () => {
-    const errors = kotcViolations(2, [unit('hero', ['Infantry', 'Epic Hero'], 10)], 600, ['kotc-toughness'])
+    const errors = kotcViolations(2, [unit('hero', ['Infantry', 'Epic Hero'], 10)], 600, ['kotc-toughness'], 0)
     expect(errors.map((error) => error.message)).toEqual([
       'needs exactly 1 detachment, has 2',
       'needs at least 2 Infantry units',
@@ -1432,10 +1437,10 @@ describe('King of the Colosseum army construction', () => {
       { entryId: 'mystery', name: 'mystery', keywords: ['Infantry', 'Character'], toughness: null, warlord: true },
       unit('troops', ['Infantry', 'Battleline'], 4),
     ]
-    expect(kotcViolations(1, army, 600, []).map((error) => error.message)).toEqual([
+    expect(kotcViolations(1, army, 600, [], 0).map((error) => error.message)).toEqual([
       'cannot verify its Toughness from the synced catalogue',
     ])
-    expect(kotcViolations(1, army, 600, ['kotc-toughness'])).toEqual([])
+    expect(kotcViolations(1, army, 600, ['kotc-toughness'], 0)).toEqual([])
   })
 
   it('lets a waived datasheet cap take as many copies as the catalogue allows', () => {
@@ -1445,8 +1450,8 @@ describe('King of the Colosseum army construction', () => {
       unit('troops', ['Infantry'], 4),
       unit('troops', ['Infantry'], 4),
     ]
-    expect(kotcViolations(1, army, 600, []).map((error) => error.message)).toEqual(['allows at most 1 of this datasheet, has 3'])
-    expect(kotcViolations(1, army, 600, ['kotc-datasheet-copies'])).toEqual([])
+    expect(kotcViolations(1, army, 600, [], 0).map((error) => error.message)).toEqual(['allows at most 1 of this datasheet, has 3'])
+    expect(kotcViolations(1, army, 600, ['kotc-datasheet-copies'], 0)).toEqual([])
   })
 })
 
