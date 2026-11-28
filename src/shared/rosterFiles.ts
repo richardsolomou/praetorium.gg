@@ -67,6 +67,7 @@ import {
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { ARTICLE, SPELLINGS } from './wargearSpellings'
+import { type ImportVsMaps, withImportedVsPicks } from './importedVsPicks'
 import { datacardOf } from './datasheetJoin'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
@@ -75,7 +76,7 @@ import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } fr
 import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
 import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
-import type { RosterPick } from '../core/roster'
+import type { RosterPick, VsPick } from '../core/roster'
 
 /** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
 export type RosterTextFormat =
@@ -221,10 +222,11 @@ export function importRosterFile(
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
+  vsMaps?: ImportVsMaps,
 ) {
   importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed)
+  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed, vsMaps)
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -264,7 +266,10 @@ export function matchParsedRoster(
   return importTextRoster(parsed, loaded, factionNames, { translations, removed, names: { ...NO_IMPORT_NAMES, ...names }, dataBuild })
 }
 
-/** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
+/**
+ * A list already read into army text, from a pasted export or another app's own format, matched and priced. With
+ * `vsMaps`, which only the server holds, a unit the builder adds by VS Data comes in as a VS pick.
+ */
 export function importParsedRoster(
   parsed: TextRoster,
   format: RosterTextFormat,
@@ -273,6 +278,7 @@ export function importParsedRoster(
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
+  vsMaps?: ImportVsMaps,
 ) {
   const result = matchParsedRoster(parsed, loaded, {
     factionNames,
@@ -296,8 +302,12 @@ export function importParsedRoster(
         )
       : null
   const priced = price(result.units)
-  const units = priced ? asBuilt(result.units, priced, price) : result.units
-  const currentPoints = priced?.points ?? null
+  const built = priced ? asBuilt(result.units, priced, price) : result.units
+  const units: ((typeof built)[number] & { vs?: VsPick })[] =
+    priced && vsMaps && loaded && result.catalogueId
+      ? withImportedVsPicks(built, { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds }, loaded, vsMaps, priced, price)
+      : built
+  const currentPoints = (units === built ? priced : price(units))?.points ?? null
   return {
     ...result,
     units,
@@ -732,20 +742,25 @@ function note(found: Map<number, Map<string, string>>, unit: number, choices: re
   found.set(unit, named)
 }
 
-type Crowned = { toggles?: Record<string, number> }
+type Crowned = { toggles?: Record<string, number>; vs?: VsPick }
 
 /**
  * Marks a Warlord on a list that names none: the one unit that can be or, given `errors`, the one leaving the list fewest,
  * first listed on a tie, since a list that placed at a tournament had one even where the text it was published as leaves
- * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way.
+ * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way. A VS pick
+ * holds it on the model `vsWarlord` names.
  */
-export function assumeWarlord(picks: readonly Crowned[], errors?: () => number) {
-  if (picks.some((pick) => Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
+export function assumeWarlord<T extends Crowned>(picks: readonly T[], errors?: () => number, vsWarlord?: (pick: T) => string | undefined) {
+  if (picks.some((pick) => pick.vs?.warlord || Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
   const candidates = picks.filter((pick) => Object.keys(pick.toggles ?? {}).length)
   if (!candidates.length || (candidates.length > 1 && !errors)) return
-  const crown = (pick: Crowned, count: number) => {
+  const crown = (pick: T, count: number) => {
     const [key] = Object.keys(pick.toggles!)
     pick.toggles = { ...pick.toggles, [key!]: count }
+    if (!pick.vs) return
+    const { warlord: _warlord, ...vs } = pick.vs
+    const model = count ? vsWarlord?.(pick) : undefined
+    pick.vs = model ? { ...vs, warlord: model } : vs
   }
   let best = candidates[0]!
   let fewest = Number.POSITIVE_INFINITY
