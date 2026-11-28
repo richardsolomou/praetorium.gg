@@ -31391,6 +31391,274 @@
       "unit": "chaos-daemons.seekers",
       "unmatched": ["6515-6647-3fd3-f6d1|6515-6647-3fd3-f6d1", "8d45-28d8-b0af-ea6d|8d45-28d8-b0af-ea6d"]
     },
+    "9dd6-bcba-6ec8-330f": {
+      "choices": {
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|22f1-da37-b6a0-19b8": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.force-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|3102-a279-c7af-233d": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.excruciator-maul": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|6a96-81ce-ea25-55fd": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.power-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|78dc-f732-cf56-869a": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.eviscerator": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|926a-f2ff-302f-5e0d": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.chainsword": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|a21e-2015-e46d-6d59": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.warp-grasp": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|dc8f-fccb-7793-9330": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.close-combat-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|161a-1696-1064-be17": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.inferno-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|28d1-f1e9-34dc-b05b": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.agent-firearm": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|353f-9a0a-3805-3a61": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.household-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|4006-8785-10a6-796e": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.voltaic-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|71ea-8ad4-fd3f-9368": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.holy-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|b713-dfb5-d4d6-88b6": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.plasma-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|cd99-bdd4-a247-c3f1": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.ministorum-hand-flamer": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|0d62-6e72-250f-0157": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.ministorum-flamer": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|163f-2e50-e948-ca54": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.lasgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|2ba4-ada1-b715-3201": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.plasma-gun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|332a-e41d-870f-e8a0": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.artificer-shotgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|4017-0dea-9ff4-dbf5": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.meltagun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|4718-7cc6-0dae-5769": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.arbites-grenade-launcher": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|510f-339b-7fde-1aa8": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.artificer-crafted-storm-bolter": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|5c5f-c109-d0e9-8c54": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.condemnor-boltgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|6f9c-7f44-5c47-2cd8": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.webber": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|7b62-69bb-f38c-4893": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.psychic-shock-wave": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|abf7-870e-c71b-bc64": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.combi-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|d36d-e946-015c-5d3f": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.boltgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|d997-3593-13ce-4a1b": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.arbites-combat-shotgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|e77c-53fb-4ead-8ad4": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.executioner-shotgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|fa3f-2644-1c9f-b994": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.unholy-gaze": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|5ae4-3424-2b4b-2550": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.rogue-trader": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|6a10-1787-191d-4605": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.ordo-xenos": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|b5a7-00a2-fbd6-6373": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.ordo-malleus": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|d49f-4923-e9b1-e8a9": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.ordo-hereticus": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|3fb2-28e2-e219-501f": {
+          "options": {}
+        },
+        "ac3e-2584-1f49-8bff|5514-6515-4fdb-4017": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred": {
+              "imperial-agents.martial-agent.termination": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|686f-4aca-55f8-363b": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred-2": {
+              "imperial-agents.martial-agent.oracular-gifts": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|743e-f925-372a-bc5a": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred-5": {
+              "imperial-agents.martial-agent.backroom-deals": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|fd3b-1a1b-ffbb-6a58": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred": {
+              "imperial-agents.martial-agent.nowhere-to-hide": 1
+            }
+          }
+        }
+      },
+      "unit": "imperial-agents.martial-agent",
+      "unmatched": ["585d-0506-7eb9-8669/0768-9467-e604-6146|46e6-8a9d-ec8b-2a0d"]
+    },
     "9df0-1906-bdae-18b4": {
       "choices": {},
       "unit": "tau-empire.crisis-battlesuits",
@@ -41457,6 +41725,295 @@
       },
       "unit": "space-marines.storm-eagle-gunship",
       "unmatched": ["9d24-7070-7a26-c569/d90-7c8f-8f77-2b6f|4d94-f41-33f5-b5fc"]
+    },
+    "d156-7d9b-583f-129e": {
+      "choices": {
+        "5f3e-202c-e180-b168|3fb2-28e2-e219-501f": {
+          "options": {}
+        },
+        "5f3e-202c-e180-b168|5514-6515-4fdb-4017": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred": {
+              "imperial-agents.enthroned-agent.termination": 1
+            }
+          }
+        },
+        "5f3e-202c-e180-b168|686f-4aca-55f8-363b": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred-2": {
+              "imperial-agents.enthroned-agent.oracular-gifts": 1
+            }
+          }
+        },
+        "5f3e-202c-e180-b168|743e-f925-372a-bc5a": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred-5": {
+              "imperial-agents.enthroned-agent.backroom-deals": 1
+            }
+          }
+        },
+        "5f3e-202c-e180-b168|fd3b-1a1b-ffbb-6a58": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred": {
+              "imperial-agents.enthroned-agent.nowhere-to-hide": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|22f1-da37-b6a0-19b8": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.force-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|3102-a279-c7af-233d": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.excruciator-maul": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|6a96-81ce-ea25-55fd": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.power-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|78dc-f732-cf56-869a": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.eviscerator": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|926a-f2ff-302f-5e0d": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.chainsword": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|a21e-2015-e46d-6d59": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.warp-grasp": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|dc8f-fccb-7793-9330": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.close-combat-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|161a-1696-1064-be17": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.inferno-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|28d1-f1e9-34dc-b05b": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.agent-firearm": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|353f-9a0a-3805-3a61": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.household-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|4006-8785-10a6-796e": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.voltaic-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|71ea-8ad4-fd3f-9368": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.holy-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|b713-dfb5-d4d6-88b6": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.plasma-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|cd99-bdd4-a247-c3f1": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.ministorum-hand-flamer": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|05c5-c480-1ad2-e6d9": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.ministorum-heavy-flamer": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|0d62-6e72-250f-0157": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.ministorum-flamer": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|163f-2e50-e948-ca54": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.lasgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|2ba4-ada1-b715-3201": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.plasma-gun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|332a-e41d-870f-e8a0": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.artificer-shotgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|4017-0dea-9ff4-dbf5": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.meltagun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|4718-7cc6-0dae-5769": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.arbites-grenade-launcher": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|510f-339b-7fde-1aa8": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.artificer-crafted-storm-bolter": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|5c5f-c109-d0e9-8c54": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.condemnor-boltgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|6f9c-7f44-5c47-2cd8": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.webber": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|7b62-69bb-f38c-4893": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.psychic-shock-wave": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|abf7-870e-c71b-bc64": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.combi-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|b53e-b5ab-c0ba-f62e": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.multi-melta": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|d36d-e946-015c-5d3f": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.boltgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|d997-3593-13ce-4a1b": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.arbites-combat-shotgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|e77c-53fb-4ead-8ad4": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.executioner-shotgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|fa3f-2644-1c9f-b994": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.unholy-gaze": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|fda8-a3fd-914a-b1b1": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.heavy-bolter": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|5ae4-3424-2b4b-2550": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.rogue-trader": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|6a10-1787-191d-4605": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.ordo-xenos": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|b5a7-00a2-fbd6-6373": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.ordo-malleus": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|d49f-4923-e9b1-e8a9": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.ordo-hereticus": 1
+            }
+          }
+        }
+      },
+      "unit": "imperial-agents.enthroned-agent",
+      "unmatched": ["92a1-b2a9-66bd-0635/0768-9467-e604-6146|46e6-8a9d-ec8b-2a0d"]
     },
     "d15e-ed71-a47f-87c": {
       "choices": {
