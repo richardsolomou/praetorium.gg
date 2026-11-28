@@ -1,3 +1,4 @@
+import { cachedIn } from './collections'
 import type { Definition, Per, Requirement, UnitData, VsDataDefinitions, When, OptionData, Bounds } from './vsDataConstruction'
 import { costRowFor, pointsAt, type PointsRef, unitCostRows } from './vsDataPoints'
 
@@ -476,6 +477,46 @@ const sameName = (text: string) => text.toUpperCase().replaceAll('’', "'")
 
 const keywordNames = (keywords: readonly string[]) =>
   keywords.map((keyword) => keyword.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' ')
+
+/**
+ * The abilities a picked unit holds by VS Data's typed links: those of the wargear it carries (`rules`), its own
+ * (`abilities`) but any the wargear it can take brings, which it holds only with that choice, and its Enhancement.
+ */
+export function vsHeldAbilities(definitions: VsDataDefinitions, picked: VsRosterUnit): Set<string> {
+  const bound = choiceBound(definitions, picked.unit)
+  const own = (definitions.get('unit', picked.unit)?.data.abilities ?? []).filter((id) => !bound.has(id))
+  const carriedRules = [...carried(definitions, picked)].flatMap(([id, n]) =>
+    n > 0 ? (definitions.get('wargear', id)?.data.rules ?? []) : [],
+  )
+  return new Set([...own, ...carriedRules, ...(picked.enhancement ? [picked.enhancement] : [])])
+}
+
+/**
+ * The abilities VS Data's links decide for a unit: its own, those the wargear it can take brings, and every Enhancement.
+ * Any other, as one another datasheet names but this one's records do not, is the catalogue's to read.
+ */
+export const vsLinkedAbilities = (definitions: VsDataDefinitions, unit: string): ReadonlySet<string> =>
+  cachedIn(linkedAbilities, definitions, unit, () => {
+    const enhancements = definitions.all('enhancement').map((enhancement) => enhancement.id)
+    return new Set([...choiceBound(definitions, unit), ...(definitions.get('unit', unit)?.data.abilities ?? []), ...enhancements])
+  })
+
+/** The abilities the wargear a unit can carry brings: its models' and its own, every option's choices, and what they include. */
+const choiceBound = (definitions: VsDataDefinitions, unit: string): ReadonlySet<string> =>
+  cachedIn(boundAbilities, definitions, unit, () => {
+    const pieces = new Set<string>()
+    const add = (id: string) => {
+      if (pieces.has(id)) return
+      pieces.add(id)
+      for (const inner of Object.keys(definitions.get('wargear', id)?.data.includes ?? {})) add(inner)
+    }
+    for (const model of definitions.modelsOf(unit)) for (const id of Object.keys(model.data.wargear)) add(id)
+    for (const id of Object.keys(definitions.get('unit', unit)?.data.wargear ?? {})) add(id)
+    for (const option of definitions.optionsOf(unit)) for (const id of option.data.choices) add(id)
+    return new Set([...pieces].flatMap((id) => definitions.get('wargear', id)?.data.rules ?? []))
+  })
+const linkedAbilities = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
+const boundAbilities = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
 
 /**
  * Every reason the roster is not legal under these definitions, in roster order: VS Data's `checkRoster`
