@@ -1247,7 +1247,7 @@ describe("VS Data's attachment rules", () => {
       units,
       index,
       [],
-      units.map((unit) => keywords[unit.entryId]),
+      units.map((entry) => keywords[entry.entryId]),
     ).map((error) => `${error.entryName}: ${error.message}`)
   const at = (entryId: string, host?: number) => ({ entryId, ...(host === undefined ? {} : { attachedTo: host }) })
 

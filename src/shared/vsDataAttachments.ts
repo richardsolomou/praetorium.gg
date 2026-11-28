@@ -70,16 +70,16 @@ export function vsLinksIndex(
     const role = data.leads?.length ? 'leads' : data.supports?.length ? 'supports' : undefined
     const keywords = (definitions.get('unit', data.unit)?.data.keywords ?? []).map((keyword) => keyword.toUpperCase())
     // A bodyguard that stands in for one of its hosts, as "it can be attached to this unit instead" says, takes it too.
-    const instead = (units: readonly string[], entryRole: 'leads' | 'supports') =>
-      standingIn(units, entryRole, keywords, standIns).filter((unit) => unit !== data.unit)
-    const units = role ? [...data[role]!, ...instead(data[role]!, role)] : []
-    const targets = [...new Set(units.flatMap(namesOf))]
+    const instead = (named: readonly string[], entryRole: 'leads' | 'supports') =>
+      standingIn(named, entryRole, keywords, standIns).filter((unit) => unit !== data.unit)
+    const hosts = role ? [...data[role]!, ...instead(data[role]!, role)] : []
+    const targets = [...new Set(hosts.flatMap(namesOf))]
     // A condition no list can meet here is left out, and its hosts with it, so the catalogue's reading of them stands.
     const conditional = (data.conditional ?? []).flatMap((entry) => {
       // A host taken by its keywords brings the bodyguards that stand in for it, as named hosts do.
       const stoodIn = [...(entry.units ?? []), ...(entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords) : [])]
-      const units = [...(entry.units ?? []), ...instead(stoodIn, entry.role)]
-      const read = condition({ ...entry, ...(units.length ? { units } : {}) }, namesOf, entriesOf, detachmentsOf)
+      const entryHosts = [...(entry.units ?? []), ...instead(stoodIn, entry.role)]
+      const read = condition({ ...entry, ...(entryHosts.length ? { units: entryHosts } : {}) }, namesOf, entriesOf, detachmentsOf)
       return read.requires?.some((group) => !group.length) ? [] : [read]
     })
     const besideAnother = (data.withAnotherLeader ?? []).map((entry) => {
