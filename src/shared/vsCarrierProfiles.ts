@@ -71,7 +71,7 @@ const profileOf = (line: WeaponLine): Datasheet['profiles'][number] => ({
   type: line.melee ? 'Melee Weapons' : 'Ranged Weapons',
   values: (Object.keys(LABELS) as (keyof typeof LABELS)[]).flatMap((kind) => {
     const value = line.values[kind]
-    return value === undefined || kind === (line.melee ? 'ballistic-skill' : 'weapon-skill') ? [] : [{ name: LABELS[kind], value }]
+    return !value || kind === (line.melee ? 'ballistic-skill' : 'weapon-skill') ? [] : [{ name: LABELS[kind], value }]
   }),
 })
 
