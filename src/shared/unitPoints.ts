@@ -4,7 +4,7 @@ import { evaluate } from '../core/evaluate'
 import { nameOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
-import { buildUnit } from '../core/roster'
+import { buildUnit, catalogueTreeOf } from '../core/roster'
 import { isResizable } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
@@ -188,7 +188,7 @@ export function vsDataUnitPoints(
   entryId: string,
   detachmentIds: readonly string[],
   detachments: readonly MfmDetachment[],
-  unit: { choices: readonly UnitChoice[]; selection: Selection; size: { models: number } },
+  unit: { choices: readonly UnitChoice[]; selection?: Selection; size: { models: number } },
   copy: number,
 ) {
   const priced = vsMfmUnit(loaded.vsPoints, primaryCatalogueId, entryId, detachmentIds)
@@ -202,7 +202,7 @@ export function vsDataUnitPoints(
         .map((option) => ({ name: option.name, points: (specialPoints(detachments, option.name) ?? option.points) * option.count })),
     )
   const specialNames = new Set(specials.map((special) => wargearKey(withoutUpgrade(special.name))))
-  const items = wargearOf(unit.selection, loaded.index)
+  const items = wargearOf(catalogueTreeOf(unit), loaded.index)
     .filter((piece) => !specialNames.has(wargearKey(piece.name)))
     .reduce((total, piece) => total + (mfmWargearPoints(priced, piece.name) ?? 0) * piece.count, 0)
   return base + items + specials.reduce((total, special) => total + special.points, 0)
@@ -211,7 +211,7 @@ export function vsDataUnitPoints(
 /** What the field manual's option prices add to or take off a built unit's catalogue ones. */
 export function mfmOptionAdjustment(
   index: LoadedCatalogue['index'],
-  unit: { choices: readonly UnitChoice[]; selection: Selection },
+  unit: { choices: readonly UnitChoice[]; selection?: Selection },
   mfmUnit: MfmUnit | null,
   detachments: readonly MfmDetachment[],
   options: ChoiceOptions,
@@ -220,7 +220,7 @@ export function mfmOptionAdjustment(
     .flatMap((choice) =>
       choiceOptionsForPricing(choice).flatMap((option) => {
         if (option.count <= option.min) return []
-        const pieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, index, options)
+        const pieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, catalogueTreeOf(unit), index, options)
         const price = mfmOptionPoints(detachments, mfmUnit, choice.name, option.name, pieces, option.count)
         return price === null ? [] : [(price - option.points) * (option.count - option.min)]
       }),
