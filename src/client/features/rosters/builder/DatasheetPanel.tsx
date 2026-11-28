@@ -8,7 +8,7 @@ import type { Datasheet, DatasheetRelationship } from '../../../../contracts/cat
 import { datasheetQuery, type Fielded } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
-import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
+import { Keyword, KeywordExplanation, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
@@ -250,23 +250,32 @@ export function AbilitySummary({
             {title} <span className="readout text-faint">{found.length}</span>
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
-            {found.map((ability) => (
-              <span key={ability.id} className="inline-flex items-center gap-0.5">
-                <Keyword
-                  name={ability.name}
-                  rules={described}
-                  className={
-                    ability.source
-                      ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
-                      : KEYWORD_TAG_CLASS
-                  }
-                  note={ability.source ? `Added by ${ability.source}` : undefined}
-                  condition={ability.condition}
-                  highlightNote={false}
-                />
-                {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
-              </span>
-            ))}
+            {found.map((ability) => {
+              const note = ability.source ? `Added by ${ability.source}` : undefined
+              return (
+                <span key={ability.id} className="inline-flex items-center gap-0.5">
+                  <Keyword
+                    name={ability.name}
+                    rules={described}
+                    className={
+                      ability.source
+                        ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                        : KEYWORD_TAG_CLASS
+                    }
+                    note={note}
+                    condition={ability.condition}
+                    highlightNote={false}
+                  />
+                  {reminders ? (
+                    <ReminderButton
+                      subject={ability}
+                      controls={reminders}
+                      rule={<KeywordExplanation name={ability.name} rules={described} note={note} condition={ability.condition} />}
+                    />
+                  ) : null}
+                </span>
+              )
+            })}
           </div>
         </section>
       )
@@ -284,14 +293,19 @@ export function AbilitySummary({
             // A rule the list's detachment gives the unit by name, as Possessed Slaughterband's Brazen Fury on Eightbound, is that detachment's.
             const granted = detachmentRules?.find((rule) => rule.name === ability.name)
             const owner = granted?.id && detachmentRuleOwners?.[granted.id.split('/')[0]!]
-            return (
-              <article key={ability.id} className="relative border-b border-edge px-2 py-2.5">
+            const body = (
+              <>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-xs">{ability.source ?? ability.name}</h3>
-                  {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
+                  {reminders ? <ReminderButton subject={ability} controls={reminders} rule={text} /> : null}
                 </div>
                 {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-                {owner && text ? <DatasheetUnit.Provider value={owner}>{text}</DatasheetUnit.Provider> : text}
+                {text}
+              </>
+            )
+            return (
+              <article key={ability.id} className="relative border-b border-edge px-2 py-2.5">
+                {owner ? <DatasheetUnit.Provider value={owner}>{body}</DatasheetUnit.Provider> : body}
               </article>
             )
           })}
@@ -311,11 +325,17 @@ export function AbilitySummary({
       <div className="mt-2 flex flex-wrap gap-1">
         {detachmentRules.map((rule) => {
           const owner = rule.id && detachmentRuleOwners?.[rule.id.split('/')[0]!]
-          const chip = <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+          const chip = (
+            <>
+              <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+              {reminders ? (
+                <ReminderButton subject={rule} controls={reminders} rule={<KeywordExplanation name={rule.name} rules={described} />} />
+              ) : null}
+            </>
+          )
           return (
             <span key={rule.id} className="inline-flex items-center gap-0.5">
               {owner ? <DatasheetUnit.Provider value={owner}>{chip}</DatasheetUnit.Provider> : chip}
-              {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
             </span>
           )
         })}
