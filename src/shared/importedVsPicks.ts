@@ -99,7 +99,7 @@ function translated<T extends RosterPick>(
   const read = legacyOptionSelections(
     entry,
     { ...pick, choices },
-    (key, option) => first?.choices.find((choice) => choice.key === key)?.options.find(({ id }) => id === option)?.count ?? 0,
+    (key, option) => first?.choices.find((choice) => choice.key === key)?.options.find((held) => held.id === option)?.count ?? 0,
   )
   const models = read && vsModels(definitions, id, kindsOf(unit), unit.size.models)
   if (!read || !models) return undefined
@@ -121,7 +121,7 @@ function translated<T extends RosterPick>(
           .map((option) => detachments.map((detachment) => loaded.vsRoster?.enhancements[`${detachment}/${option.id}`]).find(Boolean))
       : [],
   )
-  if (specials.length > 1 || specials.some((special) => !special)) return undefined
+  if (specials.length > 1 || specials.some((found) => !found)) return undefined
   const allegiance = read.allegiance ?? inBook(maps.allegiances, list.catalogueId, pick.entryId)
   // The Warlord is the unit's Character model, else its one model of a kind, as VS Data's checker reads it.
   const kinds = definitions.modelsOf(id)
@@ -164,11 +164,11 @@ export function withImportedVsPicks<T extends RosterPick>(
   maps: ImportVsMaps,
   priced: Price,
   price: (units: readonly RosterPick[]) => Price | null,
-): T[] {
+): (T & { vs?: VsPick })[] {
   const definitions = vsDefinitionsOf(loaded)
   if (!definitions || catalogueEditionId(list.catalogueId)) return [...picks]
   const built = new Map(priced.units.map((unit) => [unit.key, unit]))
-  let next: T[] = picks.map((pick, key) => {
+  let next: (T & { vs?: VsPick })[] = picks.map((pick, key) => {
     const unit = built.get(key)
     return (!pick.vs && unit && translated(loaded, definitions, maps, list, pick, unit)) || pick
   })

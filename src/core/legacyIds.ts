@@ -98,12 +98,16 @@ export function legacyOptionSelections(
     else allegiance = translation.allegiance
     return true
   }
-  const floor = Object.entries(pick.floor ? (entry.floor ?? {}) : {})
-  const choices = { ...Object.fromEntries(floor.filter(([, value]) => typeof value === 'string')), ...pick.choices }
-  const spreads = { ...Object.fromEntries(floor.filter(([, value]) => typeof value !== 'string')), ...pick.spreads }
+  const choices: Record<string, string> = {}
+  const spreads: Record<string, Record<string, number>> = {}
+  for (const [key, value] of Object.entries(pick.floor ? (entry.floor ?? {}) : {}))
+    if (typeof value === 'string') choices[key] = value
+    else spreads[key] = value
+  Object.assign(choices, pick.choices)
+  Object.assign(spreads, pick.spreads)
   for (const [key, option] of Object.entries(choices)) if (!keyed(`${key}|${option}`, 1)) return null
   for (const [key, counts] of Object.entries(spreads))
-    for (const [option, n] of Object.entries(counts as Record<string, number>)) {
+    for (const [option, n] of Object.entries(counts)) {
       const times = n - firstHeld(key, option)
       if (times && !keyed(`${key}|${option}`, times)) return null
     }
