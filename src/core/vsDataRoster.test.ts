@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from './vsDataConstruction'
-import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsUnitAllowance } from './vsDataRoster'
+import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsNameLimitUnheld, vsUnitAllowance } from './vsDataRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const construction: VsDataConstruction = {
@@ -26,6 +26,7 @@ const construction: VsDataConstruction = {
           },
         ],
       }),
+      order: record('Order', { unitLimits: [{ keywords: ['EMPEROR’S CHAMPION'], max: 1 }] }),
       court: record('Court', {
         allies: [
           {
@@ -60,6 +61,8 @@ const construction: VsDataConstruction = {
       'band.boss': record('Boss', { faction: 'band', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'band.retinue': record('Retinue', { faction: 'band', keywords: ['INFANTRY'], sizes: [2] }),
       'court.crew': record('Crew', { faction: 'court', keywords: ['INFANTRY'], sizes: [1] }),
+      'order.champion': record('Emperor’s Champion', { faction: 'order', keywords: ['CHARACTER', "EMPEROR'S CHAMPION"], sizes: [1] }),
+      'order.herald': record('Emperor’s Champion', { faction: 'order', keywords: ['CHARACTER', 'EMPEROR’S CHAMPION'], sizes: [1] }),
     },
     model: {
       'host.walker.walker': record('Walker', {
@@ -394,5 +397,15 @@ describe('vsUnitAllowance', () => {
 
   it('counts the roster’s other units against a shared keyword limit', () => {
     expect(vsUnitAllowance(definitions, roster([{ unit: 'band.retinue' }], 'band', []), 'band.boss').limit).toBe(0)
+  })
+})
+
+describe('vsNameLimitUnheld', () => {
+  it('finds a faction limit naming the unit in a spelling its keywords do not hold exactly', () => {
+    expect(vsNameLimitUnheld(definitions, roster([], 'order', []), 'order.champion')).toBe(true)
+  })
+
+  it('leaves a unit whose keywords hold its faction’s name limit exactly', () => {
+    expect(vsNameLimitUnheld(definitions, roster([], 'order', []), 'order.herald')).toBe(false)
   })
 })

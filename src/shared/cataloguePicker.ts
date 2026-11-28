@@ -23,7 +23,7 @@ import { rosterDetachments } from './rosterDetachments'
 import { vsDataDetachmentsOffering } from './vsDataLegality'
 import { alliedSource, vsDataOffer, vsDataRefused } from './vsDataOffers'
 import { vsDataCheck, vsDataChecks } from './vsDataLegality'
-import { countedKeywordsOf, type VsRoster, vsUnitAllowance } from '../core/vsDataRoster'
+import { type VsRoster, vsNameLimitUnheld, vsUnitAllowance } from '../core/vsDataRoster'
 import type { VsDataDefinitions } from '../core/vsDataConstruction'
 import { isOfferedDatasheet, listPriceOf, rosterPrices, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
@@ -387,8 +387,9 @@ function vsLimitsRoster(checked: VsCheckedRoster): VsCheckedRoster {
 
 /**
  * VS Data's allowance for a datasheet it checks and defines, in the list VS Data's limits are read from; null where the
- * catalogue's limits stand. They also stand where the faction limits a unit by its own name and VS Data's unit does not
- * yet hold that keyword, as the Emperor's Champion, so the picker never shows more copies than the faction allows.
+ * catalogue's limits stand. They also stand where the faction limits a unit by its own name in a keyword the unit does
+ * not hold exactly (`vsNameLimitUnheld`), as the Emperor's Champion, so the picker never shows more copies than the
+ * faction allows while VS Data's checker cannot hold the unit to it.
  */
 function vsAllowanceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, read: VsCheckedRoster) {
   const entry = loaded.index.definitions.get(entryId)
@@ -396,15 +397,9 @@ function vsAllowanceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: st
     read && entry ? vsDataChecks(loaded.vsRoster, catalogueId, { entryId, name: nameOf(entry, loaded.index.definitions) }) : undefined
   const record = unit ? read?.definitions.get('unit', unit) : undefined
   if (!read || !unit || !record) return null
-  const { definitions, roster } = read
-  const name = sameKeyword(record.name)
-  const held = countedKeywordsOf(definitions, roster, { unit, size: record.data.sizes[0] }).map(sameKeyword)
-  const limits = definitions.get('faction', roster.faction)?.data.unitLimits ?? []
-  if (!held.includes(name) && limits.some((limit) => limit.keywords.map(sameKeyword).includes(name))) return null
-  return vsUnitAllowance(definitions, roster, unit)
+  if (vsNameLimitUnheld(read.definitions, read.roster, unit)) return null
+  return vsUnitAllowance(read.definitions, read.roster, unit)
 }
-
-const sameKeyword = (keyword: string) => keyword.toUpperCase().replaceAll('’', "'")
 
 export function contextualUnitLimit(
   loaded: LoadedCatalogue,
