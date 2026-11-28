@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from './vsDataConstruction'
-import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster } from './vsDataRoster'
+import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsUnitAllowance } from './vsDataRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const construction: VsDataConstruction = {
@@ -364,5 +364,19 @@ describe('checkVsRoster', () => {
 
   it('lets a squad’s Character leader be the Warlord', () => {
     expect(codes([{ unit: 'host.squad', warlord: 'host.squad.leader' }])).toEqual([])
+  })
+})
+
+describe('vsUnitAllowance', () => {
+  it('allows another allied CHARACTER for each unit holding the keyword its allowance names', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'court.crew' }], 'court', []), 'band.boss').limit).toBe(2)
+  })
+
+  it('names the keywords that lift the ally limit holding a unit back', () => {
+    expect(vsUnitAllowance(definitions, roster([], 'court', []), 'band.boss').unlockedBy).toBe('Crew')
+  })
+
+  it('counts the roster’s other units against a shared keyword limit', () => {
+    expect(vsUnitAllowance(definitions, roster([{ unit: 'band.retinue' }], 'band', []), 'band.boss').limit).toBe(0)
   })
 })

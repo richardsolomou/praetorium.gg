@@ -1,5 +1,5 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
-import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
+import { checkVsRoster, type VsProblem, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
@@ -104,11 +104,14 @@ export const vsDataPlaces = (data: VsRosterData | undefined, list: { catalogueId
  * exclusions, copies, unit limits, sizes, Enhancements, Warlord, allegiances and Detachment groups. Null where VS Data
  * cannot place the list, which leaves it to the catalogue's checks.
  */
-export function vsDataErrors(
+export const vsDataErrors = (...args: Parameters<typeof vsDataCheck>): VsDataError[] | null => vsDataCheck(...args)?.errors ?? null
+
+/** `vsDataErrors` with the roster VS Data checked and its definitions, which the builder's unit limits read again. */
+export function vsDataCheck(
   data: VsRosterData | undefined,
   list: { catalogueId: string; detachmentIds: readonly string[]; borrowedDetachmentId?: string | null; limit: number },
   units: readonly CheckedUnit[],
-): VsDataError[] | null {
+): { errors: VsDataError[]; definitions: VsDataDefinitions; roster: VsRoster } | null {
   const placed = vsDataPlacement(data, list)
   if (!data || !placed) return null
   const { definitions, faction, without, detachments } = placed
@@ -178,7 +181,11 @@ export function vsDataErrors(
     .flatMap((problem) => described(problem, checked, definitions) ?? [])
   // A faction that takes no Detachment borrows none either, King of the Colosseum's borrowed disposition included.
   const borrows = without && list.borrowedDetachmentId && !errors.some((error) => error.message === 'takes no Detachment')
-  return borrows ? [...errors, { entryId: 'army', entryName: 'Army', message: 'takes no Detachment' }] : errors
+  return {
+    errors: borrows ? [...errors, { entryId: 'army', entryName: 'Army', message: 'takes no Detachment' }] : errors,
+    definitions,
+    roster,
+  }
 }
 
 /**
