@@ -27,6 +27,7 @@ import { useVsDataSummaries } from '../../components/UnitFromVsData'
 import { useRuleSummariesSettled } from '../../ruleSummaries'
 import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
 import { PRINTED_RULE, RosterPrintDatasheet } from './RosterPrintDatasheet'
+import type { LoadoutChoice } from './builder/loadoutModel'
 import { normalisePicks } from './rosterPicks'
 import { countLabel } from '../../text'
 import { usePrintWhenReady } from './usePrintWhenReady'
@@ -115,8 +116,8 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           staleTime: 0,
         })
         if (!details?.length) throw new Error('Starting transports could not be checked.')
-        const fielded = startingEmbarks(fieldedUnits(frozenUnits(input.picks, units, details)))
-        const keys = new Map(fielded.map((unit, at) => [unit.key, units[at]!.key]))
+        const fielded = startingEmbarks(fieldedUnits(frozenUnits(input.picks, input.price.units, details)))
+        const keys = new Map(fielded.map((unit, at) => [unit.key, input.price.units[at]!.key]))
         const printed = new Map(groups.map(({ host }, at) => [host.key, { name: host.name, key: host.key, number: at + 1 }]))
         for (const unit of fielded) {
           if (!unit.embarkedIn) continue
@@ -425,8 +426,9 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
 }
 
 function printSpecials(unit: Price['units'][number]) {
+  const choices: readonly LoadoutChoice[] = unit.choices
   const selected = (kind: 'enhancement' | 'upgrade', label: string, names: readonly string[]) => {
-    const options = unit.choices
+    const options = choices
       .filter((choice) => choice.kind === kind)
       .flatMap((choice) => choice.options.filter((option) => option.count > 0))
     return names.map((name) => ({ name, label, option: options.find((option) => routeSlug(option.name) === routeSlug(name)) }))
