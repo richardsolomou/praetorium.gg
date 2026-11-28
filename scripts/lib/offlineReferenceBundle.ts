@@ -35,6 +35,7 @@ import {
   MAX_REFERENCE_PART_BYTES,
   referencePart,
   type OfflineConstructionBase,
+  type OfflineConstructionImportNames,
   type OfflineConstructionSource,
   type OfflineReferenceVersion,
   type ReferenceQuery,
@@ -250,8 +251,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...(selectedCatalogue.vsPoints ? { vsPoints: packRuntimeData(selectedCatalogue.vsPoints) } : {}),
     ...(selectedCatalogue.vsRoster ? { vsRoster: packRuntimeData(selectedCatalogue.vsRoster) } : {}),
     ...(selectedCatalogue.vsProfiles ? { vsProfiles: packRuntimeData(selectedCatalogue.vsProfiles) } : {}),
-    // A device names entries from the catalogue it downloads, since the frozen entry names would take the rules part past
-    // its size limit; each reader falls back to the catalogue's name for an entry they lack.
+    // The frozen entry names would take the rules part past its size limit, so they travel in their own part.
     rules: packRuntimeData({
       ...selectedRules,
       ...(selectedRules.importNames ? { importNames: { ...selectedRules.importNames, entryNames: new Map() } } : {}),
@@ -297,6 +297,11 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     vs: await write(
       'construction',
       { ...(vsRoster ? { vsRoster } : {}), ...(vsPoints ? { vsPoints } : {}), ...(vsProfiles ? { vsProfiles } : {}) },
+      MAX_CONSTRUCTION_PART_BYTES,
+    ),
+    importNames: await write(
+      'construction',
+      { importEntryNames: packRuntimeData(legacyImportIds.entryNames) } satisfies OfflineConstructionImportNames,
       MAX_CONSTRUCTION_PART_BYTES,
     ),
     editions,

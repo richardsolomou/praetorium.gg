@@ -179,6 +179,7 @@ export function prepareLiveRevision(root: string, compiler: string, { bootstrap 
         catalogue: address(construction.catalogue),
         rules: address(construction.rules),
         ...(construction.vs ? { vs: address(construction.vs) } : {}),
+        ...(construction.importNames ? { importNames: address(construction.importNames) } : {}),
         editions: addressed(construction.editions),
       },
     }

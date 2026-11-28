@@ -16,6 +16,7 @@ import {
   type OfflineConstructionData,
   type OfflineConstructionRules,
   type OfflineConstructionVs,
+  type OfflineConstructionImportNames,
   type OfflineConstructionSource,
   type OfflineReferenceVersion,
   type DownloadedTextFacts,
@@ -52,7 +53,14 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     ...(vsProfiles ? { vsProfiles } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
   }
-  return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }
+  const rules = unpackRuntimeData<LoadedRules>(saved.rules)
+  // The rules part leaves the frozen entry names out, as their own part carries them.
+  const entryNames = saved.importEntryNames && unpackRuntimeData<ReadonlyMap<string, readonly string[]>>(saved.importEntryNames)
+  return {
+    revision: saved.revision,
+    catalogue,
+    rules: entryNames && rules.importNames ? { ...rules, importNames: { ...rules.importNames, entryNames } } : rules,
+  }
 }
 
 /** The construction source for a catalogue's rules version, restored from shared data once per selection. */
@@ -86,6 +94,8 @@ export function constructionSource(source: OfflineConstructionData | undefined, 
           ? { vsProfiles: restoreRuntimeData(selected.vsProfiles, source.vsProfiles, budget) }
           : {}),
         rules: restoreRuntimeData(selected.rules, source.rules, budget),
+        // One frozen map names every rules version's entries, keyed `<rules version>~<ID>` where they differ.
+        ...(source.importEntryNames ? { importEntryNames: source.importEntryNames } : {}),
       }
     }
     sharedSources.set(selected, complete)
@@ -104,13 +114,16 @@ export async function loadConstructionData(
   catalogueId: string | undefined,
   read: (asset: string, limit: number) => Promise<unknown>,
 ): Promise<OfflineConstructionData> {
-  const [catalogue, { rules }, vs] = (await Promise.all([
+  const [catalogue, { rules }, vs, importNames] = (await Promise.all([
     read(parts.catalogue, MAX_CONSTRUCTION_PART_BYTES),
     read(parts.rules, MAX_REFERENCE_PART_BYTES),
     parts.vs ? read(parts.vs, MAX_CONSTRUCTION_PART_BYTES) : {},
-  ])) as [OfflineConstructionCatalogue, OfflineConstructionRules, OfflineConstructionVs]
+    // Without the frozen names imports still read a list, naming its entries from the catalogue.
+    parts.importNames ? read(parts.importNames, MAX_CONSTRUCTION_PART_BYTES).catch(() => ({})) : {},
+  ])) as [OfflineConstructionCatalogue, OfflineConstructionRules, OfflineConstructionVs, OfflineConstructionImportNames]
   let data = assembled.get(catalogue)
-  if (!data) assembled.set(catalogue, (data = { ...catalogue, ...vs, rules, shared: true, editions: [...catalogue.editions] }))
+  if (!data)
+    assembled.set(catalogue, (data = { ...catalogue, ...vs, ...importNames, rules, shared: true, editions: [...catalogue.editions] }))
   const edition = catalogueId ? catalogueEditionId(catalogueId) : null
   const asset = edition && parts.editions[edition]
   if (!isConstructionData(data)) throw new Error('The saved construction data is invalid')

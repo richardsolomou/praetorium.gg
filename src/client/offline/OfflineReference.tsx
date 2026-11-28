@@ -42,6 +42,7 @@ function partsInOrder(manifest: OfflineReferenceVersion, editions: string[], cat
     construction.rules,
     construction.catalogue,
     ...(construction.vs ? [construction.vs] : []),
+    ...(construction.importNames ? [construction.importNames] : []),
     ...editions.map((id) => construction.editions[id]!),
     reference.search,
     ...Object.values(reference.parts),
