@@ -8,8 +8,9 @@ const ROLE = { leads: 'leader', supports: 'support' } as const
 
 /**
  * Joiners whose VS Data hosts are known wrong or still unsettled, which keep the catalogue's hosts VS Data does not name:
- * the Regimental Attachés' join and the Crisis Commander's misprinted host until richardsolomou/vs-data#ISSUE releases,
- * and the Deathwatch leaders until richardsolomou/vs-data#ISSUE settles their hosts.
+ * the Regimental Attachés' join and the Crisis Commander's misprinted host until richardsolomou/vs-data#228 releases,
+ * the Deathwatch leaders until richardsolomou/vs-data#ISSUE settles their hosts, and the Crucible Node and Prime
+ * Organisms' Raveners, which only the catalogue gives, until richardsolomou/vs-data#ISSUE settles them.
  */
 const CATALOGUE_HOSTS = new Set([
   'astra-militarum.regimental-attaches',
@@ -18,6 +19,8 @@ const CATALOGUE_HOSTS = new Set([
   'imperial-agents.watch-captain-artemis',
   'imperial-agents.inquisitor-eisenhorn',
   'imperial-agents.inquisitor-in-terminator-armour',
+  'tyranids.node-organism',
+  'tyranids.prime-organism',
 ])
 
 /**
@@ -37,14 +40,18 @@ export function vsAttachmentsIndex(
   const detachmentsOf = reverse(idsIn(ids.detachments, edition))
   // A unit no catalogue datasheet stands for, as the sodalities VS Data splits by spear, is no host a list can field yet.
   const namesOf = (unit: string) => [...new Set((entriesOf.get(unit) ?? []).flatMap((entryId) => nameOf(entryId) ?? []))]
+  // A unit holds its models' keywords too, as Chaplain Grimaldus and the Command Squads are CHARACTERs only by a model's.
+  const keywordsOf = (unit: string) =>
+    [
+      ...(definitions.get('unit', unit)?.data.keywords ?? []),
+      ...definitions.modelsOf(unit).flatMap((model) => model.data.keywords ?? []),
+    ].map((keyword) => keyword.toUpperCase())
   const resolved = new Map<string, VsAttachment | null>()
   const standIns = standInsOf(definitions)
   // Read only for a condition that takes hosts by keyword, as most rules versions' lists never need it.
   let unitKeywords: { id: string; keywords: string[] }[] | undefined
   const holdingKeywords = (keywords: readonly string[], excluded: readonly string[] = []) =>
-    (unitKeywords ??= definitions
-      .all('unit')
-      .map(({ id, data }) => ({ id, keywords: data.keywords.map((keyword) => keyword.toUpperCase()) })))
+    (unitKeywords ??= definitions.all('unit').map(({ id }) => ({ id, keywords: keywordsOf(id) })))
       .filter(
         (unit) =>
           keywords.every((keyword) => unit.keywords.includes(keyword.toUpperCase())) &&
@@ -76,7 +83,7 @@ export function vsAttachmentsIndex(
     // An attachment takes one role in an army, so a record that leads some units and supports others stays the catalogue's.
     if (data.leads?.length && data.supports?.length) return capacity ? { targets: [], named: [], ...host } : null
     const role = data.leads?.length ? 'leads' : data.supports?.length ? 'supports' : undefined
-    const keywords = (definitions.get('unit', data.unit)?.data.keywords ?? []).map((keyword) => keyword.toUpperCase())
+    const keywords = keywordsOf(data.unit)
     // A bodyguard that stands in for one of its hosts, as "it can be attached to this unit instead" says, takes it too.
     const instead = (named: readonly string[], entryRole: 'leads' | 'supports') =>
       standingIn(named, entryRole, keywords, standIns).filter((unit) => unit !== data.unit)
