@@ -40,7 +40,7 @@ const layout = (id: string, area: Partial<Extract<VsDataTerrain, { kind: 'terrai
           name: 'Ruin',
           density: 'dense',
           at: point(1, 0),
-          rotation: 0,
+          rotation: 90,
           mirror: true,
           roof: null,
           walls: [{ id: 'ruin-wall-1', points: [point(2, 1), point(0, 0)], thickness: 0.5 }],
@@ -72,8 +72,8 @@ it('turns an outline by its footprint’s rotation onto the board', () => {
   expect(read().layout.geometry!.areas[0]!.points).toEqual([point(10, 4), point(10, 8), point(8, 8)])
 })
 
-it('reflects a mirrored part across its own origin before placing it', () => {
-  expect(read().layout.geometry!.areas[0]!.parts[0]!.walls[0]!.points).toEqual([point(9, 3), point(10, 5)])
+it('reflects a mirrored part across its own origin before turning and placing it', () => {
+  expect(read().layout.geometry!.areas[0]!.parts[0]!.walls[0]!.points).toEqual([point(12, 4), point(10, 5)])
 })
 
 it('marks only the guides measured from a diagram as approximate', () => {

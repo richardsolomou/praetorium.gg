@@ -658,7 +658,7 @@ it('reads a retired unit as the one unit it is replaced by', () => {
   expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).replacements).toEqual({ 'necrons.old': 'necrons.new' })
 })
 
-it('keeps each terrain record of the release’s rules version', () => {
+it('keeps the release’s terrain records', () => {
   const deployment = {
     formatVersion: 1,
     kind: 'deployment-map',
