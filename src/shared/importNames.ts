@@ -29,6 +29,17 @@ export const NO_IMPORT_NAMES: ImportNames = {
 export const storedNames = (names: ReadonlyMap<string, readonly string[]>, loaded: { edition?: { id: string } }, id: string) =>
   names.get(`${loaded.edition?.id}~${id}`) ?? names.get(id)
 
+/**
+ * The names BSData gave a stored ID, as frozen. Rules carrying none, as a download from an earlier release or a list read
+ * without rules, read the catalogue's own names instead.
+ */
+export const frozenNames = (
+  frozen: ReadonlyMap<string, readonly string[]>,
+  loaded: { edition?: { id: string } },
+  id: string,
+  own: () => readonly string[],
+) => (frozen.size ? (storedNames(frozen, loaded, id) ?? []) : own())
+
 /** Every group of spellings a release's names hold, each its English one first. */
 export const spellingGroups = (names: VsDataNames | undefined): readonly (readonly string[])[] =>
   names

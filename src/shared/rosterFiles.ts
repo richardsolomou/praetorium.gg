@@ -43,7 +43,7 @@ import {
 } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
-import { NO_IMPORT_NAMES, storedNames, type ImportNames } from './importNames'
+import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
   attachmentReason,
@@ -789,13 +789,6 @@ function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?:
       pick.attachedTo = host
   }
 }
-
-/**
- * The names BSData gave a stored ID, as frozen. Rules carrying none, as a download from an earlier release or a list read
- * without rules, read the catalogue's own name instead.
- */
-const frozenNames = (frozen: ImportNames['datasheetNames'], loaded: LoadedCatalogue, id: string, own: () => readonly string[]) =>
-  frozen.size ? (storedNames(frozen, loaded, id) ?? []) : own()
 
 function detachmentsNamed<T extends { id: string; name: string }>(
   combined: string,
