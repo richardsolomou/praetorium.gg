@@ -98,7 +98,7 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
     combatCarriers(catalogueTreeOf(built), loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
   const firingOf = (built: BuiltUnit) => {
     const catalogue = vsCarriersFiring(built.vs!.carriers, printed, catalogueCarriers(base))
-    return vsDataFiring(loaded.vsProfiles, data.catalogueId, pick.entryId, catalogue) ?? { weapons: [], carriers: catalogue }
+    return vsDataFiring(loaded.vsProfiles, data.catalogueId, pick.entryId, catalogue, printed) ?? { weapons: [], carriers: catalogue }
   }
   // The weapons VS Data prints fire wherever it prints them, beside the catalogue's for a loadout it has none for.
   const vsWeapons = base.vs ? firingOf(base).weapons : []

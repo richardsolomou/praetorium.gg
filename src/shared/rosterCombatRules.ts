@@ -99,14 +99,15 @@ function vsFielding(
   if (!sheet || !carriers) return { sheet, carriers }
   const weapons = (datasheetIn(loaded, catalogueId, entryId)?.profiles ?? []).filter(isWeaponProfile)
   const firing = vsCarriersFiring(carriers, [...sheet.profiles.filter(isWeaponProfile), ...weapons], catalogue())
+  const fielded = loadoutSheet(sheet, weapons, firing)
   // The weapons VS Data prints stand in for the catalogue's, which a weapon VS Data has none for keeps.
-  const vs = vsDataFiring(loaded.vsProfiles, catalogueId, entryId, firing)
+  const vs = vsDataFiring(loaded.vsProfiles, catalogueId, entryId, firing, fielded.profiles.filter(isWeaponProfile))
   if (vs)
     return {
       sheet: loadoutSheet({ ...sheet, profiles: sheet.profiles.filter((profile) => !isWeaponProfile(profile)) }, vs.weapons, vs.carriers),
       carriers: vs.carriers,
     }
-  return { sheet: loadoutSheet(sheet, weapons, firing), carriers: firing }
+  return { sheet: fielded, carriers: firing }
 }
 
 export function rosterCombatant(
