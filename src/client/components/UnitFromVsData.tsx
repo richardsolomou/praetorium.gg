@@ -160,8 +160,8 @@ export function unitTransport(unit: VsDataUnit): Line[] {
     line(
       ...listed(
         load.map((pool) => {
-          const counted = pool.count === 'models' ? 'model' : 'unit'
-          return line(`${pool.limit} `, selectors(pool.selectors), ` ${pool.limit === 1 ? counted : `${counted}s`}`)
+          const each = pool.count === 'models' ? 'model' : 'unit'
+          return line(`${pool.limit} `, selectors(pool.selectors), ` ${pool.limit === 1 ? each : `${each}s`}`)
         }),
         'and',
       ),

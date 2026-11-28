@@ -266,7 +266,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
       ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
       ...(attachment?.swap ? { swap: attachment.swap } : {}),
     },
-    vsData,
+    vsData && withUnlockedHosts(vsData, associated, attachmentFromAssociations(definition, { id: definition.id }, index)),
     hosts,
   )
 }
@@ -334,6 +334,17 @@ export function vsDecidesHost(
   return Boolean(decided && admitsHost(decided, hostName, hostKeywords))
 }
 
+/**
+ * VS Data's record with the hosts the unit's own selection unlocks kept as the catalogue reads them, as Murdermind lets a
+ * Chronomancer support Destroyer Cult units: VS Data's records say nothing of a unit's selections.
+ */
+function withUnlockedHosts(vsData: VsAttachment, selected: Attachment, unselected: Attachment | null): VsAttachment {
+  if (vsData.catalogueHosts === true) return vsData
+  const before = new Set((unselected?.targets ?? []).map(normalizedName))
+  const unlocked = selected.targets.filter((target) => !before.has(normalizedName(target)))
+  return unlocked.length ? { ...vsData, catalogueHosts: [...(vsData.catalogueHosts ?? []), ...unlocked] } : vsData
+}
+
 function deferredOf(vsData: VsAttachment, hosts: ReadonlySet<string>) {
   const named = vsData.named.map(normalizedName)
   if (vsData.catalogueHosts === true) return new Set(named)
@@ -352,7 +363,7 @@ export function referenceAttachmentOf(definition: Definition, index: CatalogueIn
     ? attachmentOf(definition, index)
     : attachmentOf(definition, index, { id: definition.id })
   if (!attachment) return null
-  const names = datasheetNamesOf(index)
+  const datasheetNames = datasheetNamesOf(index)
   const targets = uniqueNormalizedNames([
     ...attachment.targets,
     ...(attachment.conditional ?? []).flatMap((condition) => condition.targets ?? []),
@@ -363,10 +374,10 @@ export function referenceAttachmentOf(definition: Definition, index: CatalogueIn
   const keywords = new Set(attachment.keywords ?? [])
   const named = (target: string): string[] => {
     const name =
-      ['', ' [legends]', ' [crucible]'].map((mark) => names.exact.get(`${normalizedName(target)}${mark}`)).find(Boolean) ??
-      names.loose.get(looseName(target))
+      ['', ' [legends]', ' [crucible]'].map((mark) => datasheetNames.exact.get(`${normalizedName(target)}${mark}`)).find(Boolean) ??
+      datasheetNames.loose.get(looseName(target))
     if (name) return [name]
-    const started = [...names.exact].flatMap(([key, value]) => (key.startsWith(`${normalizedName(target)} with `) ? [value] : []))
+    const started = [...datasheetNames.exact].flatMap(([key, value]) => (key.startsWith(`${normalizedName(target)} with `) ? [value] : []))
     if (started.length) return started.toSorted()
     return [keywords.has(normalizedName(target)) ? `${target} units` : target]
   }
@@ -387,12 +398,13 @@ const datasheetNamesOf = (index: CatalogueIndex) =>
     for (const entries of index.datasheets.values())
       for (const id of entries) {
         const datasheet = index.definitions.get(id)
-        const name = datasheet && nameOf(datasheet, index.definitions)
+        // A hidden datasheet is omitted from the reference, so a host only it answers to keeps its printed name.
+        const name = datasheet && !datasheet.hidden && nameOf(datasheet, index.definitions)
         if (name && !exact.has(normalizedName(name))) exact.set(normalizedName(name), name)
       }
     // A loose name two datasheets share names neither.
     const byLoose = groupBy([...exact.values()], looseName)
-    const loose = new Map([...byLoose].flatMap(([key, names]) => (names.length === 1 ? [[key, names[0]!]] : [])))
+    const loose = new Map([...byLoose].flatMap(([key, sharing]) => (sharing.length === 1 ? [[key, sharing[0]!]] : [])))
     return { exact, loose }
   })
 
