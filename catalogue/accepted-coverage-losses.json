@@ -67,7 +67,9 @@
   },
   {
     "reason": "A new Victrix Honour Guard starts at 3 models, the smallest size VS Data fields, so the probe no longer finds the 1-model unit it built before illegal.",
-    "entries": ["ultramarines / Victrix Honour Guard roster errors: fields 3 or 6 models, has 1"]
+    "entries": [
+      "ultramarines / Victrix Honour Guard roster errors: fields 3 or 6 models, has 1"
+    ]
   },
   {
     "reason": "Thousand Sons datasheets find Changehost of Deceit's Mortal Sorcery (Aura) by BSData id, and VS Data's alias of that shared profile only reaches MFM 1.6 in the release after v0.18.15 (vs-data-tools#106), so its Cabal of Sorcerers grant is missing until then.",
@@ -1305,6 +1307,15 @@
     "entries": [
       "adeptus-mechanicus / Sicarian Ruststalkers search: weapon keyword:Anti-Infantry 3+",
       "aeldari / Wave Serpent search: weapon keyword:Twin-Linked"
+    ]
+  },
+  {
+    "reason": "Deployment core abilities come from VS Data's coreAbilities: the Sagitaur's datasheet prints no Scouts and the three Lictors' print no Deep Strike, which the catalogue linked without printing.",
+    "entries": [
+      "leagues-of-votann / Sagitaur roster deployment: scouts",
+      "tyranids / Deathleaper roster deployment: deep-strike",
+      "tyranids / Lictor roster deployment: deep-strike",
+      "tyranids / Neurolictor roster deployment: deep-strike"
     ]
   }
 ]
