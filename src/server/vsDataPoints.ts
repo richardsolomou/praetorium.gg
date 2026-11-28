@@ -12,7 +12,7 @@ import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsD
 import { vsRosterData } from '../shared/vsDataLegality'
 import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
 import { vsLinksIndex } from '../shared/vsDataAttachments'
-import { type VsRosterWithShell, vsShellOf } from '../shared/vsDataShell'
+import { type VsRosterWithShell, vsShellOf, vsSwornDatasheets } from '../shared/vsDataShell'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 
 /** The frozen map from each BSData datasheet, or `<book>/<datasheet>`, to its VS Data unit (`catalogue/legacy-ids/units.json`). */
@@ -90,6 +90,7 @@ export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, 
   const data = vsRosterData(found.construction, ids, found.entry.base ? null : found.entry.edition.id, (entryId) => nameIn(index, entryId))
   if (!found.entry.base) return data
   shell ??= vsShellOf(legacyOptionsSchema.parse(rawOptions).units)
-  const allegiances = legacyIdsSchema.parse(rawUnits).allegiances
-  return { ...data, shell, ...(allegiances ? { allegiances } : {}) }
+  const units = legacyIdsSchema.parse(rawUnits)
+  const allegiances = vsSwornDatasheets(units.ids, units.allegiances ?? {})
+  return { ...data, shell, ...(Object.keys(allegiances).length ? { allegiances } : {}) }
 }

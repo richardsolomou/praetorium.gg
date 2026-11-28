@@ -83,8 +83,9 @@ function battleChoiceAllowancesFor(
 }
 
 /**
- * A VS pick's datasheet and carriers as the simulator fields them: its catalogue tree is built at the default loadout, so
- * each carried weapon names the profiles it fires and the datasheet counts each weapon from the carriers VS Data fields.
+ * A VS pick's datasheet and carriers as the simulator fields them: its catalogue tree follows its VS Data choices only
+ * where the options map places them (`vsShellSpreads`), so each carried weapon names the profiles it fires and the
+ * datasheet counts each weapon from the carriers VS Data fields.
  */
 function vsFielding(
   loaded: LoadedCatalogue,

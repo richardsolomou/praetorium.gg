@@ -370,6 +370,42 @@ for (const [entryId, catalogueId] of listing) {
         const taken = vsWithChoice(definitions, first, option.id, { [choice.id]: 1 })
         if (taken && sheetOf(vsPickOf(taken)) !== sheetOf(catalogueOption(...mapped, name).pick)) changing.push(name)
       }
+    // Choices taken together, or one at its most, can crowd each other out of the catalogue tree, where a group holds fewer
+    // than VS Data allows, so each must keep the abilities it gives alone.
+    const abilitiesIn = (unit: VsRosterUnit) => {
+      const sheet = sheetOf(vsPickOf(unit))
+      return sheet === 'none' ? [] : (JSON.parse(sheet) as [string[], string[]])[1]
+    }
+    const unarmed = abilitiesIn(first)
+    const takes = vsUnitOptions(definitions, first).flatMap((option) =>
+      option.choices.map((choice) => {
+        const once = vsWithChoice(definitions, first, option.id, { [choice.id]: 1 })
+        return {
+          option: option.id,
+          choice: choice.id,
+          most: choice.most,
+          once,
+          gives: abilitiesIn(once).filter((ability) => !unarmed.includes(ability)),
+        }
+      }),
+    )
+    const lost = (unit: VsRosterUnit, gives: readonly string[]) => {
+      const kept = abilitiesIn(unit)
+      return gives.filter((ability) => !kept.includes(ability))
+    }
+    for (const take of takes) {
+      const name = definitions.get('wargear', take.choice)?.name ?? take.choice
+      const missing = take.most > 1 ? lost(vsWithChoice(definitions, first, take.option, { [take.choice]: take.most }), take.gives) : []
+      if (missing.length) changing.push(`${name} at ${take.most}, which loses ${missing.join(', ')}`)
+    }
+    takes.forEach((one, at) =>
+      takes.slice(at + 1).forEach((other) => {
+        if (one.option === other.option) return
+        const both = vsWithChoice(definitions, one.once, other.option, { [other.choice]: 1 })
+        const missing = lost(both, [...one.gives, ...other.gives])
+        if (missing.length) changing.push(`${one.choice} with ${other.choice}, which loses ${missing.join(', ')}`)
+      }),
+    )
     if (changing.length) differ('datasheet', unitId, `characteristics or abilities differ with ${changing.join(', ')}`)
 
     // The simulator fields a VS pick by VS Data's carriers, so each weapon has to find its profile as the catalogue's does.
