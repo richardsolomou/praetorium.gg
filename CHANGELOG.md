@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.39 (2026-11-28)
+
+### Patch Changes
+
+- ec72959: [rosters] Corsair Voidscarred taking a Faolchu and Ynnari Reavers taking a grav-talon now show the weapon ability it gives their weapons.
+
 ## 0.280.38 (2026-11-28)
 
 ### Patch Changes
