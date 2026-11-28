@@ -187,7 +187,7 @@ function TabletopExport({
   const bookUnits = useMemo(() => (units.data ? unitsInBook(units.data, catalogueId) : null), [units.data, catalogueId])
   const core = useQuery(ruleAbilitySummariesQuery())
   const ready = Boolean(parsed) && !printed.pending && !(catalogueId && units.isPending) && !core.isPending
-  // As a datasheet shows them: the unit's own record or the one its printed text names, else the core ability so named.
+  // As a datasheet shows them (`datasheetAbilitySummary`), else the core ability so named.
   const summaryOf = ({ owner, name: ability, id, text }: (typeof abilities)[number]) =>
     datasheetAbilitySummary(bookUnits, owner, id, printed.recordsOf(text), ability) ??
     abilityKeysNamed(ability)

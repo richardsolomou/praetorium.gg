@@ -143,11 +143,11 @@ export const awardSummary = (finder: RuleSummaryFinder, award: Award) =>
  */
 export function detachmentSummaries(finder: RuleSummaryFinder, detachment: CanonicalDetachment) {
   const owner = detachmentOwner(detachment)
-  const card = (part: { name: string; description: string | null; vsDataId?: string }) =>
+  const card = (part: { name: string; description: string | null; vsDataId?: string; bsdataId?: string }) =>
     part.vsDataId
       ? finder.byId(detachment.catalogueId, part.vsDataId)
       : part.description
-        ? finder.rule(part.description, { name: part.name, owner })
+        ? finder.rule(part.description, { name: part.name, id: part.bsdataId, owner })
         : null
   return {
     rules: detachment.rules.map(card),

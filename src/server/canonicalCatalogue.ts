@@ -159,7 +159,9 @@ const canonicalDetachmentSchema = z.object({
   name: z.string(),
   points: z.number().nullable(),
   dispositions: z.array(z.string()),
-  rules: z.array(z.object({ name: z.string(), description: z.string().nullable(), vsDataId: z.string().optional() })),
+  rules: z.array(
+    z.object({ name: z.string(), description: z.string().nullable(), vsDataId: z.string().optional(), bsdataId: z.string().optional() }),
+  ),
   enhancements: z.array(
     z.object({ name: z.string(), points: z.number().nullable(), description: z.string().nullable(), vsDataId: z.string().optional() }),
   ),
