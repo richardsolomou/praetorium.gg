@@ -16,7 +16,7 @@ import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import type { LoadedRules } from './rules'
 import { nextTask } from './nextTask'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
-import { vsCarriersFiring } from './vsCarrierProfiles'
+import { vsCarriersFiring, vsDataFiring } from './vsCarrierProfiles'
 
 type LoadoutRequest = {
   catalogueId: string
@@ -93,11 +93,17 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
           (error) => `${error.entryId}:${error.message}`,
         )
   const known = new Set(errors(base))
-  const weapons = (datasheetViewsIn(loaded, data.catalogueId, pick.entryId, context).available?.profiles ?? []).filter(isWeaponProfile)
+  const printed = (datasheetViewsIn(loaded, data.catalogueId, pick.entryId, context).available?.profiles ?? []).filter(isWeaponProfile)
   const catalogueCarriers = (built: BuiltUnit) =>
     combatCarriers(catalogueTreeOf(built), loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
-  const carriersOf = (built: BuiltUnit) =>
-    built.vs ? vsCarriersFiring(built.vs.carriers, weapons, catalogueCarriers(base)) : catalogueCarriers(built)
+  const firingOf = (built: BuiltUnit) => {
+    const catalogue = vsCarriersFiring(built.vs!.carriers, printed, catalogueCarriers(base))
+    return vsDataFiring(loaded.vsProfiles, data.catalogueId, pick.entryId, catalogue, printed) ?? { weapons: [], carriers: catalogue }
+  }
+  // The weapons VS Data prints fire wherever it prints them, beside the catalogue's for a loadout it has none for.
+  const vsWeapons = base.vs ? firingOf(base).weapons : []
+  const weapons = [...vsWeapons, ...printed]
+  const carriersOf = (built: BuiltUnit) => (built.vs ? firingOf(built).carriers : catalogueCarriers(built))
   const carriers = carriersOf(base)
   const models = pick.models ?? base.size.models
   const option = (group: string, entry: string, step: LoadoutOption['step'], candidate: RosterPick | null): LoadoutOption[] => {

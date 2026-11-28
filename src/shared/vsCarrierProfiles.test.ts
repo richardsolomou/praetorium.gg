@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { CombatCarrier } from '../core/combatLoadout'
-import { vsCarriersFiring } from './vsCarrierProfiles'
+import { vsCarriersFiring, vsDataFiring } from './vsCarrierProfiles'
+import type { VsProfilesIndex } from './vsDataProfiles'
 
 const profile = (id: string, name: string) => ({ id, name, type: 'Melee Weapons', values: [] })
 const carrying = (...names: string[]): CombatCarrier[] => [{ name: 'Model', models: 1, weapons: names.map((name) => ({ name, count: 1 })) }]
@@ -35,4 +36,34 @@ it('fires the copy of a weapon the catalogue gives its own model', () => {
 it('finds the catalogue carrier of a model one source names in the plural', () => {
   const catalogue = [{ name: 'Models', models: 2, weapons: [{ name: 'Blade', count: 2, profileIds: ['trooper'] }] }]
   expect(fires(carrying('Blade'), [profile('trooper', 'Blade'), profile('superior', 'Blade')], catalogue)).toEqual([['trooper']])
+})
+
+const blade = {
+  id: 'vs-blade',
+  name: 'Blade',
+  melee: true,
+  keys: ['blade', 'blademelee'],
+  wargear: 'vs-wargear',
+  values: { keywords: 'Lethal Hits' },
+}
+const index: VsProfilesIndex = { units: { entry: 'unit' }, lines: { unit: { models: [], unit: [], weapons: [blade] } } }
+const printed = (id: string, keywords: string, baseValue?: string) => ({
+  id,
+  name: 'Blade',
+  type: 'Melee Weapons',
+  values: [{ name: 'Keywords', value: keywords, ...(baseValue === undefined ? {} : { baseValue, modifiers: ['Ability'] }) }],
+})
+const holding = (...ids: string[]): CombatCarrier[] =>
+  ids.map((id) => ({ name: id, models: 1, weapons: [{ name: 'Blade', count: 1, profileIds: [id], wargear: ['vs-wargear'] }] }))
+
+it('gives a VS Data weapon what the catalogue adds to the profile it stands for', () => {
+  const fired = vsDataFiring(index, 'book', 'entry', holding('trooper'), [printed('trooper', 'Lethal Hits, Lance', 'Lethal Hits')])
+  expect(fired?.weapons[0]?.values).toEqual([
+    { name: 'Keywords', value: 'Lethal Hits, Lance', baseValue: 'Lethal Hits', modifiers: ['Ability'] },
+  ])
+})
+
+it('leaves a unit to the catalogue where its models print one VS Data weapon differently', () => {
+  const profiles = [printed('trooper', 'Lethal Hits'), printed('leader', '')]
+  expect(vsDataFiring(index, 'book', 'entry', holding('trooper', 'leader'), profiles)).toBeNull()
 })

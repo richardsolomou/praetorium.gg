@@ -375,7 +375,15 @@ export function combatPlan(
   const idleModes = new Set<string>()
   for (const [at, carrier] of carriers.entries()) {
     const equipment = carrier.weapons.flatMap((piece) => {
-      const carried = profiles.filter(({ profile }) => combatEquipmentMatches(piece, profile))
+      // A weapon fires its first mode unless the player picks another, in the order its carrier holds them.
+      // A profile the carrier does not list keeps its sheet order after those it does.
+      const held = (id: string) => {
+        const at = piece.profileIds?.indexOf(id) ?? -1
+        return at < 0 ? (piece.profileIds?.length ?? 0) : at
+      }
+      const carried = profiles
+        .filter(({ profile }) => combatEquipmentMatches(piece, profile))
+        .toSorted((left, right) => held(left.profile.id) - held(right.profile.id))
       for (const { profile } of carried) accounted.set(profile.id, (accounted.get(profile.id) ?? 0) + piece.count)
       const modes = carried.filter(({ profile }) => huntsTarget(profile.name, targetKeywords))
       if (!modes.length) return []

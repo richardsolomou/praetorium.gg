@@ -9,7 +9,8 @@ import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './
 import { wargearOf, type Wargear } from './wargear'
 import { wargearKey } from './wargearNames'
 
-type CombatEquipment = Wargear & { profileIds?: string[] }
+/** `wargear` holds the VS Data wargear a VS pick's weapon is, which finds its stat lines by ID rather than by name. */
+type CombatEquipment = Wargear & { profileIds?: string[]; wargear?: string[] }
 export type CombatCarrier = {
   name: string
   models: number

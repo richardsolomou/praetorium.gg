@@ -9,7 +9,11 @@ import type { PrintedTransport } from '../core/transport'
 /** A stat line's values as a datasheet prints them, by characteristic; a characteristic VS Data leaves out is absent. */
 export type VsStatValues = Partial<Record<DatasheetCharacteristicKind, string>>
 type UnitLine = { name: string; models?: string[]; values: VsStatValues }
-type WeaponLine = { keys: string[]; melee: boolean; values: VsStatValues }
+/**
+ * `id`, `name` and `wargear` are the VS Data weapon profile's record, its name as the catalogue prints one and the wargear
+ * it is a profile of.
+ */
+export type WeaponLine = { keys: string[]; melee: boolean; values: VsStatValues; id: string; name: string; wargear?: string }
 /**
  * One rules version's VS Data stat lines, by the BSData entry IDs saved lists hold: each datasheet's VS Data unit, and
  * each unit's model names and stat lines, a weapon's under every name a datasheet may print it by.
@@ -153,18 +157,38 @@ export function vsProfilesIndex(
     const modes = new Map<string, number>()
     // A weapon's modes are counted in each phase, so one with a ranged and a melee profile prints its own name in both.
     const phased = (data: WeaponProfileData) => `${data.wargear}|${data.range === 'melee'}`
-    for (const { data } of weapons) if (data.wargear) modes.set(phased(data), (modes.get(phased(data)) ?? 0) + 1)
-    const weaponLines = weapons.map(({ name, data }): WeaponLine => {
+    const profiles = new Map<string, number>()
+    for (const { data } of weapons)
+      if (data.wargear) {
+        modes.set(phased(data), (modes.get(phased(data)) ?? 0) + 1)
+        profiles.set(data.wargear, (profiles.get(data.wargear) ?? 0) + 1)
+      }
+    const weaponLines = weapons.map(({ id, name, data }): WeaponLine => {
       const values: VsStatValues = {}
       for (const kind of Object.keys(WEAPON_FIELDS) as (keyof typeof WEAPON_FIELDS)[]) {
         const value = weaponValue(kind, data, glossary)
         if (value !== undefined) values[kind] = value
       }
       const wargear = data.wargear ? named('wargear', data.wargear) : undefined
+      const count = data.wargear ? (modes.get(phased(data)) ?? 1) : 1
       return {
-        keys: weaponKeys(wargear && same(wargear), name, data.wargear ? (modes.get(phased(data)) ?? 1) : 1, data.range === 'melee'),
+        keys: weaponKeys(wargear && same(wargear), name, count, data.range === 'melee'),
         melee: data.range === 'melee',
         values,
+        id,
+        // VS Data names a mode alone, and a weapon's one profile in each phase by the phase, so they take the weapon's name
+        // as the catalogue prints them, a mode's as the marked `➤ Weapon - mode` that mode grouping and rules naming the
+        // weapon read.
+        name: !wargear
+          ? name
+          : count > 1
+            ? same(name).startsWith(same(wargear))
+              ? name
+              : `➤ ${wargear} - ${name}`
+            : (profiles.get(data.wargear!) ?? 1) > 1
+              ? wargear
+              : name,
+        ...(data.wargear ? { wargear: data.wargear } : {}),
       }
     })
     return {
@@ -195,6 +219,10 @@ const sameValues = (lines: readonly { values: VsStatValues }[]) =>
 /** A datasheet profile as the catalogue prints it, by characteristic kind. */
 export type PrintedProfile = { name: string; type: string; values: Partial<Record<DatasheetCharacteristicKind, string>> }
 
+/** Whether a datasheet profile names a VS Data weapon line, by any name `weaponKeys` gives it in the profile's phase. */
+export const namesWeaponLine = (line: WeaponLine, profile: { name: string; type: string }) =>
+  line.melee === (profile.type === 'Melee Weapons') && line.keys.includes(printedWeaponKey(profile.name))
+
 /** The one VS Data line a profile names, before the datasheet's other profiles are weighed. */
 function candidateOf(
   lines: VsProfilesIndex['lines'][string],
@@ -219,8 +247,7 @@ function candidateOf(
   }
   const melee = profile.type === 'Melee Weapons'
   if (!melee && profile.type !== 'Ranged Weapons') return null
-  const key = printedWeaponKey(profile.name)
-  const found = lines.weapons.filter((line) => line.melee === melee && line.keys.includes(key))
+  const found = lines.weapons.filter((line) => namesWeaponLine(line, profile))
   return sameValues(found) ? found[0]! : null
 }
 
