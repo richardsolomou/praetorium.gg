@@ -721,10 +721,19 @@ export function writeVsDataConstruction(directory: string, file: string) {
   // A unit ability names the wargear it is the rule of on its record where the release states it, else only by its
   // identity entry referencing that wargear, as releases before VS Data's wargear `rules` do.
   const abilityWargear = new Map<string, string[]>()
+  const unitAbilities = new Set<string>()
+  const detachmentRules = new Map<string, string>()
   // An Enhancement is a rule summary whose typed `enhancement` facts say who may take it.
   for (const entry of manifest.categories.find((category) => category.name === 'rules-reference')?.records ?? []) {
     if (entry.kind !== 'ability') continue
     const raw = read(entry.path)
+    const ruled = ruleSchema.safeParse(raw)
+    if (ruled.success && ruled.data.rulesVersion.update === manifest.rulesVersion.update) {
+      const { ruleType, detachment } = ruled.data.data
+      if (ruleType === 'unit-ability') unitAbilities.add(ruled.data.id)
+      // A Detachment's rule names its Detachment as a Stratagem does (vs-data#233).
+      if (ruleType === 'detachment-rule' && detachment) detachmentRules.set(ruled.data.id, detachment.id)
+    }
     const stated = abilityWargearSchema.safeParse(raw)
     if (stated.success && stated.data.rulesVersion.update === manifest.rulesVersion.update && stated.data.data.wargear)
       abilityWargear.set(
@@ -752,6 +761,18 @@ export function writeVsDataConstruction(directory: string, file: string) {
       definition.data = { ...definition.data, rules: [...new Set([...rules, entry.id])].toSorted() }
     }
   }
+  // A unit's own abilities are the unit abilities whose identity entries reference it (vs-data#223).
+  for (const entry of identity.entries) {
+    if (entry.kind !== 'ability' || entry.absent || entry.retired !== undefined || !unitAbilities.has(entry.id)) continue
+    for (const reference of entry.references ?? []) {
+      const unit = reference.kind === 'unit' ? definitions.unit?.[reference.id] : undefined
+      if (unit) unit.data = { ...unit.data, abilities: addSorted(unit.data.abilities, entry.id) }
+    }
+  }
+  for (const [rule, id] of detachmentRules) {
+    const detachment = definitions.detachment?.[id]
+    if (detachment) detachment.data = { ...detachment.data, rules: addSorted(detachment.data.rules, rule) }
+  }
   const construction: VsDataConstruction = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
@@ -775,6 +796,11 @@ const retiredSchema = z.object({ replacedBy: z.array(z.string()) })
 const constructionRecordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   data: z.record(z.string(), z.unknown()),
+})
+const addSorted = (held: unknown, id: string) => [...new Set([...(Array.isArray(held) ? (held as string[]) : []), id])].toSorted()
+const ruleSchema = refSchema.extend({
+  rulesVersion: z.object({ update: z.string() }),
+  data: z.object({ ruleType: z.string().optional(), detachment: refSchema.optional() }),
 })
 const abilityWargearSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
