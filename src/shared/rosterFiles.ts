@@ -632,7 +632,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     return [read.pick]
   })
 
-  takeEnhancementsOnce(units, loaded.index, detachmentSelections)
+  takeEnhancementsOnce(units, loaded, detachmentIds, detachmentSelections)
   assumeWarlord(units)
   attachTextUnits(parsed.units, units, sourceToImported)
   const joins = (member: { entryId: string }, host: { entryId: string }) => {
@@ -778,11 +778,29 @@ export function assumeWarlord<T extends Crowned>(picks: readonly T[], errors?: (
  * An army takes each enhancement once, so a second character naming one another detachment also offers under that name,
  * as Exhibition of Slaughter and Spectacle of Spite both offer a Periapt of Torments, takes that detachment's.
  */
-function takeEnhancementsOnce(picks: readonly RosterPick[], index: LoadedCatalogue['index'], roster: readonly Selection[]) {
+function takeEnhancementsOnce(
+  picks: readonly RosterPick[],
+  loaded: LoadedCatalogue,
+  detachmentIds: readonly string[],
+  roster: readonly Selection[],
+) {
+  const { index } = loaded
+  // An option VS Data files as an Enhancement of one of the list's Detachments is one; in a Detachment VS Data does not
+  // record, an option the catalogue prices as one.
+  const recorded = new Set(detachmentIds.flatMap((id) => loaded.vsRoster?.detachments[id] ?? []))
+  const filed = new Set(
+    Object.keys(loaded.vsRoster?.enhancements ?? {}).flatMap((key) =>
+      recorded.has(key.slice(0, key.indexOf('/'))) ? [key.slice(key.indexOf('/') + 1)] : [],
+    ),
+  )
+  const unrecorded = detachmentIds.some((id) => !loaded.vsRoster?.detachments[id])
   const enhancementType = [...index.costTypes.values()].find((cost) => cost.name === ENHANCEMENT_COST)?.id
   const isEnhancement = (id: string) => {
+    if (filed.has(id)) return true
     const definition = index.definitions.get(id)
-    return Boolean(definition && resolve(definition, index).costs?.some((cost) => cost.typeId === enhancementType && cost.value > 0))
+    return Boolean(
+      unrecorded && definition && resolve(definition, index).costs?.some((cost) => cost.typeId === enhancementType && cost.value > 0),
+    )
   }
   const taken = new Set<string>()
   for (const pick of picks) {
@@ -2047,9 +2065,10 @@ function countsForChoice(
 }
 
 /**
- * The catalogue's name for each enhancement the Munitorum Field Manual spells differently,
- * as its "Biomorph Adaptation" is BSData's "Biomorph Adaption": the one option this unit is
- * offered that the manual names nowhere in the list's detachments, at the same points.
+ * The catalogue's name for each enhancement VS Data or the Munitorum Field Manual spells differently, as its "Biomorph
+ * Adaptation" is BSData's "Biomorph Adaption": the option VS Data files that Enhancement under in the list's Detachments,
+ * else, in a Detachment VS Data does not record, the one option this unit is offered that the manual names nowhere in
+ * the list's detachments, at the same points.
  */
 function enhancementRespellings(
   entryId: string,
@@ -2059,15 +2078,27 @@ function enhancementRespellings(
   context: { primaryCatalogueId: string; roster: readonly Selection[] },
 ) {
   const names = new Map<string, string>()
-  const detachments = loaded.detachments.get(catalogueId)?.options.filter((option) => detachmentIds.includes(option.id)) ?? []
+  const built = buildUnit(entryId, loaded.index, undefined, {}, context)
+  if (!built) return names
+  const offered = unitChoices(entryId, built.selection, loaded.index, context).flatMap((choice) => choice.options)
+  const definitions = vsDefinitionsOf(loaded)
+  const recorded = new Set(detachmentIds.flatMap((id) => loaded.vsRoster?.detachments[id] ?? []))
+  for (const [key, id] of Object.entries(loaded.vsRoster?.enhancements ?? {})) {
+    const at = key.indexOf('/')
+    const option = recorded.has(key.slice(0, at)) ? offered.find((candidate) => candidate.id === key.slice(at + 1)) : undefined
+    const enhancement = option && definitions?.get('enhancement', id)
+    if (enhancement && normalized(enhancement.name) !== normalized(option.name))
+      names.set(normalized(enhancement.name), normalized(option.name))
+  }
+  const detachments =
+    loaded.detachments
+      .get(catalogueId)
+      ?.options.filter((option) => detachmentIds.includes(option.id) && !loaded.vsRoster?.detachments[option.id]) ?? []
   const manual = detachments.flatMap(
     (detachment) =>
       fieldManualDetachment(loaded, catalogueId, detachment.name)?.enhancements?.filter((entry) => !isUpgrade(entry.name)) ?? [],
   )
-  const built = buildUnit(entryId, loaded.index, undefined, {}, context)
-  if (!manual.length || !built) return names
   const inManual = (name: string) => manual.some((entry) => normalized(entry.name) === normalized(name))
-  const offered = unitChoices(entryId, built.selection, loaded.index, context).flatMap((choice) => choice.options)
   for (const entry of manual) {
     if (offered.some((option) => normalized(option.name) === normalized(entry.name))) continue
     const unnamed = offered.filter((option) => !inManual(option.name) && option.points === entry.points)
