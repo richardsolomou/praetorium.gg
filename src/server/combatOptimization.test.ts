@@ -3,7 +3,7 @@ import type { SelectionEntry } from '../core/catalogue'
 import { DEFAULT_COMBAT_OPTIONS } from '../core/combat'
 import { applyOptimizedLoadout, loadoutChanges, optimizeLoadout, type LoadoutCandidate } from '../core/combatLoadouts'
 import { bookOf, points } from './catalogue.fixtures'
-import { combatLoadoutCandidates, loadoutStates, withoutEmptyEntries } from '../shared/combatLoadouts'
+import { combatLoadoutCandidates, combatLoadoutSpace, loadoutStates, withoutEmptyEntries } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { vsRosterData } from '../shared/vsDataLegality'
 
@@ -460,4 +460,11 @@ it('steps a uniform VS option back to untaken', async () => {
     '{"host.pair.weapon":{"host.pair.axe":2}}',
     '{}',
   ])
+})
+
+it('fields each of a VS pick’s weapon options with what VS Data fields for it', () => {
+  const strong = combatLoadoutSpace(vsBook, vsRequest)
+    ?.choices.flat()
+    .find((option) => option.entry === 'host.squad.strong')
+  expect(strong?.carriers.flatMap((carrier) => carrier.weapons.map((weapon) => weapon.name))).toEqual(['Squad strong'])
 })
