@@ -59,7 +59,7 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
     parsed,
     format,
     loaded,
-    factions.map((candidate) => candidate.name),
+    factions.flatMap((candidate) => candidate.bookNames.slice(-1)),
     rules,
     translations,
     instance.catalogueRemovals(),
@@ -103,7 +103,11 @@ async function importText(file: string, factions: Factions) {
   const named = await importedFaction(factionName, statedCatalogueId, factions, translations)
   const base = named || statedCatalogueId ? null : instance.catalogue()
   const byUnits = base ? importRosterUnitFaction(file, base, instance.rules()?.importNames) : null
-  const unitsName = byUnits && base ? (vsFactionOf(base, byUnits.id)?.name ?? byUnits.name) : null
+  const unitsName =
+    byUnits && base
+      ? (vsFactionOf(base, byUnits.id)?.name ??
+        factions.find(({ id, baseCatalogueId }) => id === byUnits.id || baseCatalogueId === byUnits.id)?.bookNames.at(-1))
+      : null
   const faction = named ?? (unitsName ? await importedFaction(unitsName, null, factions, translations) : null)
   if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
   const loaded = faction ? await requireCatalogue(faction.id) : null
@@ -111,7 +115,7 @@ async function importText(file: string, factions: Factions) {
   const result = importRosterFile(
     { file },
     loaded,
-    factions.map((candidate) => candidate.name),
+    factions.flatMap((candidate) => candidate.bookNames.slice(-1)),
     rules,
     translations,
     instance.catalogueRemovals(),
@@ -129,5 +133,5 @@ async function importExchangeCode(code: string) {
   if (!faction) throw new Response(ROSTER_EXCHANGE_RULES_UNAVAILABLE, { status: 409 })
   const loaded = await requireCatalogue(faction.id)
   const rules = await instance.rulesFor(faction.id)
-  return { result: importRosterExchange(exchange, loaded, rules, faction.name), loaded, rules }
+  return { result: importRosterExchange(exchange, loaded, rules, faction.bookNames.at(-1) ?? faction.displayName), loaded, rules }
 }

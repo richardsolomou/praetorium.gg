@@ -1,4 +1,5 @@
 import type { Datasheet } from '../contracts/catalogue'
+import { costConditions } from '../core/datasheet'
 
 /**
  * A datasheet's unconditional unit sizes and costs as one line, or null when it has none.
@@ -12,9 +13,7 @@ export function unitCostsSummary(costs: Datasheet['costs']) {
 }
 
 const unconditionalCosts = (costs: Datasheet['costs']) =>
-  costs
-    .filter((cost) => !cost.keyword && !cost.faction && !cost.detachment && !cost.copies)
-    .toSorted((left, right) => Number(left.models) - Number(right.models))
+  costs.filter((cost) => !costConditions(cost).length).toSorted((left, right) => Number(left.models) - Number(right.models))
 
 /**
  * A datasheet's unconditional price as one figure, `80 pts`, or the range its unit sizes span,

@@ -7,7 +7,7 @@ import { editionDirectory, readCatalogueComposition } from '../src/server/catalo
 import { loadCatalogue } from '../src/server/catalogueIndex'
 
 /**
- * Adds to `catalogue/legacy-ids/` the names every rules version of a catalogue snapshot gives each datasheet and
+ * Adds to `catalogue/legacy-ids/` the names every rules version of a catalogue snapshot gives each book, datasheet and
  * Detachment, by the ID a saved roster holds: New Recruit prints these spellings, which imports read once the catalogue
  * no longer carries them. The files are append-only: a name they hold is never removed.
  *
@@ -20,20 +20,25 @@ if (!composition) throw new Error(`${directory} has no catalogue composition`)
 
 // The base rules version's names are under the stored ID; an earlier version's, where they differ, under
 // `<rules version>~<ID>`, as `units.json` keys them, since a list exported from that version names them so.
-const found = { datasheets: new Map<string, Set<string>>(), detachments: new Map<string, Set<string>>() }
+const SECTIONS = ['books', 'datasheets', 'detachments'] as const
+type Named = Record<(typeof SECTIONS)[number], Map<string, Set<string>>>
+const sections = (): Named => ({ books: new Map(), datasheets: new Map(), detachments: new Map() })
+const found = sections()
 const add = (section: Map<string, Set<string>>, id: string, name: string) => section.set(id, (section.get(id) ?? new Set()).add(name))
 const editions = composition.editions.toSorted((left, right) => Number(right.base === true) - Number(left.base === true))
 for (const entry of editions) {
   const loaded = entry.base ? loadCatalogue(directory) : loadCatalogue(editionDirectory(directory, entry), entry.edition)
   if (!loaded) throw new Error(`${entry.edition.id} has no catalogue`)
-  const named = { datasheets: new Map<string, Set<string>>(), detachments: new Map<string, Set<string>>() }
+  const named = sections()
+  // A rules version's book IDs carry its prefix, which the key adds back where its names differ.
+  for (const faction of loaded.factions) add(named.books, faction.id.slice(faction.id.indexOf('~') + 1), faction.name)
   for (const faction of loaded.factions)
     for (const id of loaded.index.datasheets.get(faction.id) ?? []) {
       const definition = loaded.index.definitions.get(id)
       if (definition) add(named.datasheets, id, nameOf(definition, loaded.index.definitions))
     }
   for (const { options } of loaded.detachments.values()) for (const option of options) add(named.detachments, option.id, option.name)
-  for (const section of ['datasheets', 'detachments'] as const)
+  for (const section of SECTIONS)
     for (const [id, names] of named[section]) {
       const base = found[section].get(id)
       const same = base && base.size === names.size && [...names].every((name) => base.has(name))
@@ -43,7 +48,7 @@ for (const entry of editions) {
 }
 
 const folder = path.join(import.meta.dirname, '../catalogue/legacy-ids')
-for (const section of ['datasheets', 'detachments'] as const) {
+for (const section of SECTIONS) {
   const file = path.join(folder, `${section.slice(0, -1)}-names.json`)
   const frozen = legacyNamesSchema.parse(
     fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { format: 'praetorium.legacy-names.v1', names: {} },
