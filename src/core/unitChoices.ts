@@ -665,13 +665,17 @@ function legalMaximum(
           { ...parts[0]!, count: parts.reduce((total, part) => total + (part.count ?? 1), 0) },
         ])
       : selection
+  // The rest of the room goes to whichever other option leaves this one legal: one that lowers this option's limit, as a
+  // bright lance lowers a starcannon's, would otherwise cap it at less than the data allows.
+  const others = siblings.filter((candidate) => candidate.id !== option.id)
   for (let count = room; count >= 1; count--) {
-    const other = siblings.find((candidate) => candidate.id !== option.id)
-    const counts: Record<string, number> = { [option.id]: count }
-    if (other) counts[other.id] = room - count
-    const candidate = withSpread(whole, path.join('/'), counts)
-    const errors = candidateErrors(targetId, candidate, index, context)
-    if (!errors.length) return count
+    const fillers = others.length ? others : [undefined]
+    const legal = fillers.some((other) => {
+      const counts: Record<string, number> = { [option.id]: count }
+      if (other) counts[other.id] = room - count
+      return !candidateErrors(targetId, withSpread(whole, path.join('/'), counts), index, context).length
+    })
+    if (legal) return count
   }
   return 0
 }
