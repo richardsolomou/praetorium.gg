@@ -6,6 +6,7 @@ import type { ConstructionReadData, ConstructionReadName } from './constructionR
 import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } from '../../shared/rosterFiles'
 import { rulesetCatalogueIds } from '../../shared/vsDataNames'
 import { decodeRosterExchange, isRosterExchangeCode } from '../../core/rosterExchange'
+import { listForgeShareCode } from '../../core/listForge'
 import { loadSavedQuery, referenceData, referenceRead, savedQuery } from './runtime'
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import { withVsDataSaves } from '../../shared/vsDataSaves'
@@ -90,6 +91,7 @@ export const reminderAbilities = read('reminderAbilities', (args) => server.remi
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
 export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
+  if (listForgeShareCode(args.data.file)) return server.importRoster(args)
   const factions = (await loadSavedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), factionIndexKey()))?.factions
   if (isRosterExchangeCode(args.data.file)) {
     const exchange = await decodeRosterExchange(args.data.file)

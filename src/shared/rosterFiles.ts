@@ -9,7 +9,7 @@ import { detachmentNameVariants } from '../core/detachmentName'
 import { ENHANCEMENT_COST, type Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants, withoutFactionPrefix } from '../core/name'
-import { fromListForgeText, fromListForgeShortText, fromListForgeWtcText } from '../core/listForge'
+import { fromListForgeText, fromListForgeShortText, fromListForgeWtcText, isListForgeSimpleText } from '../core/listForge'
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
 import { fromWarOrganText } from '../core/warOrgan'
@@ -161,6 +161,7 @@ function readImport(file: string): { parsed: TextRoster; format: RosterTextForma
   if (miniHeadquarters) return { parsed: miniHeadquarters, format: 'miniheadquarters' }
   const sectioned = fromSectionedListText(file)
   if (sectioned) return { parsed: sectioned, format: 'sectioned-list' }
+  if (isListForgeSimpleText(file)) return null
   const battleBase = fromBattleBaseText(file, { setupOptional: true })
   if (battleBase)
     return {
@@ -252,7 +253,14 @@ export function importRosterFile(
     catalogueName: null,
     detachmentIds: [],
     units: [],
-    unknown: [{ name: 'the pasted text', reason: UNSUPPORTED_ARMY_TEXT }],
+    unknown: [
+      isListForgeSimpleText(data.file)
+        ? {
+            name: 'ListForge Simple Text',
+            reason: 'it omits model loadouts. Paste a ListForge share link or copy the Detailed Text export',
+          }
+        : { name: 'the pasted text', reason: UNSUPPORTED_ARMY_TEXT },
+    ],
     unplaced: [],
     source: null,
     format: null,
@@ -1454,7 +1462,16 @@ function textRosterPick(
         // A kind with no option here is the model the unit is sized by, as the Kroot Farstalker the Pech'ra carrier is one of.
         for (const variant of bodies >= choice.room ? choice.options : []) {
           const kind = normalized(variant.name.replace(/\s+(?:w\/|with)\s*.+$/i, ''))
-          const base = choice.options.find((option) => option !== variant && normalized(option.name) === kind)
+          // "With Jump Packs" names the standard model, while "w/ Plasma Pistol" names its loadout.
+          const base =
+            choice.options.find((option) => option !== variant && normalized(option.name) === kind) ??
+            choice.options.find(
+              (option) =>
+                option !== variant &&
+                modelLoadout.test(variant.name) &&
+                !modelLoadout.test(option.name) &&
+                normalized(option.name.replace(/\s+with\s+.+$/i, '')) === kind,
+            )
           if (asked!.get(variant.id) || !counts.get(variant.id)) continue
           if (!base) {
             if (statedLines.has(kind)) asked!.set(variant.id, Math.min(counts.get(variant.id)!, statedLines.get(kind)!))

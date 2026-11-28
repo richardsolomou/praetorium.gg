@@ -79,6 +79,57 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     },
   )
 
+  it('imports the plasma pistol of a Vanguard Veteran listed in the standard model group', () => {
+    const file = `Jump squad (185 points)
+
+Space Marines
+Assault Brethren and Terminator Storm Force (2 Detachment Points)
+Take and Hold
+Incursion (1000 points)
+
+Attached Units
+Attached Unit 1
+
+Chaplain with Jump Pack (75 points)
+• Attached as: Leader (Character)
+  • 1x Absolvor Bolt Pistol
+    1x Crozius Arcanum
+
+Vanguard Veteran Squad with Jump Packs (110 points)
+• Attached as: Bodyguard
+  • 1x Vanguard Veteran Sergeant
+    • 1x Heavy Bolt Pistol
+      1x Relic Blade
+  • 4x Vanguard Veteran
+    • 3x Heavy Bolt Pistol
+      4x Master-crafted Power Weapon
+      1x Plasma pistol
+`
+    expect(wargear(file, 'Vanguard Veteran Squad with Jump Packs')).toContain('1x plasma pistol')
+  })
+
+  it('imports a complex ListForge Orks export with attached Boyz and a repeated datasheet', () => {
+    const file = `Dread test - Orks - Purge the Foe - Dread Mob, Green Tide (885 Points)
+
+Painboy: Dok's Toolz, ’Urty syringe + Boyz: Nob, 9x Boy (130 pts)
+Weirdboy: Copper Staff, Power Vomit + Boyz: Nob, 9x Boy (145 pts)
+Big Mek Dakkarig: Blitzkannon, Multi-busta Launcha, Stompy Feet, E: Dreadherder (190 pts)
+Warboss: Kustom Choppa, Kustom Shoota, Warlord (100 pts)
+Warboss: Kustom Choppa, Kustom Shoota (100 pts)
+2x Gretchin: 10x Gretchin (90 pts)
+Killa Kans: 3x Killa Kan (130 pts)
+`
+    expect(summary(file)).toEqual({
+      format: 'listforge',
+      faction: 'Xenos - Orks',
+      detachments: 2,
+      units: '10 of 10',
+      attached: 2,
+      mismatches: [],
+      points: '885 for 885',
+    })
+  })
+
   const official = (faction: string, detachment: string, unit: string) =>
     `List (2000 points)\n\n${faction}\n${detachment} (3 Detachment Points)\nPurge the Foe\nStrike Force (2000 points)\n\nOTHER DATASHEETS\n\n${unit}\n`
 

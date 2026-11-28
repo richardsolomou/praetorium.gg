@@ -1,5 +1,6 @@
 import { saveRosterSchema } from '../contracts/schemas'
 import { DEFAULT_GAME_LIMIT } from '../core/battle'
+import { listForgeShareCode } from '../core/listForge'
 import { decodeRosterExchange, isRosterExchangeCode, ROSTER_EXCHANGE_RULES_UNAVAILABLE, RosterExchangeError } from '../core/rosterExchange'
 import type { TextRoster } from '../core/textRoster'
 import {
@@ -18,14 +19,24 @@ import { vsFactionOf } from '../shared/factionNames'
 import { rulesetCatalogueIds } from '../shared/vsDataNames'
 import { app } from './app'
 import { importVsMaps } from './importVsMaps'
+import { listForgeShareText } from './listForge'
 import { requireCatalogue } from './requireCatalogue'
 import { withinTime } from './timeLimit'
 
 export type Factions = NonNullable<Awaited<ReturnType<ReturnType<typeof app>['factionsFor']>>>['factions']
 
-/** Army text or an exchange code, matched against the rules version it names. */
+/** Army text, a ListForge share link or an exchange code, matched against the rules version it names. */
 export async function importRosterInput(file: string) {
   if (isRosterExchangeCode(file)) return importExchangeCode(file)
+  const listForge = listForgeShareCode(file)
+  if (listForge) {
+    const fallback = 'Copy the Detailed Text export in ListForge and paste it here.'
+    const shared = await listForgeShareText(listForge).catch(() => {
+      throw new Response(`ListForge did not answer as expected. ${fallback}`, { status: 502 })
+    })
+    if (!shared) throw new Response(`That ListForge link does not open an importable list. ${fallback}`, { status: 422 })
+    file = shared
+  }
   return importText(file, (await app().factionsFor())?.factions ?? [])
 }
 
