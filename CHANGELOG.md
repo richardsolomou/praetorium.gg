@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.34 (2026-11-28)
+
+### Patch Changes
+
+- f763f44: [reference] A datasheet's composition counts like models on one line, as "4 × Cadian Veteran Guardsman" in a Cadian Command Squad rather than four lines of one.
+
 ## 0.280.33 (2026-11-28)
 
 ### Patch Changes
