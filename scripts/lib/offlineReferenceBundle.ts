@@ -180,11 +180,12 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
   }
   // Pasted army text in another language is read on the device too, so the names it may state travel with the download:
-  // every name BSData gave an entry, frozen, which New Recruit's translations are keyed by, and the catalogue's for one
-  // added since. Translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
+  // every name BSData gave an entry of the current rules version, frozen, which New Recruit's translations are keyed by,
+  // and the catalogue's for one added since. Translated descriptions stay behind, as do entries BSData names with a
+  // notice of several sentences, and an earlier rules version's names, which would take the part past its size limit.
   const stateable = new Set([
     ...[legacyImportIds.datasheetNames, legacyImportIds.detachmentNames, legacyImportIds.entryNames]
-      .flatMap((frozen) => [...frozen.values()].flat())
+      .flatMap((frozen) => [...frozen].flatMap(([key, names]) => (key.includes('~') ? [] : names)))
       .filter((name) => !/[.!?]\s/.test(name)),
     ...[...catalogue.index.definitions.values()].flatMap((definition) =>
       definition.name && !/[.!?]\s/.test(definition.name) ? [definition.name] : [],
