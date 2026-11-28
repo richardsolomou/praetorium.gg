@@ -1,4 +1,3 @@
-import { withoutFactionPrefix } from '../core/name'
 import { reminderIn } from './textFacts'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { routeSlug } from '../core/slug'
@@ -11,6 +10,11 @@ import { joinKey } from '../core/text'
 import { cardName, DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
 import { withoutUpgrade } from './mfm'
+import { isNonMatchedPlayName, withoutFactionPrefix } from '../core/name'
+import type { EnhancementEligibility } from '../contracts/factions'
+import { enhancementAdmits, keywordsOf } from '../core/vsDataRoster'
+import type { Definition } from '../core/vsDataConstruction'
+import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 
 /** The names, as route slugs, of the unit upgrades a faction's detachments offer. */
 export function detachmentUpgradeNames(loaded: LoadedCatalogue, catalogueId: string, loadedRules: LoadedRules | null | undefined) {
@@ -83,8 +87,7 @@ export function describeDatasheetAbilitiesWithContributions(
   }
   const abilities = visibleAbilities.map(describeAbility)
   const weaponAbilityNames = weaponKeywords(sheet.profiles)
-  const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(withoutFactionPrefix(keyword))))
-  const character = keywords.has('character')
+  const takes = enhancementsTaken(loaded, catalogueId, sheet)
   const abilitiesByDetachment = new Map(
     referenceAbilities?.detachments.map((detachment) => [joinKey(canonicalDetachmentName(detachment.name)), detachment] as const) ?? [],
   )
@@ -95,24 +98,7 @@ export function describeDatasheetAbilitiesWithContributions(
         name: detachment.name,
         rules: detachment.rules,
         abilities: (abilitiesByDetachment.get(joinKey(canonicalDetachmentName(detachment.name)))?.abilities ?? []).map(describeAbility),
-        enhancements: character
-          ? detachment.enhancements.filter(
-              (enhancement) =>
-                enhancement.eligibility !== null &&
-                enhancement.eligibility.anyOf.some((required) =>
-                  required.every((keyword) => keywords.has(routeSlug(keyword)) || routeSlug(sheet.name) === routeSlug(keyword)),
-                ) &&
-                enhancement.eligibility.excluded.every(
-                  (keyword) => !keywords.has(routeSlug(keyword)) && routeSlug(sheet.name) !== routeSlug(keyword),
-                ) &&
-                (enhancement.eligibility.requiredAbilities ?? []).every((name) =>
-                  sheet.abilities.some((ability) => routeSlug(ability.name) === routeSlug(name)),
-                ) &&
-                (enhancement.eligibility.requiredWargear ?? []).every((name) =>
-                  sheet.profiles.some((profile) => /weapons?/i.test(profile.type) && joinKey(profile.name) === joinKey(name)),
-                ),
-            )
-          : [],
+        enhancements: detachment.enhancements.filter(takes),
       }))
     : []
   const describedDetachmentNames = new Set(detachments.map((detachment) => joinKey(canonicalDetachmentName(detachment.name))))
@@ -161,6 +147,72 @@ export function describeDatasheetAbilitiesWithContributions(
       rules: rulesContributeAbilities,
     },
   }
+}
+
+/**
+ * Whether the datasheet may take a Detachment's Enhancement: as the Enhancement's rule facts admit some model of the
+ * datasheet's VS Data unit under that Detachment, with or without an allegiance the unit may take there (and carry the
+ * wargear it needs), carrying any wargear the Enhancement needs. A datasheet VS Data does not define, or an Enhancement
+ * it has no record of, is read from its Game Datacards card's wording instead. Beside VS Data's reading, so is a Warhammer
+ * Legends or Crucible datasheet, which no app build prints to check VS Data's copy against, and any datasheet of an
+ * earlier rules version, whose frozen maps can still name another faction's unit of the same name.
+ */
+function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: NonNullable<ReturnType<typeof datasheetIn>>) {
+  const definitions = vsDefinitionsOf(loaded)
+  const unitId = vsUnitIdOf(loaded, catalogueId, sheet.id)
+  const unit = unitId ? definitions?.get('unit', unitId) : undefined
+  const card = cardEligibility(sheet)
+  if (!definitions || !unit) return card
+  const alsoCard = isNonMatchedPlayName(sheet.name) || Boolean(loaded.edition && !loaded.edition.default)
+  const faction = loaded.vsRoster?.books[catalogueId.slice(catalogueId.indexOf('~') + 1)] ?? unit.data.faction
+  const carried = [
+    ...definitions.modelsOf(unit.id).flatMap((model) => Object.keys(model.data.wargear)),
+    ...Object.keys(unit.data.wargear ?? {}),
+    ...definitions.optionsOf(unit.id).flatMap((option) => option.data.choices),
+  ]
+  const reachable = new Set([...carried, ...carried.flatMap((id) => Object.keys(definitions.get('wargear', id)?.data.includes ?? {}))])
+  const reachableNames = new Set([...reachable].map((id) => (definitions.get('wargear', id)?.name ?? id).toLowerCase()))
+  // Every model fielded, each taking one option choice at a time, so a keyword a piece of wargear gives counts.
+  const models = Object.fromEntries(definitions.modelsOf(unit.id).map((model) => [model.id, model.data.max]))
+  const loadouts = [
+    {},
+    ...definitions.optionsOf(unit.id).flatMap((option) => option.data.choices.map((choice) => ({ [option.id]: { [choice]: 1 } }))),
+  ]
+  const admits = (enhancement: Definition<'enhancement'>) => {
+    const { detachment } = enhancement.data
+    const roster = { faction, detachments: [detachment], units: [] }
+    const offered = (unit.data.allegiances ?? []).filter((offer) => !offer.detachment || offer.detachment === detachment)
+    const allegiances = offered.flatMap((offer) =>
+      offer.choices.filter((choice) => !offer.requires?.[choice] || reachable.has(offer.requires[choice])),
+    )
+    return (
+      (enhancement.data.eligibility.requiredWargear ?? []).every((name) => reachableNames.has(name.toLowerCase())) &&
+      [undefined, ...allegiances].some((allegiance) => {
+        const picked = { unit: unit.id, size: unit.data.sizes[0], ...(allegiance ? { allegiance } : {}) }
+        return loadouts.some((options) =>
+          enhancementAdmits(definitions, enhancement, picked, keywordsOf(definitions, roster, { ...picked, models, options })),
+        )
+      })
+    )
+  }
+  return (enhancement: { vsDataId?: string; eligibility: EnhancementEligibility | null }) => {
+    const record = enhancement.vsDataId ? definitions.get('enhancement', enhancement.vsDataId) : undefined
+    return record ? admits(record) || (alsoCard && card(enhancement)) : card(enhancement)
+  }
+}
+
+function cardEligibility(sheet: NonNullable<ReturnType<typeof datasheetIn>>) {
+  const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(withoutFactionPrefix(keyword))))
+  if (!keywords.has('character') || keywords.has('epic-hero')) return () => false
+  const named = (keyword: string) => keywords.has(routeSlug(keyword)) || routeSlug(sheet.name) === routeSlug(keyword)
+  return ({ eligibility }: { eligibility: EnhancementEligibility | null }) =>
+    eligibility !== null &&
+    eligibility.anyOf.some((required) => required.every(named)) &&
+    eligibility.excluded.every((keyword) => !named(keyword)) &&
+    (eligibility.requiredAbilities ?? []).every((name) => sheet.abilities.some((ability) => routeSlug(ability.name) === routeSlug(name))) &&
+    (eligibility.requiredWargear ?? []).every((name) =>
+      sheet.profiles.some((profile) => /weapons?/i.test(profile.type) && joinKey(profile.name) === joinKey(name)),
+    )
 }
 
 /**
