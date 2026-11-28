@@ -78,4 +78,6 @@ it('reads a datasheet as the unit its book’s own key names, as a chaos book’
   ).toBe('chaos-titan-legions.chaos-warlord-titan'))
 
 it('reads its own faction’s rule of the exact name a datasheet prints, as an army rule’s chip', () =>
-  expect(datasheetAbilitySummary(units, 'karanak-entry', undefined, [], 'Shadow of Chaos')).toBe(units.abilities['chaos-daemons.shadow-of-chaos']))
+  expect(datasheetAbilitySummary(units, 'karanak-entry', undefined, [], 'Shadow of Chaos')).toBe(
+    units.abilities['chaos-daemons.shadow-of-chaos'],
+  ))

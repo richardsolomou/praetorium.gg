@@ -15,7 +15,9 @@ export const abilityKey = (name: string) => unitAbilitySlug(name).replaceAll(/(?
 export function unitsInBook<T extends Pick<VsDataUnits, 'units'>>(units: T, catalogueId: string): T {
   const book = `${catalogueId.slice(catalogueId.indexOf('~') + 1)}/`
   const own = Object.entries(units.units).filter(([key]) => key.startsWith(book))
-  return own.length ? { ...units, units: { ...units.units, ...Object.fromEntries(own.map(([key, unit]) => [key.slice(book.length), unit])) } } : units
+  return own.length
+    ? { ...units, units: { ...units.units, ...Object.fromEntries(own.map(([key, unit]) => [key.slice(book.length), unit])) } }
+    : units
 }
 
 /** An `@` owner as VS Data names it: a faction, or a faction's detachment, by the faction's VS Data id. */

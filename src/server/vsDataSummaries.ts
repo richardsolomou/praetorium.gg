@@ -46,7 +46,9 @@ export function abilityAliases(records: BsdataRecords, summarized: (key: string)
   const ability = (key: string) => (key.startsWith('ability:') && summarized(key) ? key.slice('ability:'.length) : undefined)
   return {
     ...Object.fromEntries(Object.entries(records.byId).flatMap(([id, key]) => (ability(key) ? [[id, ability(key)!] as const] : []))),
-    ...Object.fromEntries(Object.entries(records.bySheet).flatMap(([sheet, key]) => (summarized(key) ? [[sheet, ability(key) ?? ''] as const] : []))),
+    ...Object.fromEntries(
+      Object.entries(records.bySheet).flatMap(([sheet, key]) => (summarized(key) ? [[sheet, ability(key) ?? ''] as const] : [])),
+    ),
   }
 }
 

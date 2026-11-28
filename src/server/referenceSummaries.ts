@@ -105,7 +105,9 @@ export function ruleSummaryFinder(
     },
     /** `KeywordRuleSummary`. */
     keywordRule(rule: { name: string; description: string | null }, owner?: SummaryOwner) {
-      return keyword(rule.name) ?? owned(rule.description ?? '', rule.description ? rule.name : undefined, undefined, owner) ?? named(rule.name)
+      return (
+        keyword(rule.name) ?? owned(rule.description ?? '', rule.description ? rule.name : undefined, undefined, owner) ?? named(rule.name)
+      )
     },
     /** `useVsDataSummaries`: a rule by its VS Data id in the rules version of `catalogueId`, then in the current one. */
     byId: (catalogueId: string, id: string) => {
