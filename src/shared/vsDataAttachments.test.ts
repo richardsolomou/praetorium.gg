@@ -186,7 +186,11 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
   })
 
   it('lets a unit join a stand-in for a host it takes by keyword', () => {
-    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toEqual(['Hastarii'])
+    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toContain('Hastarii')
+  })
+
+  it("names the units holding a condition's keywords as its hosts, whatever keywords the catalogue gives them", () => {
+    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toContain('Rangers')
   })
 })
 
