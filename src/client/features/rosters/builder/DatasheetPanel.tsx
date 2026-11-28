@@ -284,14 +284,19 @@ export function AbilitySummary({
             // A rule the list's detachment gives the unit by name, as Possessed Slaughterband's Brazen Fury on Eightbound, is that detachment's.
             const granted = detachmentRules?.find((rule) => rule.name === ability.name)
             const owner = granted?.id && detachmentRuleOwners?.[granted.id.split('/')[0]!]
-            return (
-              <article key={ability.id} className="relative border-b border-edge px-2 py-2.5">
+            const body = (
+              <>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-xs">{ability.source ?? ability.name}</h3>
                   {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
                 </div>
                 {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-                {owner && text ? <DatasheetUnit.Provider value={owner}>{text}</DatasheetUnit.Provider> : text}
+                {text}
+              </>
+            )
+            return (
+              <article key={ability.id} className="relative border-b border-edge px-2 py-2.5">
+                {owner ? <DatasheetUnit.Provider value={owner}>{body}</DatasheetUnit.Provider> : body}
               </article>
             )
           })}
@@ -311,11 +316,15 @@ export function AbilitySummary({
       <div className="mt-2 flex flex-wrap gap-1">
         {detachmentRules.map((rule) => {
           const owner = rule.id && detachmentRuleOwners?.[rule.id.split('/')[0]!]
-          const chip = <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+          const chip = (
+            <>
+              <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+              {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
+            </>
+          )
           return (
             <span key={rule.id} className="inline-flex items-center gap-0.5">
               {owner ? <DatasheetUnit.Provider value={owner}>{chip}</DatasheetUnit.Provider> : chip}
-              {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
             </span>
           )
         })}

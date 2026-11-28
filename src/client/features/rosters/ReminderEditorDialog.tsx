@@ -19,6 +19,7 @@ import {
 } from '../../../core/reminders'
 import { TURN_SCOPES, type TurnScope } from '../../../core/battle'
 import { RuleText } from '../../components/RuleText'
+import { DatasheetUnit } from '../../components/UnitFromVsData'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 
@@ -60,6 +61,8 @@ const completeTiming = (draft: TimingDraft): ReminderTiming | null => {
 
 export function ReminderEditorDialog({
   draft,
+  ruleId,
+  owner,
   full,
   error,
   onClose,
@@ -67,6 +70,9 @@ export function ReminderEditorDialog({
   onRemove,
 }: {
   draft: ReminderDraft
+  /** The rule's id and the datasheet or detachment it belongs to, which find its summary as the page behind the dialog does. */
+  ruleId: string | undefined
+  owner: string | null
   /** The player holds as many alerts as they may and this would be a new one. */
   full: boolean
   error: unknown
@@ -100,7 +106,15 @@ export function ReminderEditorDialog({
           </DialogHeader>
 
           <DialogBody>
-            <RuleText text={draft.description} rules={[]} className="mt-0 rounded-lg border border-edge bg-sunken p-3" />
+            <DatasheetUnit.Provider value={owner}>
+              <RuleText
+                text={draft.description}
+                rules={[]}
+                name={draft.ability}
+                abilityId={ruleId}
+                className="mt-0 rounded-lg border border-edge bg-sunken p-3"
+              />
+            </DatasheetUnit.Provider>
 
             <div className="space-y-3">
               {timings.map((timing, index) => {
