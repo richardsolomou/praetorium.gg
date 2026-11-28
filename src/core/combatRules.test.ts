@@ -30,7 +30,7 @@ const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule 
   models: 1,
   ...extra,
 })
-const attack = { role: 'attacker' as const, phases: ['ranged' as const] }
+const rangedAttack = { role: 'attacker' as const, phases: ['ranged' as const] }
 
 const weapons = (): Datasheet =>
   datasheetFixture({
@@ -264,7 +264,7 @@ describe('combat rule effects', () => {
     const active = [
       {
         name: 'Buff',
-        effects: [{ ...attack, characteristic: { kind: 'damage' as const, add: { dice: 1, sides: 3 as const, bonus: 0 } } }],
+        effects: [{ ...rangedAttack, characteristic: { kind: 'damage' as const, add: { dice: 1, sides: 3 as const, bonus: 0 } } }],
       },
     ]
     expect(combatWeapons(combatRuleProfiles(weapons(), active, 'attacker'), [], 'ranged')[0]?.weapon?.damage).toEqual({
@@ -274,13 +274,13 @@ describe('combat rule effects', () => {
     })
   })
   it('refuses a weapon whose Attacks dice a rule multiplies', () => {
-    const active = [{ name: 'Buff', effects: [{ ...attack, characteristic: { kind: 'attacks' as const, multiply: 2 } }] }]
+    const active = [{ name: 'Buff', effects: [{ ...rangedAttack, characteristic: { kind: 'attacks' as const, multiply: 2 } }] }]
     expect(combatWeapons(combatRuleProfiles(weapons(), active, 'attacker'), [], 'ranged')[0]?.weapon).toBeNull()
   })
   it('extends a weapon’s Range', () => {
     const sheet = weapons()
     sheet.profiles[0]!.values.unshift({ name: 'Range', value: '12"' })
-    const active = [{ name: 'Buff', effects: [{ ...attack, characteristic: { kind: 'range' as const, add: 6 } }] }]
+    const active = [{ name: 'Buff', effects: [{ ...rangedAttack, characteristic: { kind: 'range' as const, add: 6 } }] }]
     expect(combatWeapons(combatRuleProfiles(sheet, active, 'attacker'), [], 'ranged')[0]?.weapon?.range).toBe(18)
   })
   it('takes away a weapon ability the attacks lose', () => {
@@ -293,7 +293,7 @@ describe('combat rule effects', () => {
     const sheet = weapons()
     sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Torrent'
     const both: CombatPhase[] = ['ranged', 'melee']
-    const active = [{ name: 'Buff', effects: [{ ...attack, phases: both, keyword: 'Lethal Hits', lacksWeaponKeyword: 'Torrent' }] }]
+    const active = [{ name: 'Buff', effects: [{ ...rangedAttack, phases: both, keyword: 'Lethal Hits', lacksWeaponKeyword: 'Torrent' }] }]
     expect(
       combatRuleProfiles(sheet, active, 'attacker').profiles.map(
         (profile) => profile.values.find((value) => value.name === 'Keywords')!.value,
@@ -305,7 +305,7 @@ describe('combat rule effects', () => {
     sheet.profiles[0]!.values.find((value) => value.name === 'Keywords')!.value = 'Assault'
     const carried = [{ weapon: combatWeapons(sheet, [], 'ranged')[0]!.weapon, count: 1, profile: sheet.profiles[0]! }]
     const active = [
-      { name: 'Racks', effects: [{ ...attack, requiresWeaponKeyword: 'Assault', options: { hitReroll: 'failed' as const } }] },
+      { name: 'Racks', effects: [{ ...rangedAttack, requiresWeaponKeyword: 'Assault', options: { hitReroll: 'failed' as const } }] },
     ]
     expect(combatRuleWeapons(sheet, carried, active, 'attacker', 'ranged', [])[0]?.hitReroll).toBe('failed')
   })
