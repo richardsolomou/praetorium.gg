@@ -1114,8 +1114,10 @@ describe('roster export', () => {
         units: [
           {
             key: 0,
+            entryId: 'lord',
             size: { models: 1 },
             name: 'Lokhust Lord',
+            choices: [],
             points: 100,
             group: 'character',
             attachment: { kind: 'leader', targets: ['Immortals'] },
@@ -1126,8 +1128,10 @@ describe('roster export', () => {
           },
           {
             key: 1,
+            entryId: 'immortals',
             size: { models: 5 },
             name: 'Immortals',
+            choices: [],
             points: 200,
             group: 'other',
             attachment: null,
@@ -2376,8 +2380,10 @@ describe('Praetorium roster import', () => {
         units: [
           {
             key: 0,
+            entryId: 'lord',
             size: { models: 1 },
             name: 'Lokhust Lord',
+            choices: [],
             points: 100,
             group: 'character',
             attachment: { kind: 'leader', targets: ['Immortals'] },
@@ -2388,8 +2394,10 @@ describe('Praetorium roster import', () => {
           },
           {
             key: 1,
+            entryId: 'immortals',
             size: { models: 5 },
             name: 'Immortals',
+            choices: [],
             points: 200,
             group: 'other',
             attachment: null,
@@ -2518,8 +2526,10 @@ Created with newrecruit.eu v35.51`,
 describe('custom unit names in text', () => {
   const immortals = (key: number) => ({
     key,
+    entryId: 'immortals',
     size: { models: 5 },
     name: 'Immortals',
+    choices: [],
     points: 200,
     group: 'other' as const,
     attachment: null,

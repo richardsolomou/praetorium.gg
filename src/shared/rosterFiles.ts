@@ -392,7 +392,7 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
   const resolved = new Set(calculateRosterPrice(roster, loaded, rules)?.units.map((unit) => unit.key) ?? [])
   const name = (pick: RosterPick, at: number) =>
     loaded.index.definitions.has(pick.entryId)
-      ? `${datasheetName(loaded, exchange.catalogueId, pick.entryId)} (entry ${at + 1})`
+      ? `${datasheetName(loaded, exchange.catalogueId, pick.entryId) ?? pick.entryId} (entry ${at + 1})`
       : `Entry ${at + 1}`
   const kept = exchange.picks.flatMap((pick, at) => {
     if (resolved.has(at)) return [{ pick, at }]
@@ -2239,7 +2239,7 @@ function vsNamedUnit<T extends ExportPrice['units'][number]>(unit: T, loaded: Lo
       .filter((choice) => choice.kind)
       .flatMap((choice) =>
         choice.options.flatMap((option) => {
-          const name = option.count > 0 && option.vsDataId ? vsEnhancementName(loaded, option.vsDataId) : undefined
+          const name = option.count > 0 && option.vsDataId ? vsEnhancementName(loaded, option.vsDataId, option.name) : undefined
           // The list names an upgrade under its own heading, as the catalogue's upgrade names are written.
           return name ? [[option.name, choice.kind === 'upgrade' ? withoutUpgrade(name) : name] as const] : []
         }),

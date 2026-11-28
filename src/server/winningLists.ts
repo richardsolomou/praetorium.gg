@@ -58,7 +58,7 @@ const verdictSchema = z
     limit: z.number().int(),
     unitCount: z.number().int(),
     /** Each datasheet once with every copy's model count, so a search can find lists by what they field and a tally can count them. */
-    datasheets: z.array(z.object({ id: z.string(), models: z.array(z.number().int()) })),
+    datasheets: z.array(z.object({ id: z.string(), name: z.string(), models: z.array(z.number().int()) })),
     points: z.number(),
     reportedPoints: z.number().nullable(),
     /** Why today's points and rules would not field it, usually a points rise since the event; null for a list legal today. */
@@ -74,14 +74,12 @@ const verdicts = z.object({ revision: z.string(), lists: z.record(z.string(), ve
 const importedSchema = z.object({ revision: z.string(), release: z.string(), verdict: verdictSchema, draft: saveRosterSchema.nullable() })
 type Imported = z.infer<typeof importedSchema>
 
-type PlacedList = NonNullable<Verdict> & {
+export type WinningList = NonNullable<Verdict> & {
   id: string
   placing: number
   record: string
   event: { name: string; url: string | null; date: string; rounds: number | null; players: number | null; source: WinningListSource }
 }
-/** A placing with each datasheet it fields named as VS Data names it, read by ID so a verdict holds no names. */
-export type WinningList = Omit<PlacedList, 'datasheets'> & { datasheets: { id: string; name: string; models: number[] }[] }
 export type WinningListSource = Events[number]['source']
 
 /** Deploys start the new server before stopping the old one on the same volume, so a file is never left half-written. */
@@ -161,10 +159,10 @@ async function importAndKeep(directory: string, id: string, text: string, revisi
   return kept
 }
 
-function fielded(units: readonly { entryId: string; size: { models: number } }[]) {
-  const datasheets = new Map<string, { id: string; models: number[] }>()
+function fielded(units: readonly { entryId: string; name: string; size: { models: number } }[]) {
+  const datasheets = new Map<string, { id: string; name: string; models: number[] }>()
   for (const unit of units) {
-    const datasheet = datasheets.get(unit.entryId) ?? { id: unit.entryId, models: [] }
+    const datasheet = datasheets.get(unit.entryId) ?? { id: unit.entryId, name: unit.name, models: [] }
     datasheet.models.push(unit.size.models)
     datasheets.set(unit.entryId, datasheet)
   }
@@ -176,7 +174,7 @@ const placed = (
   id: string,
   event: Events[number],
   player: Events[number]['players'][number],
-): PlacedList => ({
+): WinningList => ({
   ...verdict,
   id,
   placing: player.ranking,
@@ -202,7 +200,7 @@ const readJson = async <T>(file: string, schema: z.ZodType<T>) => {
 
 /** Each cached placing with a clean verdict, newest first; a list taken to several events is shown once, at its newest placing, as its own page does. */
 function placedLists(cached: Events, known: Record<string, Verdict>) {
-  const found: PlacedList[] = []
+  const found: WinningList[] = []
   const shown = new Set<string>()
   for (const event of cached)
     for (const player of event.players) {
@@ -231,8 +229,8 @@ export async function finishedLists(directory: string) {
 export async function importableLists(
   directory: string,
   revision: string,
-  progress: (found: PlacedList[]) => void = () => undefined,
-): Promise<PlacedList[] | null> {
+  progress: (found: WinningList[]) => void = () => undefined,
+): Promise<WinningList[] | null> {
   const cached = await readJson(eventsFile(directory), events)
   if (!cached) return null
   // A cache written in an older shape fails the schema and is read as empty, so every list is imported again.
@@ -336,14 +334,15 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
     placings = placings?.version === version ? placings : { version, events: readEvents() }
     return placings.events
   }
-  const named = (list: PlacedList): WinningList => {
+  // Datasheets are named on read, as VS Data names them; one the current data no longer has keeps the name its verdict stored.
+  const named = (list: WinningList): WinningList => {
     const loaded = catalogue()
+    if (!loaded) return list
     return {
       ...list,
-      datasheets: list.datasheets.map(({ id, models }) => ({
-        id,
-        name: loaded ? datasheetName(loaded, list.catalogueId, id) : id,
-        models,
+      datasheets: list.datasheets.map((datasheet) => ({
+        ...datasheet,
+        name: datasheetName(loaded, list.catalogueId, datasheet.id) ?? datasheet.name,
       })),
     }
   }
@@ -352,13 +351,13 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
     if (!revision || running || (shown?.complete && shown.revision === revision && shown.version === version)) return
     const reading = version
     // Lists found so far stand in only for none or for an earlier partial read, never for a finished one.
-    const partial = (lists: PlacedList[]) => {
+    const partial = (lists: WinningList[]) => {
       if (!shown?.complete) shown = { lists: lists.map(named), revision, version: reading, complete: false }
     }
     running = (async () => {
       // After a restart, the last finished lists stand in while a new revision is checked, rather than a partial set.
       const finished = shown ? null : await finishedLists(directory)
-      if (finished) shown = { revision: finished.revision, lists: finished.lists.map(named), version: reading, complete: true }
+      if (finished) shown = { ...finished, lists: finished.lists.map(named), version: reading, complete: true }
       const lists = await importableLists(directory, revision, partial)
       if (lists) shown = { lists: lists.map(named), revision, version: reading, complete: true }
     })()
