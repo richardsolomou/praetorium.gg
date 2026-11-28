@@ -119,7 +119,11 @@ describe('canonical catalogue', () => {
       ),
     }
 
-    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.composition).toEqual(['1 Sergeant', '4–9 Troopers'])
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.composition).toEqual([
+      '1 Sergeant',
+      '4–9 Troopers',
+      '5 or 10 models in all',
+    ])
   })
   it('compiles upstream labels into one typed datasheet with provenance', () => {
     const compiled = compileCanonicalCatalogue(catalogue(), revisions)
