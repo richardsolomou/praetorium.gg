@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.280.38 (2026-11-28)
+
+### Patch Changes
+
+- 003e6b6: [reference] Chaos Titans show their own rules, such as Titanic Fire Support for Chaos units, rather than the Imperial Titans'.
+- b48e3a6: [reference] Death Company Marines with Boltguns show their own Black Rage rule.
+- b48e3a6: [reference] Imperial Warbringer Nemesis Titans show their own Titanic Fire Support again, not the Chaos one.
+
 ## 0.280.37 (2026-11-28)
 
 ### Patch Changes
