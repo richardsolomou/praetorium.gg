@@ -18,6 +18,11 @@ it('reads a profile several datasheets share as the record its own datasheet has
   expect(vsDataRecordOfBsdata(records, '6b1e-4f2-9c0d-a11', 'grinder')).toBe('ability:chaos-daemons.soul-grinder.scuttling-walker')
 })
 
+it('reads no record for a datasheet frozen as having none, not the id’s alias', () => {
+  const records = bsdataRecords(entries, { 'grinder/6b1e-4f2-9c0d-a11': null }, null)
+  expect(vsDataRecordOfBsdata(records, '6b1e-4f2-9c0d-a11', 'grinder')).toBeUndefined()
+})
+
 it('reads a rules version’s own frozen entry over the one every version shares', () => {
   const frozen = {
     'grinder/6b1e-4f2-9c0d-a11': 'ability:chaos-daemons.soul-grinder.scuttling-walker',
