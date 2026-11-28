@@ -1188,6 +1188,23 @@ describe('a datasheet VS Data gives a role only in some armies', () => {
   })
 })
 
+it("takes VS Data's role over the catalogue's", () => {
+  const index = {
+    ...indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'priest',
+          name: 'Sanguinary Priest',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following unit:\n■ ASSAULT SQUAD')],
+        },
+      ],
+    }),
+    attachments: { priest: { kind: 'leader' as const, targets: ['Assault Squad'], named: ['Assault Squad'] } },
+  }
+  expect(attachmentOf(index.definitions.get('priest')!, index)?.kind).toBe('leader')
+})
+
 describe("VS Data's attachment rules", () => {
   const unit = (id: string, name: string) => ({ id, name, type: 'unit' as const })
   const index = {
@@ -1252,6 +1269,16 @@ describe("VS Data's attachment rules", () => {
         crawlers: ['Tomb Crawlers'],
       }),
     ).toEqual(['Canoptek Tomb Crawlers: cannot join Necron Warriors, which Cryptothralls has already joined'])
+  })
+
+  it('refuses a joining unit an earlier join shuts out', () => {
+    expect(
+      messages([at('warriors'), at('cryptek', 0), at('crawlers', 0), at('thralls', 0)], {
+        cryptek: ['Cryptek'],
+        thralls: ['Cryptothralls'],
+        crawlers: ['Tomb Crawlers'],
+      }),
+    ).toEqual(['Cryptothralls: cannot join Necron Warriors, which Canoptek Tomb Crawlers has already joined'])
   })
 
   it('does not ask a joining unit with nothing to join to be attached', () => {
