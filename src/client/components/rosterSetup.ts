@@ -75,12 +75,12 @@ type OfferedDetachment = { id: string; name: string; exclusiveWith?: readonly { 
 export function detachmentConflict(detachment: OfferedDetachment, selected: readonly OfferedDetachment[]) {
   for (const other of selected) {
     const shared = detachment.exclusiveWith?.find((entry) => entry.id === other.id)
-    if (shared) return `An army can include only one ${shared.limit} detachment, and this army already has ${other.name}.`
+    if (shared) return `Can't be taken with ${other.name}: only one ${shared.limit} detachment`
   }
   return null
 }
 
-type DetachmentRefusal = { kind: 'count' | 'points' | 'conflict'; reason: string }
+export type DetachmentRefusal = { kind: 'count' | 'points' | 'conflict'; reason: string }
 
 /**
  * Why this detachment cannot join the ones already taken at this battle size, if it cannot. A list
@@ -95,7 +95,7 @@ export function detachmentRefusal(
   sizes?: readonly BattleSize[],
 ): DetachmentRefusal | null {
   const most = detachmentLimit(limit, waived)
-  if (selected.length >= most) return { kind: 'count', reason: `An army can include at most ${countLabel(most, 'detachment')}.` }
+  if (selected.length >= most) return { kind: 'count', reason: `At most ${countLabel(most, 'detachment')}` }
   // A detachment the army can never add explains that first: waiving detachment points would not let it in.
   const conflict = detachmentConflict(detachment, selected)
   if (conflict) return { kind: 'conflict', reason: conflict }
@@ -106,8 +106,8 @@ export function detachmentRefusal(
       return {
         kind: 'points',
         reason: selected.length
-          ? `${detachment.name} costs ${detachment.points} DP, and only ${left} of ${allowance} DP are left.`
-          : `${detachment.name} costs ${detachment.points} DP, more than the ${allowance} DP this battle size allows.`,
+          ? `Needs ${detachment.points} DP, ${left} left`
+          : `Needs ${detachment.points} DP, ${allowance} at this size`,
       }
   }
   return null

@@ -34,7 +34,7 @@ const shieldHosts = [
 
 it('explains why a detachment sharing a one-per-army limit with a chosen one is unavailable', () => {
   expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe(
-    'An army can include only one Unique: Shield Host detachment, and this army already has Aquilan Shield.',
+    "Can't be taken with Aquilan Shield: only one Unique: Shield Host detachment",
   )
 })
 
@@ -45,10 +45,7 @@ it('offers a detachment that shares no limit with the chosen ones', () => {
 const priced = (id: string, points: number) => ({ id, name: id, points })
 
 it('refuses a detachment that costs more DP than the battle size has left', () => {
-  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toEqual({
-    kind: 'points',
-    reason: 'two costs 2 DP, and only 1 of 3 DP are left.',
-  })
+  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toEqual({ kind: 'points', reason: 'Needs 2 DP, 1 left' })
 })
 
 it('offers a detachment over the DP left once the budget is waived', () => {
@@ -60,15 +57,12 @@ it('offers a detachment that fits in the DP left', () => {
 })
 
 it('refuses a lone detachment that costs more DP than the battle size allows', () => {
-  expect(detachmentRefusal(priced('one', 3), [], 1000)).toEqual({
-    kind: 'points',
-    reason: 'one costs 3 DP, more than the 2 DP this battle size allows.',
-  })
+  expect(detachmentRefusal(priced('one', 3), [], 1000)).toEqual({ kind: 'points', reason: 'Needs 3 DP, 2 at this size' })
 })
 
 it('refuses a detachment past the most an army can include', () => {
   expect(detachmentRefusal(priced('four', 0), [priced('one', 0), priced('two', 0), priced('three', 0)], 2000)).toEqual({
     kind: 'count',
-    reason: 'An army can include at most 3 detachments.',
+    reason: 'At most 3 detachments',
   })
 })
