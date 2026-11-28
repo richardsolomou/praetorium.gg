@@ -198,6 +198,8 @@ export type EnhancementData = {
   type: 'model' | 'unit' | 'upgrade'
   perRoster?: number
   outsideLimit?: true
+  /** Every unit its eligibility admits in a roster holding its Detachment has it, named or not. */
+  automatic?: true
   eligibility: {
     anyOf: { keywords?: string[]; factionKeywords?: string[]; unit?: { id: string } }[]
     excludedKeywords?: string[]

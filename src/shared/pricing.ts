@@ -35,7 +35,7 @@ import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
-import { battleSizesOf, buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { battleSizesOf, buildPick, vsDefinitionsOf, vsPickAutomaticEnhancements, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -319,14 +319,19 @@ const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltU
  * A VS pick's Enhancement as the list shows it, where the catalogue's tree holds none: one of a Detachment the list does
  * not take still costs its points, so it is named, and VS Data's checker refuses it.
  */
-/** A VS pick's Enhancement or Upgrade, as VS Data names the one it takes. */
-function vsSpecials(loaded: LoadedCatalogue, vs: NonNullable<BuiltUnit['vs']>): ReturnType<typeof selectedSpecials> {
+/** A VS pick's Enhancement or Upgrade, as VS Data names the one it takes, beside any its list's Detachments give it. */
+function vsSpecials(
+  loaded: LoadedCatalogue,
+  vs: NonNullable<BuiltUnit['vs']>,
+  given: readonly string[],
+): ReturnType<typeof selectedSpecials> {
   const enhancement = vs.unit.enhancement ? vsDefinitionsOf(loaded)?.get('enhancement', vs.unit.enhancement) : undefined
-  const names = enhancement ? [enhancement.name] : []
+  const chosen = enhancement ? [enhancement.name] : []
+  const upgrade = enhancement?.data.type === 'upgrade'
   return {
-    enhancements: enhancement?.data.type === 'upgrade' ? [] : names,
-    upgrades: enhancement?.data.type === 'upgrade' ? names : [],
-    specialSelections: new Set(names.map(routeSlug)),
+    enhancements: [...(upgrade ? [] : chosen), ...given],
+    upgrades: upgrade ? chosen : [],
+    specialSelections: new Set([...chosen, ...given].map(routeSlug)),
   }
 }
 
@@ -792,11 +797,8 @@ function calculateRoster(
   const specialsByKey = new Map(
     picked.map((unit) => [
       unit.key,
-      // VS Data records no Enhancement a Detachment requires, as Pantheon of Woe's Singularity Matrix on the C'tan Shard of
-      // the Deceiver, so a VS pick taking none of its own still shows the one its catalogue tree is forced to take. Goes
-      // once a reader of richardsolomou/vs-data#232's required Enhancements lands.
-      unit.vs?.unit.enhancement
-        ? vsSpecials(loaded, unit.vs)
+      unit.vs
+        ? vsSpecials(loaded, unit.vs, vsPickAutomaticEnhancements(loaded, data, vsUnits, unit.key))
         : selectedSpecials(
             unit.choices,
             enhancementNames.size ? wargearOf(catalogueTreeOf(unit), loaded.index) : [],

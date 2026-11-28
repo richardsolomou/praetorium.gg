@@ -40,6 +40,7 @@ const construction: VsDataConstruction = {
       'host.guard': record('Guard', { faction: 'host' }),
       'host.sworn': record('Sworn', { faction: 'host', warlords: ['host.oracle.oracle'] }),
       'host.watch': record('Watch', { faction: 'host', exclusiveEnhancements: { keywords: ['CHARACTER', 'INFANTRY'] } }),
+      'host.pantheon': record('Pantheon', { faction: 'host' }),
     },
     unit: {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
@@ -131,6 +132,12 @@ const construction: VsDataConstruction = {
         perRoster: 2,
         eligibility: { anyOf: [{ keywords: ['INFANTRY'] }], nonCharacters: true },
       }),
+      'host.pantheon.matrix': record('Matrix', {
+        detachment: 'host.pantheon',
+        type: 'model',
+        automatic: true,
+        eligibility: { anyOf: [{ keywords: ['CHARACTER'] }] },
+      }),
     },
   },
   points: [
@@ -149,6 +156,7 @@ const construction: VsDataConstruction = {
                 { id: 'host.guard.drill', upgrade: true, points: 5 },
               ],
             },
+            { id: 'host.pantheon', dp: 1, enhancements: [{ id: 'host.pantheon.matrix', points: 20 }] },
           ],
           units: [
             {
@@ -223,6 +231,10 @@ describe('priceVsRoster', () => {
     expect(priceVsRoster(definitions, roster([walker])).points).toBe(110)
   })
 
+  it('charges an Enhancement the roster’s Detachment gives the unit without its naming one', () => {
+    expect(priceVsRoster(definitions, roster([{ unit: 'host.captain' }], 'host', ['host.pantheon'])).points).toBe(100)
+  })
+
   it('charges a priced item a model carries by default', () => {
     expect(priceVsRoster(definitions, roster([{ unit: 'host.captain' }])).points).toBe(80)
   })
@@ -282,6 +294,13 @@ describe('checkVsRoster', () => {
   it('counts a unit a Character model leads towards a CHARACTER limit', () => {
     const band = roster([{ unit: 'band.boss' }, { unit: 'band.retinue' }], 'band', [])
     expect(checkVsRoster(definitions, band).map((problem) => problem.code)).toContain('unit-limit')
+  })
+
+  it('counts an Enhancement a Detachment gives towards the roster’s limit', () => {
+    const units = [{ unit: 'host.captain', enhancement: 'host.guard.relic' }]
+    expect(checkVsRoster(definitions, roster(units, 'host', ['host.guard', 'host.pantheon'])).map((problem) => problem.code)).toContain(
+      'enhancement-limit',
+    )
   })
 
   it('refuses an Enhancement to a unit that is not a Character', () => {

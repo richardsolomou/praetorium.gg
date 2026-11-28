@@ -1,5 +1,6 @@
 import type { Definition, Per, Requirement, UnitData, VsDataDefinitions, When, OptionData, Bounds } from './vsDataConstruction'
 import { costRowFor, pointsAt, type PointsRef, unitCostRows } from './vsDataPoints'
+import { remember } from './collections'
 
 /**
  * A list in VS Data catalogue IDs (VS Data's `docs/roster-definitions.md`, "Saved rosters"): model counts by model ID,
@@ -163,6 +164,17 @@ export function carried(definitions: VsDataDefinitions, picked: VsRosterUnit): M
   return held
 }
 
+const automaticOf = new WeakMap<VsDataDefinitions, Definition<'enhancement'>[]>()
+
+/** The Enhancements the roster's Detachments give `picked` whether or not it names them (`automatic`), as its eligibility admits it. */
+export function automaticEnhancementsOf(definitions: VsDataDefinitions, roster: VsRoster, picked: VsRosterUnit) {
+  const automatic = remember(automaticOf, definitions, () => definitions.all('enhancement').filter((one) => one.data.automatic))
+  const given = automatic.filter((one) => roster.detachments.includes(one.data.detachment) && one.id !== picked.enhancement)
+  if (!given.length) return []
+  const keywords = keywordsOf(definitions, roster, picked)
+  return given.filter((one) => enhancementAdmits(definitions, one, picked, keywords))
+}
+
 /** Whether an Enhancement's eligibility admits this unit, before the roster's Warlord is considered. */
 export function enhancementAdmits(
   definitions: VsDataDefinitions,
@@ -240,16 +252,15 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
           ? row.points
           : (missing.push(`unit:${unit.id} at ${total} (ambiguous-size)`), 0)
         : price({ kind: 'unit', faction: unit.data.faction, unit: unit.id, models: total, copy }, `unit:${unit.id} at ${total}`)
-    const enhancement = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
-    const enhancementFaction = enhancement ? (definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? '') : ''
+    const chosen = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
+    const enhancements = [...(chosen ? [chosen] : []), ...automaticEnhancementsOf(definitions, roster, picked)]
     const points =
       unitPoints +
-      (enhancement
-        ? price(
-            { kind: 'enhancement', faction: enhancementFaction, detachment: enhancement.data.detachment, enhancement: enhancement.id },
-            `enhancement:${enhancement.id}`,
-          )
-        : 0) +
+      enhancements.reduce((sum, enhancement) => {
+        const faction = definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? ''
+        const ref = { kind: 'enhancement', faction, detachment: enhancement.data.detachment, enhancement: enhancement.id } as const
+        return sum + price(ref, `enhancement:${enhancement.id}`)
+      }, 0) +
       // A priced item costs for every one the unit carries, by default or through a bundle as much as by its own choice.
       [...carried(definitions, picked)].reduce((sum, [item, n]) => {
         if (!(n > 0)) return sum
@@ -603,6 +614,13 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       // only a first copy counts towards the battle size's limit.
       const most = enhancement.data.perRoster ?? 1
       if (taken > most) add('enhancement-repeated', `${enhancement.name} is taken at most ${most === 1 ? 'once' : `${most} times`}`)
+      if (!enhancement.data.outsideLimit && taken === 1 && ++enhancementCount === (size?.enhancements ?? Infinity) + 1)
+        add('enhancement-limit', `a roster takes at most ${size!.enhancements} enhancements`)
+    }
+    // One a Detachment gives counts towards the limit as a chosen one does, though no number of copies is too many.
+    for (const enhancement of automaticEnhancementsOf(definitions, roster, picked)) {
+      const taken = (enhancementCounts.get(enhancement.id) ?? 0) + 1
+      enhancementCounts.set(enhancement.id, taken)
       if (!enhancement.data.outsideLimit && taken === 1 && ++enhancementCount === (size?.enhancements ?? Infinity) + 1)
         add('enhancement-limit', `a roster takes at most ${size!.enhancements} enhancements`)
     }

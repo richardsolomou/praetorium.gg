@@ -4,7 +4,7 @@ import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { steppedSizes } from '../core/vsDataBuild'
-import { countedKeywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
+import { automaticEnhancementsOf, countedKeywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
@@ -147,6 +147,19 @@ export function vsPickPrices(
       return unit.vs && priced && !priced.unpriced.length ? [[position, priced.points] as const] : []
     }),
   )
+}
+
+/** The names of the Enhancements a VS pick's list gives it whether or not it names one, as Pantheon of Woe's matrices. */
+export function vsPickAutomaticEnhancements(
+  loaded: LoadedCatalogue,
+  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  units: readonly { entryId: string; vs?: BuiltUnit['vs'] }[],
+  position: number,
+): string[] {
+  const definitions = vsDefinitionsOf(loaded)
+  const built = units[position]?.vs
+  if (!definitions || !built) return []
+  return automaticEnhancementsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit).map((one) => one.name)
 }
 
 /**
