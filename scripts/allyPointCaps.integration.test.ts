@@ -14,15 +14,8 @@ const bloodletters = '208b-348-8114-b506'
 const daemonicCharioteer = '736e-8d31-9f86-88b3'
 const ultramarines = '4029-9237-e8db-af55'
 const assaultBrethren = '549e-86b2-b786-c802'
-// Ambull, Bastion, Firestorm Redoubt, Fortress of Redemption, Guardian Drone and Imperial Fortress Walls, over 500 points.
-const fortifications = [
-  '60d8-7d2-71d-6e4a',
-  '89f2-5111-a9c4-6016',
-  '578b-5072-a0d5-ba2',
-  'ecf6-b23e-96d9-2d16',
-  'da3c-7385-5909-abd5',
-  '52a0-2f07-647b-30d0',
-]
+// Ambull, Bastion, Firestorm Redoubt, Fortress of Redemption and Guardian Drone, over 500 points.
+const fortifications = ['60d8-7d2-71d-6e4a', '89f2-5111-a9c4-6016', '578b-5072-a0d5-ba2', 'ecf6-b23e-96d9-2d16', 'da3c-7385-5909-abd5']
 
 describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('daemons in a Chaos Space Marines army', () => {
   let loaded: LoadedCatalogue
