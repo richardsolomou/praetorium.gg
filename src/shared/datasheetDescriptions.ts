@@ -12,7 +12,7 @@ import { factionContentOf } from './factionNames'
 import { withoutUpgrade } from './mfm'
 import { isNonMatchedPlayName, withoutFactionPrefix } from '../core/name'
 import type { EnhancementEligibility } from '../contracts/factions'
-import { enhancementAdmits, unitKeywords } from '../core/vsDataRoster'
+import { enhancementAdmits, keywordsOf } from '../core/vsDataRoster'
 import type { Definition } from '../core/vsDataConstruction'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 
@@ -172,6 +172,12 @@ function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: 
   ]
   const reachable = new Set([...carried, ...carried.flatMap((id) => Object.keys(definitions.get('wargear', id)?.data.includes ?? {}))])
   const reachableNames = new Set([...reachable].map((id) => (definitions.get('wargear', id)?.name ?? id).toLowerCase()))
+  // Every model fielded, each taking one option choice at a time, so a keyword a piece of wargear gives counts.
+  const models = Object.fromEntries(definitions.modelsOf(unit.id).map((model) => [model.id, model.data.max]))
+  const loadouts = [
+    {},
+    ...definitions.optionsOf(unit.id).flatMap((option) => option.data.choices.map((choice) => ({ [option.id]: { [choice]: 1 } }))),
+  ]
   const admits = (enhancement: Definition<'enhancement'>) => {
     const { detachment } = enhancement.data
     const roster = { faction, detachments: [detachment], units: [] }
@@ -181,14 +187,12 @@ function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: 
     )
     return (
       (enhancement.data.eligibility.requiredWargear ?? []).every((name) => reachableNames.has(name.toLowerCase())) &&
-      [undefined, ...allegiances].some((allegiance) =>
-        enhancementAdmits(
-          definitions,
-          enhancement,
-          { unit: unit.id, size: unit.data.sizes[0], ...(allegiance ? { allegiance } : {}) },
-          unitKeywords(unit.data, roster, allegiance),
-        ),
-      )
+      [undefined, ...allegiances].some((allegiance) => {
+        const picked = { unit: unit.id, size: unit.data.sizes[0], ...(allegiance ? { allegiance } : {}) }
+        return loadouts.some((options) =>
+          enhancementAdmits(definitions, enhancement, picked, keywordsOf(definitions, roster, { ...picked, models, options })),
+        )
+      })
     )
   }
   return (enhancement: { vsDataId?: string; eligibility: EnhancementEligibility | null }) => {
