@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { type Passenger, transportLoad, transportRule, vsTransport } from './transport'
+import { transportLoadOf } from './battleUnits'
+import { frozenUnits } from './rosterSnapshot'
+import { type Passenger, printedTransport, transportLoad, transportRule, vsTransport, withPrintedWargear } from './transport'
 
 const RHINO =
   'This model has a **transport capacity** of 12 **Adeptus Astartes Infantry** models. It cannot transport **Gravis/Jump Pack/Terminator** models.'
@@ -270,6 +272,73 @@ describe("VS Data's typed transport capacity", () => {
 
   it('carries a unit in its other load', () => {
     expect(load(tyrannocyte, { name: 'Carnifex', alive: 1, wounds: 9, keywords: ['Tyranids', 'Monster'] })).toMatchObject([{ used: 1 }])
+  })
+
+  it('carries units in an other load of several allowances', () => {
+    const orion = vsTransport({
+      loads: [
+        [{ limit: 12, count: 'models', selectors: ['ADEPTUS CUSTODES INFANTRY'] }],
+        [
+          { limit: 1, count: 'models', selectors: ['DREADNOUGHT'] },
+          { limit: 6, count: 'models', selectors: ['ADEPTUS CUSTODES INFANTRY'] },
+        ],
+      ],
+    })
+    expect(
+      transportLoad(transportRule(orion ?? undefined)!, [
+        { name: 'Contemptor-Achillus Dreadnought', alive: 1, keywords: ['Adeptus Custodes', 'Vehicle', 'Walker', 'Dreadnought'] },
+        { name: 'Custodian Guard', alive: 5, keywords: ['Adeptus Custodes', 'Infantry'] },
+      ]),
+    ).toMatchObject([{ used: 1 }, { used: 5 }])
+  })
+
+  describe('a Tidewall Shieldline with its defence platform', () => {
+    const capacity = withPrintedWargear(
+      vsTransport({ loads: [[{ limit: 11, count: 'models', selectors: ['T’AU EMPIRE INFANTRY'] }]] })!,
+      printedTransport(
+        'This model has a transport capacity of 11 T’AU EMPIRE INFANTRY models. If this model is equipped with a Tidewall defence platform, it has a transport capacity of 22 T’AU INFANTRY models instead.',
+      ),
+    )
+    const [shieldline] = frozenUnits(
+      [{ entryId: 'shieldline' }],
+      [
+        {
+          key: 0,
+          entryId: 'shieldline',
+          name: 'Tidewall Shieldline',
+          points: 105,
+          group: 'fortification',
+          keywords: ['Fortification', 'Transport'],
+          toggles: [],
+          size: { models: 2, resizable: false },
+          modelLines: [
+            { name: 'Tidewall Defence Platform', models: 1, wargear: [] },
+            { name: 'Tidewall Shieldline', models: 1, wargear: [] },
+          ],
+          attachment: null,
+          wargear: [],
+          enhancements: [],
+          upgrades: [],
+          formationOptions: [],
+          prebattleRules: [],
+          transport: true,
+        },
+      ],
+      [{ entryId: 'shieldline', transportCapacity: capacity }],
+    )
+    const strikeTeams = [1, 2].map((at) => ({ name: `Strike Team ${at}`, alive: 10, keywords: ["Faction: T'au Empire", 'Infantry'] }))
+
+    it('carries 22 models', () => {
+      expect(transportLoadOf(shieldline, strikeTeams)).toMatchObject([{ used: 20 }])
+    })
+
+    it('carries 11 once the platform is destroyed', () => {
+      const lines = [
+        { alive: 0, damage: 0 },
+        { alive: 1, damage: 0 },
+      ]
+      expect(transportLoadOf({ ...shieldline!, lines }, strikeTeams)).toMatchObject({ code: 'transport-full' })
+    })
   })
 
   it('leaves a capacity wargear changes to the printed rule', () => {

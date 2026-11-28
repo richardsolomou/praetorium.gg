@@ -18,7 +18,7 @@ import {
 } from '../core/catalogue'
 import { comparableText, withoutText } from '../core/sourceText'
 import { attachmentRoles, referenceAttachmentOf } from '../core/attach'
-import type { PrintedTransport } from '../core/transport'
+import { type PrintedTransport, withPrintedWargear } from '../core/transport'
 import {
   flattenedModifiers,
   infoLinkHiddenByRules,
@@ -365,7 +365,8 @@ export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: strin
 
 /** What the datasheet's transport carries: VS Data's typed capacity, or failing that what its printed rule reads as. */
 function transportCapacityOf(loaded: LoadedCatalogue, entryId: string, details: { transportCapacity?: PrintedTransport } | null) {
-  const capacity = loaded.vsProfiles?.transports?.[entryId] ?? details?.transportCapacity
+  const vsData = loaded.vsProfiles?.transports?.[entryId]
+  const capacity = vsData ? withPrintedWargear(vsData, details?.transportCapacity) : details?.transportCapacity
   return capacity ? { transportCapacity: capacity } : {}
 }
 
