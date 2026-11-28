@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.280.12 (2026-11-28)
+
+### Patch Changes
+
+- f49539b: [simulator] Hyper-adaptations, Surprise Assault and Synaptic Imperatives now offer their choices in the simulator.
+- f49539b: [simulator] The simulator no longer lists Artillery Support or Pledges to the Dark Prince, which have no effect in combat.
+- f49539b: [simulator] Prey on the Weak and Debt to the Soul Forge now calculate their effects in the simulator, and they and Superior Craftsmanship appear only on the units they name.
+- [rosters] Print packs show the summaries of Detachment rules the official cards don't print.
+- [reference] Datasheet abilities VS Data publishes once for several units show their summary again.
+
 ## 0.280.11 (2026-11-28)
 
 ### Patch Changes
