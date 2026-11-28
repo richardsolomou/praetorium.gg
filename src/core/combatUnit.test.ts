@@ -572,6 +572,6 @@ it('adds no Wounds a shield’s bearers already have in the profile the catalogu
   expect(
     combatUnitTarget(squad, 'ranged')
       .target!.groups.map((group) => group.wounds)
-      .toSorted(),
+      .toSorted((a, b) => a - b),
   ).toEqual([2, 3])
 })
