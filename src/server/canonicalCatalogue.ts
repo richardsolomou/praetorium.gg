@@ -33,6 +33,8 @@ import { mfmAttribution, mfmCopyLabel, mfmCostRows } from '../shared/mfm'
 import { readSharedJson } from './sharedJson'
 import { readRevisions } from './catalogueSources'
 import { mfmUnitFor, vsDataPriced } from '../shared/unitPoints'
+import { vsCostRows } from '../shared/vsDataPoints'
+import { costConditions } from '../core/datasheet'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
 export const CANONICAL_CATALOGUE_COMPILER_VERSION = 50 as const
@@ -123,6 +125,8 @@ const canonicalDatasheetSchema = z.object({
       keyword: z.string().nullable(),
       faction: z.string().nullable(),
       detachment: z.string().nullable(),
+      allied: z.string().optional(),
+      mix: z.string().optional(),
       copies: z.string().transform(mfmCopyLabel).optional(),
     }),
   ),
@@ -293,7 +297,7 @@ const sourceOrUnresolved = (source: CanonicalSourceName | null, fallback = false
 const uniqueSources = (sources: readonly CanonicalSourceName[]) => [...new Set(sources)]
 
 function singleUnqualifiedPoint(costs: readonly CanonicalDatasheet['costs'][number][]) {
-  const unqualified = costs.filter((cost) => !cost.keyword && !cost.faction && !cost.detachment && !cost.copies)
+  const unqualified = costs.filter((cost) => !costConditions(cost).length)
   if (unqualified.length !== 1 || !/^\d+$/.test(unqualified[0]!.cost)) return null
   return Number(unqualified[0]!.cost)
 }
@@ -415,7 +419,12 @@ export function* canonicalCatalogueSteps(
         described.points === null || smallest === undefined
           ? []
           : [{ models: String(smallest), cost: String(described.points), keyword: null, faction: null, detachment: null }]
-      const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts.length ? cardsCosts : definitionCosts
+      const pricedCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts.length ? cardsCosts : definitionCosts
+      // VS Data's rows for other armies and Detachments print too, labelled, beside the one its own list pays.
+      const vsDataCosts = vsDataPriced(loaded, faction.id, entryId)
+        ? vsCostRows(loaded.vsPoints, faction.id, entryId)?.map((row) => (row.copies ? { ...row, copies: mfmCopyLabel(row.copies) } : row))
+        : undefined
+      const sourceCosts = vsDataCosts ?? pricedCosts
       const costSource: CanonicalSourceName = mfmUnit
         ? vsDataPriced(loaded, faction.id, entryId)
           ? 'summaries'
@@ -423,7 +432,7 @@ export function* canonicalCatalogueSteps(
         : cardsCosts.length
           ? 'datacards'
           : 'definitions'
-      const costPoint = singleUnqualifiedPoint(sourceCosts)
+      const costPoint = singleUnqualifiedPoint(pricedCosts)
       const points = sourceCosts.length ? costPoint : described.points
       const usesDatacards = Boolean(
         cardsComposition.length ||

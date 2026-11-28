@@ -18,6 +18,8 @@ export const line = (...runs: readonly (Run | readonly Run[])[]): Line =>
 export const bold = (text: string): RuleSummaryInline => ({ text, bold: true })
 
 const range = (min: number, max: number) => (min === max ? `${min}` : `${min}–${max}`)
+/** A model's count, or range of counts, beside its name as VS Data writes it: "5–10 × Immortal", "3 × Hunting Wolf". */
+export const modelLine = (name: string, min: number, max = min) => `${range(min, max)} × ${name.replace(/[.,;:]+$/, '')}`
 /** Items as one run of a sentence, joined by `comma` and `last`. */
 export const listed = <T>(items: readonly T[], last = 'or', comma = ','): (T | string)[] =>
   items.flatMap((item, at) => [
@@ -36,7 +38,7 @@ export const counted = (items: readonly (readonly [string, number])[]) =>
 export function unitComposition(
   unit: Pick<VsDataUnit, 'sizes' | 'defaultModels'> & { models: readonly Pick<VsDataUnit['models'][number], 'name' | 'min' | 'max'>[] },
 ): Line[] {
-  const lines = unit.models.map((model) => line(`${range(model.min, model.max)} × ${model.name.replace(/[.,;:]+$/, '')}`))
+  const lines = unit.models.map((model) => line(modelLine(model.name, model.min, model.max)))
   if (!unit.sizes.length) return lines
   const sizes = [...new Set(unit.sizes)].toSorted((left, right) => left - right)
   const [fewest, most] = [sizes[0]!, sizes.at(-1)!]
