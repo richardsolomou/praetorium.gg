@@ -13,6 +13,8 @@ type VsDataOffer = {
   refused: ReadonlySet<string>
   /** Each datasheet VS Data places, with the book an allied one is borrowed from, or null for the army's own. */
   allies: ReadonlyMap<string, string | null>
+  /** The VS Data unit each datasheet VS Data checks is read as. */
+  units: ReadonlyMap<string, string>
   /** The book's Detachments VS Data refuses its lists: another faction's, or one it excludes. */
   refusedDetachments: ReadonlySet<string>
 }
@@ -35,11 +37,13 @@ function offerOf(loaded: LoadedCatalogue, catalogueId: string): VsDataOffer | nu
   const allied = new Set((record.allies ?? []).flatMap((ally) => ally.units))
   const refused = new Set<string>()
   const allies = new Map<string, string | null>()
+  const units = new Map<string, string>()
   for (const entryId of loaded.index.datasheets.get(catalogueId) ?? []) {
     const entry = loaded.index.definitions.get(entryId)
     const id = entry && vsDataChecks(data, catalogueId, { entryId, name: nameOf(entry, loaded.index.definitions) })
     const faction = id ? definitions.get('unit', id)?.data.faction : undefined
     if (!id || !faction) continue
+    units.set(entryId, id)
     const ownUnit = own.has(faction) && !excluded.has(id)
     if (!ownUnit && !allied.has(id)) refused.add(entryId)
     else allies.set(entryId, own.has(faction) ? null : bookOf(loaded, faction))
@@ -54,7 +58,7 @@ function offerOf(loaded: LoadedCatalogue, catalogueId: string): VsDataOffer | nu
       return excludedDetachments.has(id) || !own.has(faction) ? [option.id] : []
     }),
   )
-  return { refused, allies, refusedDetachments }
+  return { refused, allies, units, refusedDetachments }
 }
 
 /** The name of the book whose lists are a VS Data faction's, which names an allied datasheet's source. */
@@ -84,4 +88,38 @@ export function offeredDetachments(loaded: LoadedCatalogue, catalogueId: string)
   if (vsDataWithoutDetachments(loaded.vsRoster, catalogueId)) return []
   const refused = vsDataOffer(loaded, catalogueId)?.refusedDetachments
   return (loaded.detachments.get(catalogueId)?.options ?? []).filter((option) => !refused?.has(option.id))
+}
+
+/**
+ * The book's datasheets VS Data refuses a list of it holding `detachmentIds`: those it refuses the book, and those one of
+ * the list's Detachments excludes, as Shadow Legion excludes a Daemon Prince.
+ */
+export function vsDataRefused(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: readonly string[]): ReadonlySet<string> {
+  const offer = vsDataOffer(loaded, catalogueId)
+  const data = loaded.vsRoster
+  if (!offer || !data) return new Set()
+  const definitions = vsDataBook(data, catalogueId)!.definitions
+  const excluded = new Set(
+    detachmentIds.flatMap((id) => {
+      const vs = data.detachments[id]
+      return (vs && definitions.get('detachment', vs)?.data.excludedUnits) || []
+    }),
+  )
+  if (!excluded.size) return offer.refused
+  return new Set([...offer.refused, ...[...offer.units].flatMap(([entryId, unit]) => (excluded.has(unit) ? [entryId] : []))])
+}
+
+/**
+ * The list's units VS Data refuses its book or one of its Detachments, in the words VS Data's checker gives, for a list
+ * that checker cannot check whole.
+ */
+export function vsDataRefusedUnits(
+  loaded: LoadedCatalogue,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  units: readonly { entryId: string; name: string }[],
+) {
+  const refused = vsDataRefused(loaded, list.catalogueId, list.detachmentIds)
+  return units.flatMap((unit) =>
+    refused.has(unit.entryId) ? [{ entryId: unit.entryId, entryName: unit.name, message: 'cannot be taken by this army' }] : [],
+  )
 }

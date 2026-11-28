@@ -74,9 +74,9 @@ const failed = (error: unknown) => {
 /** Builds a rules version's construction data and, for `units`, prepares a faction's picker a datasheet per step. */
 async function prepare({ catalogueId, units, keys }: Extract<ConstructionWorkerRequest, { kind: 'prepare' }>) {
   try {
-    const { catalogue, rules } = await construction(catalogueId)
+    const { catalogue } = await construction(catalogueId)
     if (units && catalogueId) {
-      const steps = pickerConstruction(catalogue, rules, catalogueId)
+      const steps = pickerConstruction(catalogue, catalogueId)
       // Yielding once per slice lets reads already prepared be answered meanwhile.
       let slice = performance.now()
       while (!steps.next().done) {

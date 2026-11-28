@@ -20,7 +20,7 @@ export async function preparePicker({ catalogueId, battleSize, waivedRules, deta
   const loaded = await instance.catalogueFor(catalogueId)
   if (!loaded) return null
   const rules = await instance.rulesFor(catalogueId)
-  await completeStepsCooperatively(pickerSteps(loaded, rules, catalogueId, battleSize, waivedRules, detachmentIds))
+  await completeStepsCooperatively(pickerSteps(loaded, catalogueId, battleSize, waivedRules, detachmentIds))
   return { loaded, rules }
 }
 

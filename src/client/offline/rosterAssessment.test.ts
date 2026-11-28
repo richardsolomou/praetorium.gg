@@ -11,7 +11,7 @@ function prepare(cost: number, revision: string) {
   mocks.construction.mockReturnValue({
     revision,
     catalogue,
-    rules: { factionKeys: new Map(), detachmentReferences: new Map(), detachmentDetails: new Map(), factionRestrictions: new Map() },
+    rules: { factionKeys: new Map(), detachmentReferences: new Map(), detachmentDetails: new Map() },
   })
 }
 function roster(): LocalRoster {
