@@ -200,18 +200,18 @@ function Unavailable() {
 }
 
 /**
- * A detachment card's VS Data summary, by its VS Data id; a rule only BSData prints has none, and shows the summary of
- * the rule its text prints.
+ * A detachment card's VS Data summary, by its VS Data id; a rule only BSData prints has none, and shows the record its
+ * BSData id is, else the one its text prints.
  */
 function CardSummary({
   card,
   catalogueId,
   rules,
 }: {
-  card: { name: string; description: string | null; vsDataId?: string }
+  card: { name: string; description: string | null; vsDataId?: string; bsdataId?: string }
   catalogueId: string
   rules: KeywordRule[]
 }) {
   if (card.vsDataId) return <SummaryById catalogueId={catalogueId} id={card.vsDataId} fallback={<Unavailable />} />
-  return card.description ? <RuleText text={card.description} rules={rules} name={card.name} /> : <Unavailable />
+  return card.description ? <RuleText text={card.description} rules={rules} name={card.name} abilityId={card.bsdataId} /> : <Unavailable />
 }

@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   allowsPointsBudget,
+  type BattleSize,
   borrowedDispositionError,
   customPointsBudget,
   detachmentLimit,
@@ -75,6 +76,8 @@ export type RosterSetupFaction = {
   detachments: Detachment[]
   /** Set for a faction whose own rules replace Detachment selection, as a Titan army's do: it takes no Detachment. */
   withoutDetachments?: { dispositions: readonly { id: string; name: string }[] }
+  /** The battle sizes its rules version records; absent from faction data cached before they were served. */
+  battleSizes?: readonly BattleSize[]
   edition?: CatalogueEdition | null
   rulesName?: string
   isDefault?: boolean
@@ -239,7 +242,7 @@ export function RosterSetupDialog({
     takesNone?.dispositions ??
     dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
-  const allowance = detachmentPointBudget(draft.limit)
+  const allowance = detachmentPointBudget(draft.limit, faction?.battleSizes)
   const pointsError = detachmentPointsError(
     selected.map((detachment) => ({ points: detachment.points ?? null })),
     allowance,
@@ -250,7 +253,7 @@ export function RosterSetupDialog({
     (faction?.detachments ?? []).flatMap((detachment) => {
       const refusal = draft.detachmentIds.includes(detachment.id)
         ? null
-        : detachmentRefusal(detachment, singleDetachment ? [] : selected, draft.limit, draft.waivedRules)
+        : detachmentRefusal(detachment, singleDetachment ? [] : selected, draft.limit, draft.waivedRules, faction?.battleSizes)
       return refusal ? [[detachment.id, refusal] as const] : []
     }),
   )

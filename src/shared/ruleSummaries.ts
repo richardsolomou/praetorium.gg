@@ -1,6 +1,5 @@
 import { ruleSummaryBlocks, type RuleSummaries, type RuleSummary } from '../contracts/rules'
 import { hasTextTokens, type TextToken, textToken, textTokensIn } from '../core/sourceText'
-import { abilityKey } from './vsDataAbilities'
 
 /** A summary describes a whole rule, so it stands in only for tokens showing whole strings, not one bullet of a list. */
 const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
@@ -18,26 +17,22 @@ export const wholeRuleOf = (clause: string) =>
     .join('')
 
 /**
- * The record of a rule printing every token's string, by its `kind:id`, and its summary. A line several rules share, such
- * as a stratagem's timing, narrows the rule down only together with the others; rules left alike print the same words,
- * such as one stratagem several detachments offer, so the first one's summary describes them all, unless that is an
- * ability of another name than `name` and one of the ability's own name prints them too, as a Storm Shield's words are
- * also a Relic Shield's.
+ * The records of the rules printing every token's string, by `kind:id`, with their summaries. A line several rules share,
+ * such as a stratagem's timing, narrows the rule down only together with the others; rules left alike print the same
+ * words, as one stratagem several detachments offer or a Storm Shield's words that are also a Relic Shield's, so the
+ * first one's summary describes them all wherever no owner picks one.
  */
-export function summaryNamedBy(
+export function recordsPrinting(
   tokens: readonly TextToken[],
   ofFile: ReadonlyMap<string, RuleSummaries | undefined>,
-  name?: string,
-): { id: string; summary: RuleSummary } | null {
+): { id: string; summary: RuleSummary }[] {
   const [first = [], ...rest] = tokens.map((token) => ofFile.get(token.file)?.texts[token.hash] ?? [])
-  const held = rest.reduce((shared, holders) => shared.filter((id) => holders.includes(id)), first)
-  const ownName =
-    name && held[0]?.startsWith('ability:')
-      ? held.find((id) => id.startsWith('ability:') && abilityKey(id.slice(id.lastIndexOf('.') + 1)) === abilityKey(name))
-      : undefined
-  const id = ownName ?? held[0]
-  const summary = id && tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)
-  return id && summary ? { id, summary } : null
+  return rest
+    .reduce((shared, holders) => shared.filter((id) => holders.includes(id)), first)
+    .flatMap((id) => {
+      const summary = tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)
+      return summary ? [{ id, summary }] : []
+    })
 }
 
 /**

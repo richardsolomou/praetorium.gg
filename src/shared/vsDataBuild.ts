@@ -1,9 +1,10 @@
+import type { BattleSize } from '../core/battleFormat'
 import { remember } from '../core/collections'
 import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core/roster'
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { steppedSizes } from '../core/vsDataBuild'
-import { modelCounts, priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster'
+import { modelCounts, keywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
@@ -13,6 +14,12 @@ const definitionsOf = new WeakMap<LoadedCatalogue, VsDataDefinitions | null>()
 /** The current rules version's VS Data roster definitions, options and wargear included; null where VS Data checks none. */
 export const vsDefinitionsOf = (loaded: LoadedCatalogue): VsDataDefinitions | null =>
   remember(definitionsOf, loaded, () => (loaded.vsRoster ? vsDataDefinitions(loaded.vsRoster.construction) : null))
+
+/** The battle sizes the loaded rules version records, which a list's format rules read. */
+export const battleSizesOf = (loaded: LoadedCatalogue): BattleSize[] =>
+  vsDefinitionsOf(loaded)
+    ?.all('battle-size')
+    .map((size) => size.data) ?? []
 
 /** The VS Data unit a datasheet entry is in a list of `catalogueId`, where VS Data defines it in the current rules version and checks it. */
 export function vsUnitIdOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): string | undefined {
@@ -149,14 +156,13 @@ export function vsPickKeywords(
 ): string[] | null {
   const definitions = vsDefinitionsOf(loaded)
   const built = units[position]?.vs
-  const unit = built && definitions?.get('unit', built.unit.unit)
-  if (!definitions || !built || !unit) return null
+  if (!definitions || !built || !definitions.get('unit', built.unit.unit)) return null
   const counts = modelCounts(definitions, built.unit)
   const fielded = definitions
     .modelsOf(built.unit.unit)
     .flatMap((model) => ((counts.get(model.id) ?? 0) > 0 ? (model.data.keywords ?? []) : []))
   const keywords = new Set([
-    ...unitKeywords(unit.data, vsRosterOf(loaded, definitions, list, units).roster, built.unit.allegiance),
+    ...keywordsOf(definitions, vsRosterOf(loaded, definitions, list, units).roster, built.unit),
     ...fielded,
   ])
   // VS Data writes keywords in capitals; a list shows them as the catalogue does, each word capitalised.

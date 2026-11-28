@@ -4,16 +4,14 @@ import { unitHeldWargearIn } from '../core/modelLines'
 import { readText, statedIn, type TextFacts, type TextFactsByKey } from '../core/textFacts'
 
 /**
- * The facts a card text states that VS Data does not state yet: the units its Strategic Reserves exemption names, the
- * wargear it says the unit holds, and the rules it marks out, which a datasheet lists beside it (#2007). Everything else a
- * text does is VS Data's (`vsDataEffects`).
+ * The facts a card text states that VS Data does not state yet: whether it frees its own unit from the Strategic
+ * Reserves points limit, the wargear it says the unit holds, and the rules it marks out, which a datasheet lists beside
+ * it (#2007). Everything else a text does is VS Data's (`vsDataEffects`).
  */
 export function textFactsOf(words: string): TextFacts | null {
-  const reserveSelectors = strategicReserveExemptionSelectors(words)
   const references = referencedRuleNames(words)
   const unitHeld = unitHeldWargearIn(words)
   const facts: TextFacts = {
-    ...(reserveSelectors.length ? { reserveSelectors } : {}),
     ...(grantsStrategicReserveExemption(words) ? { reserveExemption: true as const } : {}),
     ...(references.length ? { references } : {}),
     ...(unitHeld.length ? { unitHeldWargear: unitHeld } : {}),

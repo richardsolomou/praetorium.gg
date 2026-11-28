@@ -24,10 +24,11 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
   const { data: candidateFaction } = useQuery(factionQuery(candidate.catalogueId))
   const dispositionName = (faction: typeof sourceFaction, id: string | null | undefined) =>
     id ? (factionDisposition(faction, id)?.name ?? 'Unavailable disposition') : 'None'
+  const sizesOf = (draft: Review['source']) => (draft === source ? sourceFaction : candidateFaction)?.battleSizes
   const detachmentBudget = (draft: Review['source']) =>
-    enforces(draft.waivedRules, 'detachment-points') ? `${detachmentPointBudget(draft.limit) ?? 'No limit'} DP` : 'Waived'
+    enforces(draft.waivedRules, 'detachment-points') ? `${detachmentPointBudget(draft.limit, sizesOf(draft)) ?? 'No limit'} DP` : 'Waived'
   const waived = (draft: Review['source']) =>
-    waivedFormatRules(draft.limit, draft.waivedRules, draft.pointsBudget)
+    waivedFormatRules(draft.limit, draft.waivedRules, draft.pointsBudget, sizesOf(draft))
       .map((rule) => rule.label)
       .join(', ') || 'None'
   const optional = (draft: Review['source']) =>
