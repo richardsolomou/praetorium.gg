@@ -512,7 +512,7 @@ it.each(['Asuryani', 'asuryani', 'aeldari'])('resolves the VS Data faction name 
     datasheets: [{ catalogueId: 'craftworlds', faction: 'Aeldari', referenceRoute: { catalogueId: 'aeldari', slug: 'unit' } }],
     detachments: [],
   } as unknown as CanonicalCatalogue
-  const factions = [{ id: 'mfm~craftworlds', vsFaction: { id: 'aeldari', name: 'Asuryani' } }] as ReferenceCorpus['factions']
+  const factions = [{ id: 'mfm~craftworlds', vsFaction: { id: 'aeldari', name: 'Asuryani' } }] as unknown as ReferenceCorpus['factions']
   expect(referenceFaction({ catalogue, factions } as ReferenceCorpus, name)?.id).toBe('craftworlds')
 })
 
