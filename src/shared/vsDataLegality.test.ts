@@ -31,8 +31,9 @@ const data = vsRosterData(
       },
       'battle-size': { small: record('Small', { points: 1000, enhancements: 1 }) },
       detachment: {
-        'host.guard': record('Guard', { faction: 'host' }),
+        'host.guard': record('Guard', { faction: 'host', group: 'SHIELD HOST' }),
         'host.vigil': record('Vigil', { faction: 'host' }),
+        'host.watch': record('Watch', { faction: 'host', group: 'SHIELD HOST' }),
         'other.raid': record('Raid', { faction: 'other' }),
       },
       allegiance: { 'host.mark.fire': record('Fire', {}) },
@@ -123,7 +124,7 @@ const data = vsRosterData(
   },
   {
     books: { 'bs-host': 'host', 'bs-titan': 'titan', 'bs-engines': 'engines', 'bs-relics': 'relics' },
-    detachments: { 'bs-guard': 'host.guard', 'bs-vigil': 'host.vigil', 'bs-raid': 'other.raid' },
+    detachments: { 'bs-guard': 'host.guard', 'bs-vigil': 'host.vigil', 'bs-watch': 'host.watch', 'bs-raid': 'other.raid' },
     units: {
       'bs-mob': 'host.mob',
       'bs-lord': 'host.lord',
@@ -202,6 +203,14 @@ describe('vsDataErrors', () => {
       entryId: 'army',
       entryName: 'Army',
       message: 'allied Other units cost at most 100 points, cost 120',
+    })
+  })
+
+  it('names the group two Detachments share', () => {
+    expect(errors([], ['bs-guard', 'bs-watch'])).toContainEqual({
+      entryId: 'army',
+      entryName: 'Army',
+      message: 'Watch cannot be taken with Guard, as both are SHIELD HOST',
     })
   })
 
