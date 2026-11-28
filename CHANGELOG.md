@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.280.19 (2026-11-28)
+
+### Patch Changes
+
+- d04f5e2: [rosters] Archiving a list while a data update is arriving no longer sends you a points notification for it.
+- 1004a77: [battles] Battles imported from BattleBase find the Dêlve Assault Shift, Needgaârd Oathband, Haloscreed Battleclade and Brood Brother Auxilia Detachments by the spellings BattleBase uses, rather than adding a second Detachment named after its own id.
+- 919e7ef: [rosters] An imported list brings in each unit the builder adds from VS Data the same way, so its loadout edits like a unit you added yourself, at the same points and wargear.
+
 ## 0.280.18 (2026-11-28)
 
 ### Patch Changes
