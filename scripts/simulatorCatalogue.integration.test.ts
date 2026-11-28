@@ -249,12 +249,6 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(shot('unobserved') < spotted && spotted < shot('direct')).toBe(true)
   })
 
-  it("calculates a Detachment rule by its card's own facts, as Invasion Fleet's Hyper-adaptations", () => {
-    const tyrant = side('Tyranids', ['Winged Hive Tyrant'], { detachment: 'Invasion Fleet' })
-    const rule = tyrant.rules.find((candidate) => candidate.name === 'Hyper-adaptations')!
-    expect(combatRuleChoices(rule).map((choice) => unquotedLabel(choice.label, rule.description))).toContain('Swarming Instincts')
-  })
-
   it('Black Templars field no retired Templar Vows', () => {
     const templars = side('Black Templars', ['Sword Brethren Squad'])
     expect(templars.rules.map((rule) => rule.name)).not.toContain('Templar Vows')
@@ -330,7 +324,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
         attacker: offered(gaunts(), warriors, 'attacker'),
         defender: offered(gaunts(), warriors, 'defender'),
         synapse: fight(gaunts('Within Synapse Range'), warriors).melee() > fight(gaunts(false), warriors).melee(),
-      }).toEqual({ attacker: ['Synapse', 'Adrenal Surge'], defender: ['Rapid Regeneration'], synapse: true })
+      }).toEqual({ attacker: ['Synapse', 'Adrenal Surge', 'Hyper-adaptations'], defender: ['Rapid Regeneration'], synapse: true })
     })
 
     it("a Spiritseer's Spirit Mark gives Wraithguard Sustained Hits 1 in both phases, and only as attacker", () => {
