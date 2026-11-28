@@ -22,6 +22,9 @@ import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
 import { vsDataDetachmentsOffering } from './vsDataLegality'
 import { alliedSource, vsDataOffer, vsDataRefused } from './vsDataOffers'
+import { vsDataCheck, vsDataChecks } from './vsDataLegality'
+import { countedKeywordsOf, type VsRoster, vsUnitAllowance } from '../core/vsDataRoster'
+import type { VsDataDefinitions } from '../core/vsDataConstruction'
 import { isOfferedDatasheet, listPriceOf, rosterPrices, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
@@ -315,6 +318,8 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
   const units = yield* listUnits(loaded, catalogueId, options)
   const size = battleSizeSelection(loaded.index, options.battleSize ?? null)
   const detachments = options.detachments.selections
+  const detachmentIds = options.detachments.chosen.map(({ id }) => id)
+  const checked = emptyVsRoster(loaded, catalogueId, { battleSize: options.battleSize, detachmentIds })
   const summaries: UnitSummary[] = []
   for (const unit of units) {
     yield
@@ -333,7 +338,7 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
       ...(kind ? { nonMatchedPlay: kind } : {}),
       points,
       ...(laterCopyPoints ? { laterCopyPoints } : {}),
-      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), unit.formatLimit),
+      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size, checked), unit.formatLimit),
     })
   }
   return summaries
@@ -341,20 +346,66 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
 
 const pickerLimits = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
 
+/** A list's units as VS Data checks them, and its definitions; null where VS Data cannot place the list. */
+export type VsCheckedRoster = { definitions: VsDataDefinitions; roster: VsRoster } | null
+
 /**
- * How many of one datasheet the roster may hold, or null when nothing limits it.
+ * How many of one datasheet the roster may hold, or null when nothing limits it: VS Data's count where it checks the
+ * datasheet in a list it can place, else the catalogue's.
  *
  * Asked with the battle size in hand, because the number the data carries is the
  * largest game's until a force says which game this is. A page with no roster
  * behind it — a faction's own datasheet list — has no battle size to give.
  */
-function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null) {
+function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null, checked: VsCheckedRoster) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
-  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${battleSize?.id ?? ''}`, () =>
-    rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] }),
-  )
+  const read = currentVsRoster(loaded, checked)
+  const key = read ? `vs:${read.roster.battleSize}:${read.roster.detachments.join(',')}` : `catalogue:${battleSize?.id ?? ''}`
+  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${key}`, () => {
+    const vs = vsAllowanceOf(loaded, catalogueId, entryId, read)
+    return vs
+      ? vs.limit
+      : rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
+  })
 }
+
+/** A list with no units yet as VS Data reads it. */
+const emptyVsRoster = (loaded: LoadedCatalogue, catalogueId: string, list: { battleSize?: number; detachmentIds: readonly string[] }) =>
+  vsDataCheck(loaded.vsRoster, { catalogueId, detachmentIds: list.detachmentIds, limit: list.battleSize ?? 0 }, [])
+
+/**
+ * The checked list VS Data's limits are read from: none in an earlier rules version, whose release is not yet checked
+ * against its app build's limits. A list whose points name no battle size, as King of the Colosseum's or a faction page
+ * with none, is read at the largest, as the catalogue's limits are.
+ */
+function currentVsRoster(loaded: LoadedCatalogue, checked: VsCheckedRoster): VsCheckedRoster {
+  if (!checked || (loaded.edition && !loaded.edition.default)) return null
+  if (checked.roster.battleSize) return checked
+  const largest = checked.definitions.all('battle-size').toSorted((left, right) => right.data.points - left.data.points)[0]
+  return { ...checked, roster: { ...checked.roster, ...(largest ? { battleSize: largest.id } : {}) } }
+}
+
+/**
+ * VS Data's allowance for a datasheet it checks and defines, in the list VS Data's limits are read from; null where the
+ * catalogue's limits stand. They also stand where the faction limits a unit by its own name and VS Data's unit does not
+ * yet hold that keyword, as the Emperor's Champion, so the picker never shows more copies than the faction allows.
+ */
+function vsAllowanceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, read: VsCheckedRoster) {
+  const entry = loaded.index.definitions.get(entryId)
+  const unit =
+    read && entry ? vsDataChecks(loaded.vsRoster, catalogueId, { entryId, name: nameOf(entry, loaded.index.definitions) }) : undefined
+  const record = unit ? read?.definitions.get('unit', unit) : undefined
+  if (!read || !unit || !record) return null
+  const { definitions, roster } = read
+  const name = sameKeyword(record.name)
+  const held = countedKeywordsOf(definitions, roster, { unit, size: record.data.sizes[0] }).map(sameKeyword)
+  const limits = definitions.get('faction', roster.faction)?.data.unitLimits ?? []
+  if (!held.includes(name) && limits.some((limit) => limit.keywords.map(sameKeyword).includes(name))) return null
+  return vsUnitAllowance(definitions, roster, unit)
+}
+
+const sameKeyword = (keyword: string) => keyword.toUpperCase().replaceAll('’', "'")
 
 export function contextualUnitLimit(
   loaded: LoadedCatalogue,
@@ -363,10 +414,13 @@ export function contextualUnitLimit(
   battleSize: number,
   waivedRules: readonly string[],
   roster: readonly Selection[],
+  checked: VsCheckedRoster,
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return { limit: 0, unlockedBy: null }
-  const allowance = rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
+  const allowance =
+    vsAllowanceOf(loaded, catalogueId, entryId, currentVsRoster(loaded, checked)) ??
+    rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
   if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)
   const limit = minimumLimit(
