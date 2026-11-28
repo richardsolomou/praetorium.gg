@@ -62,6 +62,7 @@ import {
   type CheckedUnit,
   vsDataChecks,
   vsDataEnhancementOptions,
+  vsDataEnhancementsRefused,
   vsDataCheck,
   vsDataAllyLimited,
   vsDataUnheld,
@@ -1085,6 +1086,8 @@ function calculateRoster(
       )
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
       const vsDefinitions = unit.vs ? vsDefinitionsIn(loaded, unit.vs) : null
+      // An Enhancement VS Data's checker would refuse the unit is not offered, though one already taken stays to be undone.
+      const refused = vsData === null ? new Set<string>() : vsDataEnhancementsRefused(loaded.vsRoster, data, { ...unit, vs: unit.vs?.unit })
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           // A VS pick's options are VS Data's, priced by it, a bundle naming what it holds.
@@ -1104,29 +1107,32 @@ function calculateRoster(
         return {
           ...choice,
           kind,
-          options: choiceOptions.map((option) => {
-            const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
-            const enhancement = vsDefinitions?.get('enhancement', option.id)
-            const filed = enhancement
-              ? {
-                  detachment: chosen.find((detachment) => loaded.vsRoster?.detachments[detachment.id] === enhancement.data.detachment)?.id,
-                  vsDataId: enhancement.id,
-                }
-              : vsDataEnhancement(option.id)
-            const detachment = filed?.detachment ?? enhancementDetachment(option.id, option.name)
-            const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
-            const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
-            return {
-              ...option,
-              description,
-              keywordRules: rulesReferencedIn(loaded, [description]),
-              ...(detachment ? { detachment } : {}),
-              ...(filed ? { vsDataId: filed.vsDataId } : {}),
-              // A device that holds no words judges the option in combat and suggests its reminder from these.
-              ...(combat === undefined ? {} : { combat }),
-              ...(reminder ? { reminder } : {}),
-            }
-          }),
+          options: choiceOptions
+            .filter((option) => option.count > 0 || !refused.has(option.id))
+            .map((option) => {
+              const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
+              const enhancement = vsDefinitions?.get('enhancement', option.id)
+              const filed = enhancement
+                ? {
+                    detachment: chosen.find((detachment) => loaded.vsRoster?.detachments[detachment.id] === enhancement.data.detachment)
+                      ?.id,
+                    vsDataId: enhancement.id,
+                  }
+                : vsDataEnhancement(option.id)
+              const detachment = filed?.detachment ?? enhancementDetachment(option.id, option.name)
+              const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
+              const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
+              return {
+                ...option,
+                description,
+                keywordRules: rulesReferencedIn(loaded, [description]),
+                ...(detachment ? { detachment } : {}),
+                ...(filed ? { vsDataId: filed.vsDataId } : {}),
+                // A device that holds no words judges the option in combat and suggests its reminder from these.
+                ...(combat === undefined ? {} : { combat }),
+                ...(reminder ? { reminder } : {}),
+              }
+            }),
         }
       })
       const models = modelKindsFor(unit)

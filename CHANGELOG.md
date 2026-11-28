@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.30 (2026-11-28)
+
+### Patch Changes
+
+- bf2012f: [rosters] A datasheet's listed price now includes the wargear it starts with, so it matches what it costs once added.
+
 ## 0.280.29 (2026-11-28)
 
 ### Patch Changes
