@@ -250,7 +250,9 @@ export async function* combatLoadoutCandidates(
       unitSelections: context.unitSelections.map((unit) => {
         const member = replaced.get(unit.selectionIndex)
         // A VS pick fights with what VS Data fields for this candidate, not what the requested loadout carried.
-        return member ? { ...unit, models: member.size.models, ...(member.vs ? { carriers: member.vs.carriers } : {}) } : unit
+        return member
+          ? { ...unit, models: member.size.models, ...(member.vs ? { carriers: member.vs.carriers, vs: member.vs } : {}) }
+          : unit
       }),
     }
   }

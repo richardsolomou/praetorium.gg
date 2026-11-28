@@ -18,6 +18,7 @@ import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
 import { detachmentCatalogueDetail, detachmentEnhancementNames, sameRuleName } from './catalogueDescriptions'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
+import { vsPickKeywords, vsPickModelKeywords } from './vsDataBuild'
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
 import { keywordIdsBySelection, keywordNames } from '../core/evaluate'
@@ -107,6 +108,35 @@ function withEveryWeapon(
   }
 }
 
+/**
+ * A VS pick's sheet with the keywords VS Data gives it in its list, its datasheet's and those its list, allegiance and
+ * wargear add, and those only some of its models have; any other pick's sheet as the catalogue reads it.
+ */
+function withVsKeywords(
+  loaded: LoadedCatalogue,
+  data: Parameters<typeof rosterDatasheetContext>[1],
+  context: Projection,
+  pickIndex: number,
+  sheet: Datasheet,
+): Datasheet {
+  const vsOf = (index: number) => context.unitSelections.find((unit) => unit.pickIndex === index)?.vs
+  const built = vsOf(pickIndex)
+  // A list's keywords hang on its Detachments and units, never on its points, so the battle size is not read.
+  const list = { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, limit: 0 }
+  const keywords =
+    built &&
+    vsPickKeywords(
+      loaded,
+      list,
+      data.picks.map((pick, index) => ({ entryId: pick.entryId, vs: vsOf(index) })),
+      pickIndex,
+    )
+  if (!built || !keywords) return sheet
+  const { modelKeywords: _catalogue, ...rest } = sheet
+  const modelKeywords = vsPickModelKeywords(loaded, built)
+  return { ...rest, keywords, ...(modelKeywords.length ? { modelKeywords } : {}) }
+}
+
 export function rosterCombatant(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
@@ -137,7 +167,7 @@ export function rosterCombatant(
   const selectedPick = data.picks[data.pickIndex]
   if (!selectedPick) return null
   const selectedUnit = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)
-  const sheet = describeDatasheetAbilities(
+  const described = describeDatasheetAbilities(
     loaded,
     selectedPick.catalogueId ?? data.catalogueId,
     withEveryWeapon(
@@ -149,7 +179,8 @@ export function rosterCombatant(
     ),
     rules,
   )
-  if (!sheet) return null
+  if (!described) return null
+  const sheet = withVsKeywords(loaded, data, context, data.pickIndex, described)
   const members = [data.pickIndex, ...attachedUnit(data.picks, data.pickIndex)].filter((index) => !data.inactivePicks?.includes(index))
   const projectionErrors: { entryId: string; entryName: string; message: string }[] = []
   const companions = members
@@ -169,7 +200,7 @@ export function rosterCombatant(
           .filter((candidate) => members.includes(candidate.pickIndex) && candidate.pickIndex !== pickIndex)
           .map((candidate) => candidate.selectionIndex),
       }
-      const selected = describeDatasheetAbilities(
+      const read = describeDatasheetAbilities(
         loaded,
         pick.catalogueId ?? data.catalogueId,
         withEveryWeapon(
@@ -181,7 +212,8 @@ export function rosterCombatant(
         ),
         rules,
       )
-      if (!selected) return unavailable()
+      if (!read) return unavailable()
+      const selected = withVsKeywords(loaded, data, context, pickIndex, read)
       const prefix = attachedProfilePrefix(pickIndex)
       const carriers =
         unit.carriers ??

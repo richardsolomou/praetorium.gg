@@ -155,8 +155,25 @@ export function vsPickKeywords(
   const built = units[position]?.vs
   const unit = built && definitions?.get('unit', built.unit.unit)
   if (!definitions || !built || !unit) return null
-  // VS Data writes keywords in capitals; a list shows them as the catalogue does, each word capitalised.
-  return unitKeywords(unit.data, vsRosterOf(loaded, definitions, list, units).roster, built.unit.allegiance).map((keyword) =>
-    keyword.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase()),
-  )
+  return unitKeywords(unit.data, vsRosterOf(loaded, definitions, list, units).roster, built.unit.allegiance).map(listed)
+}
+
+// VS Data writes keywords in capitals; a list shows them as the catalogue does, each word capitalised.
+const listed = (keyword: string) =>
+  keyword.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase())
+
+/** The keywords only some of a VS pick's fielded models have beyond the unit's, with the models that have each set. */
+export function vsPickModelKeywords(
+  loaded: LoadedCatalogue,
+  built: NonNullable<BuiltUnit['vs']>,
+): { models: string[]; keywords: string[] }[] {
+  const definitions = vsDefinitionsOf(loaded)
+  const groups = new Map<string, { models: string[]; keywords: string[] }>()
+  for (const model of definitions?.modelsOf(built.unit.unit) ?? []) {
+    if (!built.unit.models?.[model.id] || !model.data.keywords?.length) continue
+    const keywords = model.data.keywords.map(listed)
+    const key = keywords.join('\0')
+    groups.set(key, { keywords, models: [...(groups.get(key)?.models ?? []), model.name] })
+  }
+  return [...groups.values()]
 }
