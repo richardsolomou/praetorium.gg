@@ -9,6 +9,7 @@ import { z } from 'zod'
 import {
   vsDataAttributionSchema,
   vsDataMissionPackSchema,
+  vsDataTerrainSchema,
   type VsDataCoreRule,
   type VsDataDetachment,
   type VsDataStratagem,
@@ -95,6 +96,7 @@ const packRecordSchema = z.object({
   rulesVersion: z.object({ update: z.string() }),
   data: vsDataMissionPackSchema,
 })
+const terrainRecordSchema = z.object({ rulesVersion: z.object({ update: z.string() }), data: vsDataTerrainSchema })
 
 /** A record with words of its own to show: not one VS Data holds back as `{ "unresolved": … }`, nor one, such as a mission card, complete without its own text. */
 const hasSummary = (record: unknown) => typeof (record as { data?: { summary?: unknown } } | null)?.data?.summary === 'string'
@@ -103,6 +105,7 @@ const MANIFEST = 'manifest.json'
 /** The categories whose records are rule summaries; others, such as datasheets, hold data Praetorium reads elsewhere. */
 const SUMMARY_CATEGORIES = new Set(['rules-reference', 'mission-rules'])
 const MISSION_PACKS = 'mission-packs'
+const TERRAIN = 'terrain'
 const STRATAGEM_RULE_TYPES = new Set(['stratagem', 'core-stratagem'])
 const KEYWORD_KINDS = new Set(['weapon-ability', 'core-ability'])
 const IDENTITY = 'identity.json'
@@ -580,7 +583,8 @@ function effectsOf(released: readonly unknown[], update: string, identity: reado
 /**
  * Reduces a verified release to the one file Praetorium reads, `file`, so the snapshot does not carry thousands of
  * record files and the identity: each summary of the release's rules version, the aliases of every current entry a
- * summary is for or links to, each Stratagem's typed facts and the mission packs. The unpacked release is removed.
+ * summary is for or links to, each Stratagem's typed facts, the mission packs and the terrain records. The unpacked
+ * release is removed.
  */
 export function compactVsDataRelease(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!
@@ -642,6 +646,12 @@ export function compactVsDataRelease(directory: string, file: string) {
     stratagems: records.flatMap((record) => stratagemOf(record, current)),
     missionPacks,
     missionActions: current.flatMap((entry) => (entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [])),
+    terrain: manifest.categories
+      .filter((category) => category.name === TERRAIN)
+      .flatMap((category) => category.records)
+      .map((entry) => terrainRecordSchema.parse(read(entry.path)))
+      .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+      .map((record) => record.data),
     detachments: detachmentsOf(manifest, read, current),
     ...(absent.profiles.length ? { absentAbilities: absent.profiles } : {}),
     ...(absent.names.length ? { absentAbilityNames: absent.names } : {}),

@@ -690,3 +690,25 @@ it('reads a retired unit as the one unit it is replaced by', () => {
   writeVsDataConstruction(directory, file)
   expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).replacements).toEqual({ 'necrons.old': 'necrons.new' })
 })
+
+it('keeps the release’s terrain records', () => {
+  const deployment = {
+    formatVersion: 1,
+    kind: 'deployment-map',
+    id: 'deployment-test-arena',
+    name: 'Test arena',
+    provenance: { basis: 'synthetic', note: 'Invented.' },
+    board: { width: 36, height: 36 },
+    zones: [],
+    territories: [],
+    objectives: [{ id: 'centre', at: { x: 18, y: 18 } }],
+  }
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record, { kind: 'deployment-map', id: deployment.id, aliases: [], category: 'terrain', data: deployment }]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).terrain.map(({ id }: { id: string }) => id)).toEqual([deployment.id])
+})
