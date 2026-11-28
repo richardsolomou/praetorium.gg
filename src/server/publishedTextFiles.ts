@@ -2,7 +2,7 @@ import type { ScannableTextLocations } from './referenceCorpus'
 import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
-import { recordIdsIn, snapshotWords, textFileIdsIn, textFilesFrom, textHomesSteps, textRecordsSteps, textSourcePaths } from './sourceTexts'
+import { recordIdsIn, textFileIdsIn, textFilesFrom, textHomesSteps, textRecordsSteps, textSourcePaths } from './sourceTexts'
 import { completeStepsCooperatively } from './canonicalCatalogue'
 import { remember } from '../core/collections'
 import { completeSteps } from '../shared/steps'
@@ -38,12 +38,6 @@ export const publishedTextLocations = () =>
 
 /** Just those upstream files for the active snapshot; Praetorium serves where the words are, never the words. */
 export const publishedTextFiles = async () => (await publishedTextLocations()).files
-
-/**
- * The words behind a text's tokens, read from the active snapshot so the server can calculate from them,
- * or null when a token names no string it holds. What is calculated may leave the server; the words never do.
- */
-export const serverWords = () => memoUntilSnapshotChanges('text-words', null, async () => snapshotWords(catalogueDirectory()))
 
 /** The current file holding a string, by hash, for a token that names a file the active snapshot replaced; null where none does. */
 export const textHomeOf = () =>

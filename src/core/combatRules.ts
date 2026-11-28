@@ -41,8 +41,6 @@ export type CombatRule = {
   keywords?: readonly string[]
   /** The keywords only some of the unit's models have, which `keywords` also lists. */
   partialKeywords?: readonly string[]
-  /** What a rule published as a token is judged against once a device loads its words. */
-  judge?: CombatRuleJudge
   /** What the rule's words decide for this placement, recorded where a token stands for them. */
   reading?: CombatReading
   /** The ability profile of the wargear whose holders the rule's bearer-only effects reach. */
@@ -552,12 +550,6 @@ export function judgedCombatRule(
       combatTargetAdmits(judging.recipientTarget ?? null, judge.keywords) &&
       judge.supportKeywords.some((keywords) => combatTargetAdmits(judging.target, keywords)))
   return combatRuleIsRelevant(judged) && eligible ? judged : null
-}
-
-/** A rule published as a token, read from its words and judged against the place the roster recorded, or null when it takes no part. */
-export function readCombatRule(rule: CombatRule, words: string): CombatRule | null {
-  const { judge, ...read } = { ...rule, description: words }
-  return judge ? judgedCombatRule(read, judge) : read
 }
 
 function combatRuleIsRelevant(rule: CombatRule) {
