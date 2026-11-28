@@ -13,6 +13,7 @@ import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
 import { gradeReadingsIn } from './textFacts'
 import { unitMove } from '../core/unitReach'
+import { vsCoreAbilitiesOf } from './vsDataCoreAbilities'
 
 export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
 /** A reference unit every list is measured against, with its total wounds. */
@@ -277,13 +278,23 @@ export async function measureRosterUnits({
     const wounds = unitTotal(host.snapshot, 'wounds')
     const losses = wounds === null ? [] : answered.slice(targets.length).map((answer) => lost(answer, wounds))
     const formed = deployment.get(host.pickIndex)
-    const abilities = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].map((sheet) =>
+    const members = [
+      { pickIndex: host.pickIndex, sheet: host.projection.selected },
+      ...host.projection.companions.map((member) => ({ pickIndex: member.pickIndex, sheet: member.selected })),
+    ]
+    const abilities = members.map(({ sheet }) =>
       sheet.abilities.filter((ability) => ability.kind === 'core').map((ability) => ability.name),
     )
-    const scouts = formed?.prebattleRules.includes('scouts')
-      ? Math.min(...abilities.map((names) => numberIn(names, /^Scouts (\d+)/i)).filter(Boolean))
-      : 0
-    const readings = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].flatMap((sheet) =>
+    // VS Data's Scouts distance where it reads the datasheet's core abilities, else the one its name gives.
+    const scoutsMoves = members.map(({ pickIndex }, at) => {
+      const pick = picks[pickIndex]!
+      const recorded = vsCoreAbilitiesOf(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId)?.find(
+        (ability) => ability.ability === 'scouts' && !ability.models,
+      )
+      return recorded?.ability === 'scouts' ? recorded.inches : numberIn(abilities[at]!, /^Scouts (\d+)/i)
+    })
+    const scouts = formed?.prebattleRules.includes('scouts') ? Math.min(...scoutsMoves.filter(Boolean)) : 0
+    const readings = members.flatMap(({ sheet }) =>
       sheet.abilities.map((ability) => gradeReadingsIn(ability.description ?? '', loaded.index.textFacts)),
     )
     return {

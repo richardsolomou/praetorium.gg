@@ -78,6 +78,18 @@ export type OptionGroup = {
   per?: Per
   bySize?: SizeMaximum[]
 }
+/**
+ * A core ability a datasheet gives its unit, or only its `models`, with the value it takes: the Feel No Pain roll, the
+ * Scouts distance, a printed Lone Operative distance, the Deadly Demise mortal wounds and the Damaged wounds.
+ */
+export type CoreAbility = { models?: string[] } & (
+  | { ability: 'deep-strike' | 'fights-first' | 'hover' | 'infiltrators' | 'leader' | 'stealth' | 'super-heavy-walker' | 'support' }
+  | { ability: 'feel-no-pain'; threshold: number }
+  | { ability: 'scouts'; inches: number }
+  | { ability: 'lone-operative'; inches?: number }
+  | { ability: 'deadly-demise'; mortalWounds: number | string }
+  | { ability: 'damaged'; wounds: number }
+)
 export type UnitData = {
   faction: string
   keywords: string[]
@@ -97,6 +109,8 @@ export type UnitData = {
   wargear?: Counts
   defaults?: Record<string, Counts>
   defaultModels?: Record<string, number>
+  /** The datasheet's core abilities; `[]` where it prints none, and absent where VS Data could not read them. */
+  coreAbilities?: CoreAbility[]
 }
 /** `keywords` are those the model has beyond its unit's, as when a squad's leader is a Character. */
 /** `warlord: false` keeps the model from the Warlord role unless a Detachment's or the faction's `warlords` grants it. */

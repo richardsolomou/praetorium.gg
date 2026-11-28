@@ -180,11 +180,16 @@ const sheetCache = new WeakMap<LoadedCatalogue, Map<string, Datasheet | null>>()
 const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
   cachedIn(walkCache, loaded, `${catalogueId}:${entryId}`, () => walk(loaded, catalogueId, entryId))
 
+/**
+ * The names of the abilities a unit holds in its list: the rules its datasheet links, unless `ownRules` is false, and
+ * those its selections' profiles and the units leading it give it.
+ */
 export function contextualAbilityNamesIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
   context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex' | 'companions' | 'keywordIds' | 'rosterKeywordIds'>,
+  { ownRules = true } = {},
 ): string[] {
   const root = loaded.index.definitions.get(entryId)
   if (!root) return []
@@ -196,7 +201,7 @@ export function contextualAbilityNamesIn(
   const intrinsic = definitionAndTarget(root, loaded.index)
   return [
     ...new Set([
-      ...intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)),
+      ...(ownRules ? intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)) : []),
       ...definitions.flatMap((definition) =>
         definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index, root.absentAbilities)),
       ),
