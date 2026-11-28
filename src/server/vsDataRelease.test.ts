@@ -342,6 +342,7 @@ it('keeps every spelling the localisation gives a unit, its pieces, a Detachment
         pieces: [['Particle Beamer', 'Haz de partículas']],
       },
     },
+    abilities: { 'necrons.test.phase-shift': 'Move' },
   })
 })
 
@@ -617,6 +618,38 @@ it('keeps each Enhancement’s eligibility from its rule facts, under its Detach
   })
 })
 
+it('gives a piece of wargear each unit ability whose identity entry references it', () => {
+  fs.rmSync(directory, { recursive: true })
+  const shield = {
+    kind: 'wargear',
+    id: 'necrons.test.shield',
+    name: 'Shield',
+    aliases: [],
+    category: 'rosters',
+    data: { formatVersion: 2 },
+  }
+  const ward = { kind: 'ability', id: 'necrons.test.ward', name: 'Ward', references: [{ kind: 'wargear', id: 'necrons.test.shield' }] }
+  writeFiles(directory, vsDataReleaseFiles([shield], 'MFM 1.6', [ward]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.wargear?.['necrons.test.shield']?.data.rules,
+  ).toEqual(['necrons.test.ward'])
+})
+
+it('keeps the rules a piece of wargear’s own record names beside the abilities that name it', () => {
+  fs.rmSync(directory, { recursive: true })
+  const data = { formatVersion: 2, rules: ['necrons.test.gift'] }
+  const shield = { kind: 'wargear', id: 'necrons.test.shield', name: 'Shield', aliases: [], category: 'rosters', data }
+  const ward = { kind: 'ability', id: 'necrons.test.ward', name: 'Ward', references: [{ kind: 'wargear', id: 'necrons.test.shield' }] }
+  writeFiles(directory, vsDataReleaseFiles([shield], 'MFM 1.6', [ward]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.wargear?.['necrons.test.shield']?.data.rules,
+  ).toEqual(['necrons.test.gift', 'necrons.test.ward'])
+})
+
 it('names the units the identity marks absent from the rules version as unavailable', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.6', [{ kind: 'unit', id: 'necrons.dropped', name: 'Dropped', absent: true }]))
@@ -656,4 +689,26 @@ it('reads a retired unit as the one unit it is replaced by', () => {
   const file = `${directory}.construction.json`
   writeVsDataConstruction(directory, file)
   expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).replacements).toEqual({ 'necrons.old': 'necrons.new' })
+})
+
+it('keeps the release’s terrain records', () => {
+  const deployment = {
+    formatVersion: 1,
+    kind: 'deployment-map',
+    id: 'deployment-test-arena',
+    name: 'Test arena',
+    provenance: { basis: 'synthetic', note: 'Invented.' },
+    board: { width: 36, height: 36 },
+    zones: [],
+    territories: [],
+    objectives: [{ id: 'centre', at: { x: 18, y: 18 } }],
+  }
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record, { kind: 'deployment-map', id: deployment.id, aliases: [], category: 'terrain', data: deployment }]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).terrain.map(({ id }: { id: string }) => id)).toEqual([deployment.id])
 })

@@ -167,7 +167,7 @@ export function* loadRulesSteps(
   yield
   const { terrainLayouts, deployments } = missionTerrain(packs, battlemasterDirectory)
   yield
-  for (const kotc of kotcTerrain(datacardsDirectory)) {
+  for (const kotc of kotcTerrain(vsData?.terrain ?? [])) {
     deployments.push(kotc.deployment)
     terrainLayouts.push(kotc.layout)
   }

@@ -255,9 +255,43 @@ for (const { context, companion, width, deadline } of editors) {
     const priorLabels = await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))
     const gate = await holdLoadoutReplies(page, companion ? 1 : 0, deadline)
     try {
-      const next = companion ? 'Voidscythe' : 'Tesla carbine'
-      await loadout.getByRole('button', { name: `Select ${next}`, exact: true }).click()
-      await expect(loadout.getByRole('button', { name: `Select ${next}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      const button = (name: string) => loadout.getByRole('button', { name, exact: true })
+      // The roster fields both as VS picks: the Overlord's Voidscythe is a count and the Immortals' Tesla carbines one
+      // choice for the squad. The standalone simulator fields the catalogue's units, where each weapon is selected.
+      const swap =
+        context === 'standalone'
+          ? {
+              take: async () => {
+                await button(`Select ${companion ? 'Voidscythe' : 'Tesla carbine'}`).click()
+                await expect(button(`Select ${companion ? 'Voidscythe' : 'Tesla carbine'}`)).toHaveAttribute('aria-pressed', 'true')
+              },
+              undo: async () => {
+                await button(`Select ${companion ? 'Staff of light' : 'Gauss blaster'}`).click()
+                await expect(button(`Select ${companion ? 'Staff of light' : 'Gauss blaster'}`)).toHaveAttribute('aria-pressed', 'true')
+              },
+            }
+          : companion
+            ? {
+                take: async () => {
+                  await button('More Voidscythe').click()
+                  await expect(loadout.getByLabel('Voidscythe count', { exact: true })).toHaveText('1')
+                },
+                undo: async () => {
+                  await button('Fewer Voidscythe').click()
+                  await expect(loadout.getByLabel('Voidscythe count', { exact: true })).toHaveText('0')
+                },
+              }
+            : {
+                take: async () => {
+                  await button('Select Tesla carbine').click()
+                  await expect(button('Remove Tesla carbine')).toBeVisible()
+                },
+                undo: async () => {
+                  await button('Remove Tesla carbine').click()
+                  await expect(button('Select Tesla carbine')).toBeVisible()
+                },
+              }
+      await swap.take()
       await gate.waitForReply()
       const alert = loadout.getByRole('alert').filter({ hasText: 'The loadout comparison took too long. Try again.' })
       await expect(alert).toBeVisible({ timeout: 45_000 })
@@ -275,10 +309,8 @@ for (const { context, companion, width, deadline } of editors) {
       await expect(odds.first()).toBeVisible()
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
 
-      const current = companion ? 'Staff of light' : 'Gauss blaster'
       const beforeEdit = await gate.replies()
-      await loadout.getByRole('button', { name: `Select ${current}`, exact: true }).click()
-      await expect(loadout.getByRole('button', { name: `Select ${current}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await swap.undo()
       await expect.poll(gate.replies).toBeGreaterThan(beforeEdit)
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
       const currentLabels = await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))

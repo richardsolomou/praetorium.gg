@@ -964,7 +964,7 @@ test('a player can enter through the roster library and browse the product', asy
   await add(page, 'Immortals')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   const immortalsWeapons = page.locator('aside[aria-label="Loadout"]')
-  const gauss = immortalsWeapons.locator('article').filter({ hasText: 'Gauss blaster' }).first()
+  const gauss = immortalsWeapons.getByRole('listitem', { name: 'Gauss blaster', exact: true })
   await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
   await screenshot(page, 'cursed-immortals-base-strength.png', { fullPage: true })

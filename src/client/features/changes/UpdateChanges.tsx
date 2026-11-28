@@ -141,7 +141,8 @@ function PriceChange({ change }: { change: LinkedChange }) {
       {lines.map((line, at) => (
         <Fragment key={line}>
           {at ? <span className="text-faint">, </span> : null}
-          <span className="whitespace-nowrap">{line}</span>
+          {/* Each price moves to the next line whole, and only one wider than the row, as a model-mix row, wraps within itself. */}
+          <span className="inline-block max-w-full">{line}</span>
         </Fragment>
       ))}
     </span>

@@ -34,6 +34,7 @@ it('names a faction by every spelling the official app gives it, under each name
     stratagems: [],
     missionPacks: [],
     missionActions: [],
+    terrain: [],
     detachments: [],
     units: {},
     factions: {},

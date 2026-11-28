@@ -122,6 +122,56 @@ export const vsDataMissionPackSchema = z.object({
   ),
   twists: z.array(memberSchema.extend({ changesPrimary: z.boolean() })),
 })
+
+const terrainPointSchema = z.object({ x: z.number(), y: z.number() })
+const terrainSourceSchema = z.object({ source: z.object({ url: z.string().optional(), pageUrl: z.string().optional() }).optional() })
+/** A VS Data terrain record, format 1: a battlefield's footprints, or a deployment map, in the landscape board frame. */
+export const vsDataTerrainSchema = z.discriminatedUnion('kind', [
+  z.object({
+    formatVersion: z.literal(1),
+    kind: z.literal('terrain-layout'),
+    id: z.string(),
+    name: z.string(),
+    provenance: terrainSourceSchema,
+    board: z.object({ width: z.number(), height: z.number() }),
+    deployments: z.array(z.string()).optional(),
+    areas: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string().optional(),
+        footprint: z.object({ at: terrainPointSchema, rotation: z.number() }),
+        outline: z.array(terrainPointSchema),
+        group: z.string().nullable(),
+        objective: z.object({ id: z.string(), at: terrainPointSchema }).nullable(),
+        parts: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            density: z.string(),
+            at: terrainPointSchema,
+            rotation: z.number(),
+            mirror: z.boolean(),
+            roof: z.array(terrainPointSchema).nullable(),
+            walls: z.array(z.object({ id: z.string(), points: z.array(terrainPointSchema), thickness: z.number() })),
+          }),
+        ),
+        measurements: z.array(z.object({ from: terrainPointSchema, to: terrainPointSchema, approximate: z.boolean() })).optional(),
+      }),
+    ),
+  }),
+  z.object({
+    formatVersion: z.literal(1),
+    kind: z.literal('deployment-map'),
+    id: z.string(),
+    name: z.string(),
+    provenance: terrainSourceSchema,
+    board: z.object({ width: z.number(), height: z.number() }),
+    zones: z.array(z.object({ role: z.enum(['attacker', 'defender']), points: z.array(terrainPointSchema) })),
+    territories: z.array(z.object({ role: z.enum(['attacker', 'defender']), points: z.array(terrainPointSchema) })),
+    objectives: z.array(z.object({ id: z.string(), at: terrainPointSchema })),
+  }),
+])
+export type VsDataTerrain = z.infer<typeof vsDataTerrainSchema>
 export type VsDataMissionPack = z.infer<typeof vsDataMissionPackSchema>
 export type VsDataAward = z.infer<typeof awardSchema>
 export type VsDataWindow = z.infer<typeof windowSchema>
@@ -240,6 +290,8 @@ export const vsDataNamesSchema = z.object({
   dispositions: spellingsSchema.default([]),
   /** Every unit's spellings, and those of each model and piece of wargear it holds, by VS Data id. */
   units: z.record(z.string(), z.object({ name: z.array(z.string()), pieces: spellingsSchema })),
+  /** Every current ability's English name by VS Data id, which a rule read by its record is shown by. */
+  abilities: z.record(z.string(), z.string()).optional(),
 })
 export type VsDataNames = z.infer<typeof vsDataNamesSchema>
 
@@ -285,6 +337,8 @@ export const vsDataSummariesSchema = z.object({
   missionPacks: z.array(vsDataMissionPackSchema).default([]),
   /** The mission actions the packs' cards name, each under the ID of the card it extends. */
   missionActions: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
+  /** The battlefields of formats no mission pack lists, as King of the Colosseum, and their deployment maps. */
+  terrain: z.array(vsDataTerrainSchema).default([]),
   /**
    * Each Detachment of the rules version, by name, with the Stratagems and Enhancements its build prints: the ones the
    * release publishes by ID, and by name the printed ones it does not.

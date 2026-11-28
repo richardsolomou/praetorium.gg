@@ -37,7 +37,7 @@ import { vsCostRows } from '../shared/vsDataPoints'
 import { costConditions } from '../core/datasheet'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 51 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 52 as const
 
 const characteristicSchema = z.object({
   name: z.string(),

@@ -336,10 +336,13 @@ it('credits mission references to VS Data at its release revision', () => {
   ])
 })
 
-it('credits a King of the Colosseum arena and its deployment to their diagram publishers', () => {
+it('credits a King of the Colosseum arena and its deployment to VS Data and their diagram publishers', () => {
   const arena = { ...missionRules.terrainLayouts[0]!, id: 'arena', matchupId: KOTC_MATCHUP_ID, pieces: [] }
   const corpus = missionCorpus({ ...missionRules, terrainLayouts: [arena] })
-  const credit = { attribution: ['Battlefield diagrams from Play On Tabletop and Frontline Gaming'], revisions: { datacards: 'one' } }
+  const credit = {
+    attribution: [VS_DATA_ATTRIBUTION, 'Battlefield diagrams from Play On Tabletop and Frontline Gaming'],
+    revisions: { summaries: 'one' },
+  }
 
   expect(
     ['terrain:arena', 'deployment:hammer-and-anvil'].map((id) => {

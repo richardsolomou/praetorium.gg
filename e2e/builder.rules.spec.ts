@@ -291,7 +291,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByText("Overlord's blade")).not.toHaveCount(0)
+  await expect(loadout.getByText(/Overlord[’']s blade/)).not.toHaveCount(0)
   await expect(page.getByRole('button', { name: /A 6, modified from 4/ })).toHaveCount(0)
 
   await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
@@ -319,7 +319,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await screenshot(page, 'unit-preview.png')
   await add(page, 'Immortals')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
-  const gauss = loadout.locator('article').filter({ hasText: 'Gauss blaster' }).first()
+  const gauss = loadout.getByRole('listitem', { name: 'Gauss blaster', exact: true })
   await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
 

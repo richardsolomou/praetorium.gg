@@ -115,7 +115,11 @@ export type OptionData = {
   caps?: { choices: string[]; max: number; per?: Per; bySize?: SizeMaximum[] }[]
   requires?: Requirement | Requirement[]
 }
-export type WargearData = { includes?: Counts }
+/**
+ * A piece of wargear, or a bundle of the wargear in `includes`; `rules` are the unit abilities a unit gains while it
+ * carries it, its record's own and every ability naming it as the wargear it is the rule of.
+ */
+export type WargearData = { includes?: Counts; rules?: string[] }
 
 // The profile shapes mirror VS Data's profiles.v1.schema.json: a field a gap names is left out, never guessed.
 /** A field VS Data leaves out, and why: `unrepresentable`, `no-source` or `no-target`. */

@@ -1,6 +1,5 @@
 /**
- * Reports, for every datasheet VS Data defines exactly (an options map entry with nothing unmatched) on the current
- * rules version, whether the builder offers a VS Data pick (`vsUnitChoices`, `vsUnitToggles`) what it offers the BSData
+ * Reports, for every datasheet the options map reads as a VS Data unit on the current rules version, whether the builder offers a VS Data pick (`vsUnitChoices`, `vsUnitToggles`) what it offers the BSData
  * pick today: the same sizes, the same wargear within reach and as many of each, the Warlord, every allegiance, and as
  * many Enhancements and upgrades under each of the book's Detachments. Counts, unit names and wargear names only. With
  * `--write`, the datasheets that agree, or differ only where VS Data follows the app, become the ones the builder adds as
@@ -13,6 +12,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
 import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
+import keywordRulings from './vsDataKeywordRulings.json' with { type: 'json' }
 import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
 import type { RosterPick } from '../src/core/roster'
 import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
@@ -25,6 +25,7 @@ import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { calculateCombat, DEFAULT_COMBAT_OPTIONS } from '../src/core/combat'
 import { combatAttacks } from '../src/core/combatScenario'
 import { combatUnitTarget } from '../src/core/combatUnit'
+import { combatKeyword, normalizeCombatKeyword, WEAPON_ABILITY_KINDS } from '../src/core/combatKeywords'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
@@ -49,9 +50,11 @@ const definitions = vsDataDefinitions(
 const { catalogue: loaded, rules } = loadSnapshot(directory)
 const ids = legacyIds()
 const allegianceOf = legacyIdsSchema.parse(rawUnits).allegiances ?? {}
-const exact = new Map(
+// A catalogue choice the map leaves unmatched only keeps an import of it a catalogue pick (`legacyOptionSelections`), so
+// what the builder offers is compared for every mapped datasheet.
+const mapped = new Map(
   Object.entries(legacyOptionsSchema.parse(rawOptions).units).flatMap(([entryId, entry]) =>
-    entry.unmatched.length || !definitions.get('unit', entry.unit) ? [] : [[entryId, entry.unit] as const],
+    definitions.get('unit', entry.unit) ? [[entryId, entry.unit] as const] : [],
   ),
 )
 const bsdataDetachments = new Map<string, string[]>()
@@ -96,10 +99,17 @@ function distance(one: string, other: string) {
  * name (any book's) or VS Data unit ID (one book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded
  * (the K1 and K2 settlements of the VS Data gaps).
  */
-const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
+const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegExp; why: string }[] = [
+  {
+    check: 'keywords',
+    // By VS Data unit ID: the datasheets O reviewed, apart from the Cybernetica Datasmith (vs-data#229) and the Daemonic Herald.
+    units: new Set(keywordRulings),
+    detail: /.*/,
+    why: 'VS Data follows the app (build 995): its plural and name keywords stand, and Recon Augury, Harlequin Allies and the categories BSData gives wargear such as Terminator Armour are no keywords any source prints',
+  },
   {
     check: 'warlord',
-    units: /^(Company Heroes|Rein and Raus)$/,
+    units: /^(Company Heroes|Rein and Raus|Ravenwing Command Squad)$/,
     detail: /VS Data offers it/,
     why: 'neither the app nor the Legends sheet bars it from the Warlord role',
   },
@@ -124,6 +134,80 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
     why: 'the app prints a multi-weapon choice, as "2 heavy bolters", that the BSData reach counts as one selection',
   },
   {
+    check: 'wargear counts',
+    units: /^Sword Brethren Squad$/,
+    detail: /^hand-flamer:/,
+    why: 'the app (build 995) gives Sword Brethren 2 hand flamers per 4 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Death Company Marines with Jump Packs$/,
+    detail: /^(plasma-pistol|inferno-pistol|hand-flamer):/,
+    why: 'the app (build 995) gives Death Company 2 plasma pistols and 1 inferno pistol or hand flamer per 5 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Tyranid Warriors with Ranged Bio-weapons$/,
+    detail: /^(venom-cannon|barbed-strangler):/,
+    why: 'the app (build 995) gives Tyranid Warriors 1 of each per 3 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Seraphim Squad$/,
+    detail: /^ministorum-hand-flamer:/,
+    why: 'the app (build 995) gives Seraphim 8 hand flamers at 10 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Overlord$/,
+    detail: /^resurrection-orb:/,
+    why: 'the app (build 995) gives an Overlord one resurrection orb, with the staff or voidscythe swap',
+  },
+  {
+    check: 'wargear counts',
+    units: /^(Reaver Titan|Warbringer Nemesis Titan|Warlord Titan|Warhound Titan|Armiger Moirax|War Dog Moirax)$/,
+    detail: /.*/,
+    why: 'the app (build 995) arms each arm with one weapon, the same on both arms allowed',
+  },
+  {
+    check: 'wargear',
+    units: /^Wulfen$/,
+    detail: /^only VS Data offers death-totem$/,
+    why: 'the card gives Wulfen a death totem',
+  },
+  {
+    check: 'wargear',
+    units: /^Scourges with (Heavy Weapons|Shardcarbines)$/,
+    detail:
+      /^only (VS Data offers (power-weapon|splinter-pistol|blast-pistol)|BSData offers 1-(blast|splinter)-pistol-and-1-power-weapon)$/,
+    why: 'the card gives the Scourges’ Solarite their pistol and power weapon apart',
+  },
+  {
+    check: 'wargear',
+    units: /^Lieutenant$/,
+    detail: /^only VS Data offers storm-shield$/,
+    why: 'the card gives a Lieutenant a storm shield only with the neo-volkite pistol and master-crafted power weapon',
+  },
+  {
+    check: 'wargear',
+    units: /^Wulfen with Storm Shields$/,
+    detail: /^only (BSData offers storm-shield|VS Data offers death-totem)$/,
+    why: 'the card gives these Wulfen a death totem and no shield wargear: their 4+ invulnerable save is on the datasheet',
+  },
+  {
+    check: 'wargear',
+    units: /^black-templars\.emperors-champion$/,
+    detail:
+      /^only BSData offers (master-of-arms|epitome-of-piety|instrument-of-the-emperor|adaptable-executioner|inspirational-fighter|front-line-crusader)$/,
+    why: 'no app build prints the Anointed Emperor’s Champion’s vows: the card gives a black sword and bolt pistol',
+  },
+  {
+    check: 'keywords',
+    units: /^black-templars\.emperors-champion$/,
+    detail: /.*/,
+    why: 'the Emperor’s Champion’s own BSData entry prints VS Data’s keywords; only its Anointed copy differs',
+  },
+  {
     check: 'sizes',
     units:
       /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
@@ -146,7 +230,7 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
   {
     check: 'simulator',
     units:
-      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers)$/,
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers|world-eaters\.chaos-rhino|chaos-space-marines\.havocs|death-guard\.helbrute|titan-legions\.warhound-titan|imperial-knights\.armiger-moirax|chaos-knights\.war-dog-moirax|tau-empire\.taunar-supremacy-armour)$/,
     // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
     detail: /^(?!.*\bnone\b)/,
     why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
@@ -158,7 +242,12 @@ const differences = new Map<string, Map<string, string[]>>()
 /** Each check's differences, by VS Data unit ID; one a ruling settles is filed apart. */
 const differ = (check: string, unit: string, detail: string) => {
   const name = definitions.get('unit', unit)?.name ?? unit
-  const ruled = RULED.some((row) => row.check === check && (row.units.test(name) || row.units.test(unit)) && row.detail.test(detail))
+  const ruled = RULED.some(
+    (row) =>
+      row.check === check &&
+      (row.units instanceof RegExp ? row.units.test(name) || row.units.test(unit) : row.units.has(unit)) &&
+      row.detail.test(detail),
+  )
   const filed = ruled ? `${check}${RULED_SUFFIX}` : check
   const byUnit = differences.get(filed) ?? new Map<string, string[]>()
   differences.set(filed, byUnit)
@@ -166,8 +255,13 @@ const differ = (check: string, unit: string, detail: string) => {
 }
 const checked = new Map<string, number>()
 const count = (check: string) => checked.set(check, (checked.get(check) ?? 0) + 1)
-/** An Enhancement's name, without the "(Upgrade)" or "(Aura)" one source prints and the other leaves out. */
-const enhancementName = (name: string) => same(name.replace(/\((upgrade|aura)\)/gi, ''))
+/** Whether a rule is a weapon keyword, as Blast, Anti-fly 2+ or Devastating Wounds, rather than an ability of the unit's. */
+const weaponRule = (name: string) => {
+  const written = normalizeCombatKeyword(name)
+  return combatKeyword(name) !== null || WEAPON_ABILITY_KINDS.some((kind) => written === kind || written.startsWith(`${kind}-`))
+}
+/** An Enhancement's name, without the "(Upgrade)" or "(Aura)", in either brackets, one source prints and the other leaves out. */
+const enhancementName = (name: string) => same(name.replace(/[([](upgrade|aura)[)\]]/gi, ''))
 const special = (choice: Priced['choices'][number]) => 'kind' in choice && Boolean(choice.kind)
 
 /**
@@ -184,7 +278,8 @@ const offer = (reach: Reach, key: string, n: number) => {
 /** The BSData unit's reach, by VS Data's spelling where it has one. Allegiances are not wargear. */
 function bsdataReach(unit: Priced, vsKeys: ReadonlySet<string>, allegiances: ReadonlySet<string>) {
   const reach = reached()
-  const held = new Set(unit.wargear.map((piece) => vsSpelling(piece.name, vsKeys)))
+  // BSData holds a required allegiance, as a Daemon Prince's Khorne, as the wargear its tree starts with.
+  const held = new Set(unit.wargear.flatMap((piece) => (allegiances.has(same(piece.name)) ? [] : [vsSpelling(piece.name, vsKeys)])))
   for (const key of held) reach.names.add(key)
   for (const choice of unit.choices.filter((candidate) => !special(candidate))) {
     const total = new Map<string, number>()
@@ -229,12 +324,12 @@ const bookOf = (catalogueId: string) => ids.books[catalogueId.slice(catalogueId.
 // A datasheet is compared in its own book's catalogue where one lists it, as an ally's Detachments are not the roster's.
 const listing = new Map<string, string>()
 // Legends and Crucible datasheets are built from BSData, as most stay with the catalogue's checks (`vsDataChecks`).
-const matchedPlay = new Set(loaded.factions.flatMap((faction) => unitIdsIn(loaded, faction.id).flatMap((id) => exact.get(id) ?? [])))
+const matchedPlay = new Set(loaded.factions.flatMap((faction) => unitIdsIn(loaded, faction.id).flatMap((id) => mapped.get(id) ?? [])))
 for (const faction of loaded.factions) {
   const book = bookOf(faction.id)
   if (!book) continue
   for (const entryId of unitIdsIn(loaded, faction.id, { nonMatchedPlay: true })) {
-    const unitId = inBook(exact, faction.id, entryId)
+    const unitId = inBook(mapped, faction.id, entryId)
     if (!unitId) continue
     const own = definitions.get('unit', unitId)!.data.faction === book
     if (!listing.has(entryId) || own) listing.set(entryId, faction.id)
@@ -260,7 +355,7 @@ for (const [entryId, catalogueId] of listing) {
   {
     const faction = { id: catalogueId }
     const book = bookOf(catalogueId)!
-    const unitId = inBook(exact, catalogueId, entryId)!
+    const unitId = inBook(mapped, catalogueId, entryId)!
     const first = vsFirstFielding(definitions, unitId)
     const sizes = definitions.get('unit', unitId)!.data.sizes
     const largest = Math.max(...sizes)
@@ -326,7 +421,9 @@ for (const [entryId, catalogueId] of listing) {
       const characteristics = sheet.profiles
         .filter((profile) => profile.type !== 'Ranged Weapons' && profile.type !== 'Melee Weapons')
         .map((profile) => `${profile.name}:${profile.values.map((value) => value.value).join('/')}`)
-      return JSON.stringify([characteristics.toSorted(), sheet.abilities.map((ability) => ability.name).toSorted()])
+      // A weapon keyword BSData links to a weapon's option as an ability is a core rule VS Data keeps on the weapon's profile.
+      const abilities = sheet.abilities.flatMap((ability) => (weaponRule(ability.name) ? [] : [ability.name]))
+      return JSON.stringify([characteristics.toSorted(), abilities.toSorted()])
     }
     const plainSheet = sheetOf({ entryId })
     const choiceAt = new Map(plain.choices.map((choice) => [choice.key, choice]))
@@ -362,13 +459,13 @@ for (const [entryId, catalogueId] of listing) {
     for (const option of vsUnitOptions(definitions, first))
       for (const choice of option.choices) {
         const name = definitions.get('wargear', choice.id)?.name ?? choice.id
-        const mapped = shell?.[option.id]?.[choice.id]?.[0]
-        if (!mapped) {
+        const standsFor = shell?.[option.id]?.[choice.id]?.[0]
+        if (!standsFor) {
           if (wargearChanges) changing.push(`${name}, which no catalogue option stands for`)
           continue
         }
         const taken = vsWithChoice(definitions, first, option.id, { [choice.id]: 1 })
-        if (taken && sheetOf(vsPickOf(taken)) !== sheetOf(catalogueOption(...mapped, name).pick)) changing.push(name)
+        if (taken && sheetOf(vsPickOf(taken)) !== sheetOf(catalogueOption(...standsFor, name).pick)) changing.push(name)
       }
     // Choices taken together, or one at its most, can crowd each other out of the catalogue tree, where a group holds fewer
     // than VS Data allows, so each must keep the abilities it gives alone.
@@ -498,7 +595,7 @@ for (const [entryId, catalogueId] of listing) {
   }
 }
 
-console.log(`${units} exactly defined datasheets compared (of ${exact.size} mapped exactly)`)
+console.log(`${units} mapped datasheets compared (of ${mapped.size} mapped)`)
 for (const [check, total] of [...checked].filter(([name]) => name !== 'models')) {
   const found = differences.get(check)?.size ?? 0
   console.log(`${check}: ${total - found} of ${total} agree`)
@@ -509,7 +606,7 @@ console.log(`${checked.get('models') ?? 0} datasheets divide their size between 
 for (const [check, byUnit] of differences) {
   if (!checked.has(check)) console.log(`${check}: ${byUnit.size} datasheets`)
   if (!values.list) continue
-  for (const [unit, details] of byUnit) console.log(`  ${check} | ${definitions.get('unit', unit)!.name}: ${details.join('; ')}`)
+  for (const [unit, details] of byUnit) console.log(`  ${check} | ${definitions.get('unit', unit)!.name} (${unit}): ${details.join('; ')}`)
 }
 
 // The datasheets the builder fields by VS Data: every matched-play one compared that differs only where VS Data follows the app.

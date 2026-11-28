@@ -44,7 +44,7 @@ export function buildConstruction(saved: OfflineConstructionSource, data?: Offli
     ...buildIndex(files, saved.revision, {
       get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
     }),
-    ...(vsRoster?.attachments ? { attachments: vsRoster.attachments } : {}),
+    ...(vsRoster?.attachments ? { attachments: vsRoster.attachments, attachmentHosts: vsRoster.attachmentHosts } : {}),
   }
   const catalogue = {
     ...catalogueFromIndex(index, files, datacards, vsRoster),
