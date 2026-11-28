@@ -3685,6 +3685,55 @@
       "unit": "genestealer-cults.acolyte-hybrids-with-autopistols",
       "unmatched": ["bb7b-ebb5-a64c-3f34|20b2-d42e-cd67-2e1b", "bb7b-ebb5-a64c-3f34|5da6-62a3-7b2c-6b8d"]
     },
+    "1afd-1eb5-9b4f-4f80": {
+      "base": "unmatched",
+      "choices": {
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|4966-94e3-8392-dccc": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.grenade-launcher": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7342-c076-0373-7f69": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.sniper-rifle": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7e92-002a-1265-b04f": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.meltagun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|8ae3-a772-c0c7-53a3": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.plasma-gun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|91c8-e43c-8cd9-1694": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.heavy-stubber": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|c066-88c7-f985-c341": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.flamer": 1
+            }
+          }
+        }
+      },
+      "unit": "astra-militarum.death-korps-grenadier-squad",
+      "unmatched": ["baed-7c31-5898-eb0b|7f88-f3e8-592b-2de0"]
+    },
     "1b28-6192-7cfa-3019": {
       "choices": {},
       "unit": "death-guard.rotigus",
@@ -8858,6 +8907,25 @@
       "unit": "orks.warphead",
       "unmatched": ["0011-beaa-0235-d7d7/ac6c-4cbf-0928-62c9|3d1d-54d6-45fb-669f"]
     },
+    "306-db45-d47c-f0e9": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
+    },
     "3066-9274-c887-86b": {
       "choices": {
         "9831-cfb8-7855-b2c0/2bd0-3b67-972f-a8f6|17f8-9cc9-b055-1d28": {
@@ -8906,6 +8974,25 @@
         "9831-cfb8-7855-b2c0/5a6-d46b-4cbb-bb52|8ae4-abdf-2dbc-856f",
         "9831-cfb8-7855-b2c0/5a6-d46b-4cbb-bb52|d0bc-2a1d-cdbc-559d"
       ]
+    },
+    "3082-c9fe-b2b6-2594": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
     },
     "3084-9a99-bf3a-b663": {
       "choices": {},
@@ -15430,6 +15517,25 @@
       "unit": "astra-militarum.marauder-bomber",
       "unmatched": []
     },
+    "506c-80e8-14a1-616f": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
+    },
     "509d-294b-4915-2e91": {
       "choices": {
         "55a3-9a75-c917-e922|0707-563e-2d7d-09b2": {
@@ -18557,6 +18663,25 @@
         "8512-e0a3-8a59-e899/eeff-86fd-25b2-9554|24d9-750b-64f5-1771",
         "8512-e0a3-8a59-e899/eeff-86fd-25b2-9554|e3e1-31fd-e2d6-64f"
       ]
+    },
+    "5a24-5d3b-949f-984c": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
     },
     "5a25-df80-8da1-cad9": {
       "base": "unmatched",
@@ -31391,6 +31516,274 @@
       "unit": "chaos-daemons.seekers",
       "unmatched": ["6515-6647-3fd3-f6d1|6515-6647-3fd3-f6d1", "8d45-28d8-b0af-ea6d|8d45-28d8-b0af-ea6d"]
     },
+    "9dd6-bcba-6ec8-330f": {
+      "choices": {
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|22f1-da37-b6a0-19b8": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.force-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|3102-a279-c7af-233d": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.excruciator-maul": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|6a96-81ce-ea25-55fd": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.power-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|78dc-f732-cf56-869a": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.eviscerator": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|926a-f2ff-302f-5e0d": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.chainsword": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|a21e-2015-e46d-6d59": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.warp-grasp": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/0768-9467-e604-6146|dc8f-fccb-7793-9330": {
+          "options": {
+            "imperial-agents.martial-agent.melee-weapons": {
+              "imperial-agents.martial-agent.close-combat-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|161a-1696-1064-be17": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.inferno-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|28d1-f1e9-34dc-b05b": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.agent-firearm": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|353f-9a0a-3805-3a61": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.household-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|4006-8785-10a6-796e": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.voltaic-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|71ea-8ad4-fd3f-9368": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.holy-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|b713-dfb5-d4d6-88b6": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.plasma-pistol": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/6049-3d27-e911-9414|cd99-bdd4-a247-c3f1": {
+          "options": {
+            "imperial-agents.martial-agent.pistols": {
+              "imperial-agents.martial-agent.ministorum-hand-flamer": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|0d62-6e72-250f-0157": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.ministorum-flamer": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|163f-2e50-e948-ca54": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.lasgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|2ba4-ada1-b715-3201": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.plasma-gun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|332a-e41d-870f-e8a0": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.artificer-shotgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|4017-0dea-9ff4-dbf5": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.meltagun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|4718-7cc6-0dae-5769": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.arbites-grenade-launcher": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|510f-339b-7fde-1aa8": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.artificer-crafted-storm-bolter": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|5c5f-c109-d0e9-8c54": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.condemnor-boltgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|6f9c-7f44-5c47-2cd8": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.webber": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|7b62-69bb-f38c-4893": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.psychic-shock-wave": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|abf7-870e-c71b-bc64": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.combi-weapon": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|d36d-e946-015c-5d3f": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.boltgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|d997-3593-13ce-4a1b": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.arbites-combat-shotgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|e77c-53fb-4ead-8ad4": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons": {
+              "imperial-agents.martial-agent.executioner-shotgun": 1
+            }
+          }
+        },
+        "585d-0506-7eb9-8669/71c8-175b-5ea4-0df7|fa3f-2644-1c9f-b994": {
+          "options": {
+            "imperial-agents.martial-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.martial-agent.unholy-gaze": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|5ae4-3424-2b4b-2550": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.rogue-trader": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|6a10-1787-191d-4605": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.ordo-xenos": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|b5a7-00a2-fbd6-6373": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.ordo-malleus": 1
+            }
+          }
+        },
+        "87ad-2205-1a33-1b7f|d49f-4923-e9b1-e8a9": {
+          "options": {
+            "imperial-agents.martial-agent.specialisms": {
+              "imperial-agents.martial-agent.ordo-hereticus": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|3fb2-28e2-e219-501f": {
+          "options": {}
+        },
+        "ac3e-2584-1f49-8bff|5514-6515-4fdb-4017": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred": {
+              "imperial-agents.martial-agent.termination": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|686f-4aca-55f8-363b": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred-2": {
+              "imperial-agents.martial-agent.oracular-gifts": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|743e-f925-372a-bc5a": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred-5": {
+              "imperial-agents.martial-agent.backroom-deals": 1
+            }
+          }
+        },
+        "ac3e-2584-1f49-8bff|fd3b-1a1b-ffbb-6a58": {
+          "options": {
+            "imperial-agents.martial-agent.abilties-holy-hatred": {
+              "imperial-agents.martial-agent.nowhere-to-hide": 1
+            }
+          }
+        }
+      },
+      "unit": "imperial-agents.martial-agent",
+      "unmatched": ["585d-0506-7eb9-8669/0768-9467-e604-6146|46e6-8a9d-ec8b-2a0d"]
+    },
     "9df0-1906-bdae-18b4": {
       "choices": {},
       "unit": "tau-empire.crisis-battlesuits",
@@ -35883,6 +36276,147 @@
         "931f-a3e4-0662-8b0e/a519-7e4a-4293-fb7f|9f28-7c6a-410c-6438",
         "931f-a3e4-0662-8b0e/a519-7e4a-4293-fb7f|e7f5-6c8e-be0d-5e38",
         "931f-a3e4-0662-8b0e/a519-7e4a-4293-fb7f|eaeb-d250-5cbe-f88d"
+      ]
+    },
+    "b6b0-9449-1f70-6cfe": {
+      "choices": {
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|1496-58ed-58de-e85f": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.grav-gun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|855d-58f5-1ed1-76ff": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.plasma-gun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|b616-79e4-5c40-6dc7": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.plasma-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|bf76-42b6-7d-76be": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.flamer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|f535-2a9e-4697-333e": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.meltagun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|139e-30a2-a2cf-8a57": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.power-fist": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|1a46-2a5a-7c6-3dc3": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.boltgun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|369-d3aa-cca1-1f82": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.plasma-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|4110-17a3-a219-4546": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.inferno-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|4ba2-32e0-91f-30a4": {
+          "options": {}
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|68f3-6a2e-e0e7-d3a5": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.thunder-hammer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|6bc8-3cc-9e83-1d6f": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.storm-bolter": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|9e7f-d013-2a42-5be2": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.astartes-chainsword": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|aa60-1aeb-4674-1e41": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.grav-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|cb6-8aa1-6349-9fe": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.combi-weapon": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|e8c6-723-924b-c43": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.hand-flamer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|f20a-2058-6033-3f5a": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.power-weapon": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73|37e7-aeb-4798-51cc": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.flamer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73|48aa-6991-b817-11ac": {
+          "options": {}
+        },
+        "89e4-6018-5660-fe73|5ac-f2fb-e9e6-d759": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol": {
+              "space-marines.bike-squad.astartes-chainsword": 1
+            }
+          }
+        }
+      },
+      "unit": "space-marines.bike-squad",
+      "unmatched": [
+        "a266-8dbe-3546-e001/19fd-15ca-1adf-d3c4|98ad-6645-aac5-7765",
+        "a266-8dbe-3546-e001/19fd-15ca-1adf-d3c4|b130-ae7f-b7ff-42ce"
       ]
     },
     "b6b2-af4a-8770-8626": {
@@ -41457,6 +41991,295 @@
       },
       "unit": "space-marines.storm-eagle-gunship",
       "unmatched": ["9d24-7070-7a26-c569/d90-7c8f-8f77-2b6f|4d94-f41-33f5-b5fc"]
+    },
+    "d156-7d9b-583f-129e": {
+      "choices": {
+        "5f3e-202c-e180-b168|3fb2-28e2-e219-501f": {
+          "options": {}
+        },
+        "5f3e-202c-e180-b168|5514-6515-4fdb-4017": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred": {
+              "imperial-agents.enthroned-agent.termination": 1
+            }
+          }
+        },
+        "5f3e-202c-e180-b168|686f-4aca-55f8-363b": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred-2": {
+              "imperial-agents.enthroned-agent.oracular-gifts": 1
+            }
+          }
+        },
+        "5f3e-202c-e180-b168|743e-f925-372a-bc5a": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred-5": {
+              "imperial-agents.enthroned-agent.backroom-deals": 1
+            }
+          }
+        },
+        "5f3e-202c-e180-b168|fd3b-1a1b-ffbb-6a58": {
+          "options": {
+            "imperial-agents.enthroned-agent.abilties-holy-hatred": {
+              "imperial-agents.enthroned-agent.nowhere-to-hide": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|22f1-da37-b6a0-19b8": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.force-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|3102-a279-c7af-233d": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.excruciator-maul": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|6a96-81ce-ea25-55fd": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.power-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|78dc-f732-cf56-869a": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.eviscerator": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|926a-f2ff-302f-5e0d": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.chainsword": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|a21e-2015-e46d-6d59": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.warp-grasp": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/0768-9467-e604-6146|dc8f-fccb-7793-9330": {
+          "options": {
+            "imperial-agents.enthroned-agent.melee-weapons": {
+              "imperial-agents.enthroned-agent.close-combat-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|161a-1696-1064-be17": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.inferno-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|28d1-f1e9-34dc-b05b": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.agent-firearm": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|353f-9a0a-3805-3a61": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.household-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|4006-8785-10a6-796e": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.voltaic-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|71ea-8ad4-fd3f-9368": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.holy-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|b713-dfb5-d4d6-88b6": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.plasma-pistol": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/6049-3d27-e911-9414|cd99-bdd4-a247-c3f1": {
+          "options": {
+            "imperial-agents.enthroned-agent.pistols": {
+              "imperial-agents.enthroned-agent.ministorum-hand-flamer": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|05c5-c480-1ad2-e6d9": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.ministorum-heavy-flamer": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|0d62-6e72-250f-0157": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.ministorum-flamer": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|163f-2e50-e948-ca54": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.lasgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|2ba4-ada1-b715-3201": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.plasma-gun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|332a-e41d-870f-e8a0": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.artificer-shotgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|4017-0dea-9ff4-dbf5": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.meltagun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|4718-7cc6-0dae-5769": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.arbites-grenade-launcher": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|510f-339b-7fde-1aa8": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.artificer-crafted-storm-bolter": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|5c5f-c109-d0e9-8c54": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.condemnor-boltgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|6f9c-7f44-5c47-2cd8": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.webber": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|7b62-69bb-f38c-4893": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.psychic-shock-wave": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|abf7-870e-c71b-bc64": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.combi-weapon": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|b53e-b5ab-c0ba-f62e": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.multi-melta": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|d36d-e946-015c-5d3f": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.boltgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|d997-3593-13ce-4a1b": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.arbites-combat-shotgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|e77c-53fb-4ead-8ad4": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.executioner-shotgun": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|fa3f-2644-1c9f-b994": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons-with-oracular-gifts": {
+              "imperial-agents.enthroned-agent.unholy-gaze": 1
+            }
+          }
+        },
+        "92a1-b2a9-66bd-0635/71c8-175b-5ea4-0df7|fda8-a3fd-914a-b1b1": {
+          "options": {
+            "imperial-agents.enthroned-agent.ranged-weapons": {
+              "imperial-agents.enthroned-agent.heavy-bolter": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|5ae4-3424-2b4b-2550": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.rogue-trader": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|6a10-1787-191d-4605": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.ordo-xenos": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|b5a7-00a2-fbd6-6373": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.ordo-malleus": 1
+            }
+          }
+        },
+        "bd8d-7a8e-0bb4-6b3c|d49f-4923-e9b1-e8a9": {
+          "options": {
+            "imperial-agents.enthroned-agent.specialisms": {
+              "imperial-agents.enthroned-agent.ordo-hereticus": 1
+            }
+          }
+        }
+      },
+      "unit": "imperial-agents.enthroned-agent",
+      "unmatched": ["92a1-b2a9-66bd-0635/0768-9467-e604-6146|46e6-8a9d-ec8b-2a0d"]
     },
     "d15e-ed71-a47f-87c": {
       "choices": {
@@ -47999,6 +48822,32 @@
       "unit": "imperial-knights.cerastus-knight-castigator",
       "unmatched": []
     },
+    "f575-6924-86cd-8634": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": [
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277",
+        "ad87-d484-543f-8cab|3bb3-78e-db85-353b",
+        "ad87-d484-543f-8cab|a689-a7b8-9b47-1362",
+        "ad87-d484-543f-8cab|cb13-6792-cb2e-4702",
+        "ad87-d484-543f-8cab|e9bb-ae3a-eba6-cbd8",
+        "ad87-d484-543f-8cab|f764-31bd-419d-576c"
+      ]
+    },
     "f5ac-46c9-972f-c0c3": {
       "choices": {},
       "unit": "orks.biged-bossbunka",
@@ -48509,6 +49358,55 @@
       },
       "unit": "tau-empire.riptide-battlesuit",
       "unmatched": ["b9b3-9409-ad48-4c64/6a04-101c-70b6-3e01|345a-f548-79e7-b25d"]
+    },
+    "f798-9d17-25ab-65af": {
+      "base": "unmatched",
+      "choices": {
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|4966-94e3-8392-dccc": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.grenade-launcher": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7342-c076-0373-7f69": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.sniper-rifle": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7e92-002a-1265-b04f": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.meltagun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|8ae3-a772-c0c7-53a3": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.plasma-gun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|91c8-e43c-8cd9-1694": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.heavy-stubber": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|c066-88c7-f985-c341": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.flamer": 1
+            }
+          }
+        }
+      },
+      "unit": "astra-militarum.death-korps-grenadier-squad",
+      "unmatched": ["baed-7c31-5898-eb0b|7f88-f3e8-592b-2de0"]
     },
     "f7d0-f6ee-1fd5-b4da": {
       "choices": {
