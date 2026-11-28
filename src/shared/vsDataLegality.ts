@@ -70,6 +70,31 @@ function vsDataPlacement(data: VsRosterData | undefined, list: { catalogueId: st
   return { ...placed, detachments }
 }
 
+/**
+ * The list's units (by `CheckedUnit.key`) that VS Data's checker counts towards an ally points limit at the list's battle
+ * size: each joins the first ally entry offering it under one of the list's Detachments, as `checkVsRoster` reads it.
+ */
+export function vsDataAllyLimited(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  units: readonly Pick<CheckedUnit, 'key' | 'entryId' | 'name' | 'vs'>[],
+): Set<number> {
+  const placed = vsDataPlacement(data, list)
+  if (!data || !placed) return new Set()
+  const { definitions, detachments } = placed
+  const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
+  const allies = placed.record?.allies ?? []
+  return new Set(
+    units.flatMap((unit) => {
+      const id = unit.vs?.unit ?? vsDataChecks(data, list.catalogueId, unit)
+      const entry = allies.find(
+        (ally) => ally.units.includes(id ?? '') && (!ally.detachments || ally.detachments.some((d) => detachments.includes(d))),
+      )
+      return entry?.points?.some((row) => row.battleSize === battleSize) ? [unit.key] : []
+    }),
+  )
+}
+
 /** Whether VS Data's checker reads the list as a whole, as `vsDataErrors` does wherever it is not null. */
 export const vsDataPlaces = (data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) =>
   vsDataPlacement(data, list) !== null

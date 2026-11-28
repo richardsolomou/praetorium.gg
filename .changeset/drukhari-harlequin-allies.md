@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[rosters] A Drukhari army's Harlequins and Anhrathe units are held to 250, 500 or 750 points by battle size, as Corsairs and Travelling Players allows.
+[rosters] Corsair Skyreavers, Starfangs, Kharseth and Prince Yriel now count towards a Drukhari army's points limit for Harlequins and Anhrathe units.
