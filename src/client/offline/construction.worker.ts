@@ -57,7 +57,7 @@ async function construction(catalogueId?: string) {
   const data = await loadConstructionData(download, catalogueId, (asset, limit) =>
     part(asset, limit).catch((error: unknown) => {
       // Without the current rules nothing can be answered here; another version's part only fails its own reads.
-      throw asset === download.catalogue || asset === download.rules ? new Unavailable(String(error)) : error
+      throw asset === download.catalogue || asset === download.rules || asset === download.vs ? new Unavailable(String(error)) : error
     }),
   )
   const saved = constructionSource(data, catalogueId)
