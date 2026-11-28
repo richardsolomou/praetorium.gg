@@ -60,7 +60,6 @@ function source(cost: number, versioned = false): OfflineConstructionSource {
     factionKeys: new Map(),
     detachmentReferences: new Map(),
     detachmentDetails: new Map(),
-    factionRestrictions: new Map(),
     terrainLayouts: [],
     terrainTemplates: [],
   }

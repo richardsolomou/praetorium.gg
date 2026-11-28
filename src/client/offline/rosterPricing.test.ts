@@ -110,7 +110,6 @@ beforeEach(() => {
           factionKeys: new Map(),
           detachmentReferences: new Map(),
           detachmentDetails: new Map(),
-          factionRestrictions: new Map(),
         }),
       },
     }),

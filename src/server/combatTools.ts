@@ -230,7 +230,7 @@ export async function namedUnit(
   ])
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   // The units list_units offers with Legends and Crucible included, so a chapter fields the codex units its lists can take.
-  const units = factionUnits(loaded, rules, faction, { nonMatchedPlay: true })
+  const units = factionUnits(loaded, faction, { nonMatchedPlay: true })
   const sheets = factionDatasheets(corpus, loaded, faction.id, current)
   const wanted = unitName.toLocaleLowerCase()
   const key = joinKey(unitName)

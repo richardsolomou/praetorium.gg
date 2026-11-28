@@ -232,7 +232,6 @@ describe('normalising saved loadouts', () => {
     factionKeys: new Map(),
     detachmentReferences: new Map(),
     detachmentDetails: new Map(),
-    factionRestrictions: new Map(),
   } as Partial<LoadedRules> as LoadedRules
   const normalised = (spreads: Record<string, Record<string, number>>, choices?: Record<string, string>) =>
     normaliseProductionRosters(

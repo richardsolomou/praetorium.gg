@@ -104,13 +104,13 @@ export async function referenceUnitsFor(faction: string, query: ReferenceUnitsQu
   const corpus = await activeReferenceCorpus(faction)
   const instance = app()
   const selected = corpus && referenceFaction(corpus, faction)
-  const [loaded, rules] = await Promise.all([instance.catalogueFor(selected?.id ?? faction), instance.rulesFor(selected?.id ?? faction)])
+  const loaded = await instance.catalogueFor(selected?.id ?? faction)
   if (!corpus || !loaded) return null
   return {
     corpus,
     faction: selected ?? null,
     detachments: selected ? factionDetachmentNames(loaded, selected.id) : [],
-    units: referenceUnits(corpus, loaded, rules, faction, query, await currentFactionIds()),
+    units: referenceUnits(corpus, loaded, faction, query, await currentFactionIds()),
   }
 }
 

@@ -27,7 +27,7 @@ export function useDetachmentRules(
       detachmentDetailQuery(catalogueId, detachments?.find((detachment) => detachment.id === id)?.slug ?? ''),
     ),
     combine: useCallback(
-      (details: { data?: { rules: { name: string; description: string | null }[] } | null }[]) =>
+      (details: { data?: { rules: Parameters<typeof detachmentRuleSubject>[1][] } | null }[]) =>
         detachmentIds.flatMap((id, at) => details[at]?.data?.rules.map((rule) => detachmentRuleSubject(id, rule)) ?? []),
       [detachmentIds],
     ),

@@ -3,7 +3,7 @@ import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogu
 import { unitsIn } from '../shared/cataloguePicker'
 import { detachmentsOf } from '../shared/catalogueIndex'
 import { vsRosterData } from '../shared/vsDataLegality'
-import { offeredDetachments } from '../shared/vsDataOffers'
+import { offeredDetachments, vsDataRefusedUnits } from '../shared/vsDataOffers'
 import { points, shelfOf, system } from './catalogue.fixtures'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
@@ -21,7 +21,7 @@ const vsRoster = vsRosterData(
         engines: record('Engines', { withoutDetachments: { warlords: [], dispositions: [] } }),
       },
       detachment: {
-        'host.guard': record('Guard', { faction: 'host', dispositions: ['pack.take-and-hold'] }),
+        'host.guard': record('Guard', { faction: 'host', dispositions: ['pack.take-and-hold'], excludedUnits: ['host.mob'] }),
         'other.raid': record('Raid', { faction: 'other' }),
       },
       unit: {
@@ -119,5 +119,17 @@ describe('the Detachments a book offers under VS Data', () => {
         .get('cat')
         ?.options.find((option) => option.id === 'guard')?.disposition,
     ).toBe('take-and-hold')
+  })
+})
+
+describe('the units a list with a Detachment may take under VS Data', () => {
+  it('leaves out a datasheet the Detachment excludes', () => {
+    expect(unitsIn(loaded, 'cat', '', { detachmentIds: ['guard'] }).map((unit) => unit.name)).not.toContain('Mob')
+  })
+
+  it('refuses a held datasheet the Detachment excludes', () => {
+    expect(vsDataRefusedUnits(loaded, { catalogueId: 'cat', detachmentIds: ['guard'] }, [{ entryId: 'mob', name: 'Mob' }])).toEqual([
+      { entryId: 'mob', entryName: 'Mob', message: 'cannot be taken by this army' },
+    ])
   })
 })

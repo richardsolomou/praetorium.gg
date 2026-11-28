@@ -84,7 +84,6 @@ it('rejects a saved roster with an obsolete detachment when it is used', async (
       factionKeys: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     }),
   } as never)
 
@@ -131,7 +130,6 @@ it('snapshots an over-points saved roster when its points limit is waived', asyn
       factionKeys: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     }),
   } as never)
 
@@ -167,7 +165,6 @@ it('seals a roster over its own points limit, which its event checks instead', a
       factionKeys: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     }),
   } as never)
 
@@ -217,7 +214,6 @@ function lentFrom(lentBy: { id: string; name: string } | null, settings: Record<
       factionKeys: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     }),
   } as never)
 }
@@ -312,7 +308,6 @@ it('fields model lines onto a list sealed without them', async () => {
       factionKeys: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     }),
   } as never)
   const { snapshot } = await rosterForUse('owner', 'roster', { sealing: true })

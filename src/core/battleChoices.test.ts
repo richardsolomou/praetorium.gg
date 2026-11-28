@@ -232,7 +232,8 @@ describe('a unit that can be in more than one option', () => {
     'If your Army Faction is ARMY, OFFICER with this ability can issue Orders. Each time one does, select one of the Orders below.\n\n### HOLD FAST!\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### OPEN FIRE!\nImprove the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.\n\n### CHARGE!\nAdd 3" to the Move characteristic of models in this unit.',
     { name: 'Orders' },
   )
-  const choiceWith = (...stated: StatedAllowance[]) => battleChoices([orders], allowancesWhile(stated, true))[0]!
+  const widening = (allowances: ReturnType<typeof allowancesWhile>) => allowances.map((allowance) => ({ ...allowance, rules: ['Orders'] }))
+  const choiceWith = (...stated: StatedAllowance[]) => battleChoices([orders], widening(allowancesWhile(stated, true)))[0]!
   const effectsWith = (stated: StatedAllowance, picked: string[]) => battleChoiceActive(choiceWith(stated), picked) ?? []
   const twoAtOnce: StatedAllowance = { options: 'Orders', limit: 2, leading: true }
 
@@ -244,7 +245,7 @@ describe('a unit that can be in more than one option', () => {
     expect(choiceWith(twoAtOnce, { options: 'Orders', extra: 1 }).limit).toBe(3))
 
   it('ignores a leader allowance while the unit leads nothing', () =>
-    expect(battleChoices([orders], allowancesWhile([twoAtOnce], false))[0]!.limit).toBe(1))
+    expect(battleChoices([orders], widening(allowancesWhile([twoAtOnce], false)))[0]!.limit).toBe(1))
 
   it('applies both Orders picked', () =>
     expect(effectsWith(twoAtOnce, ['Hold Fast!', 'Open Fire!']).map((effect) => effect.toughness ?? effect.characteristic?.kind)).toEqual([

@@ -1,13 +1,13 @@
 import { attachmentErrors } from '../core/attach'
 import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
-import { hasTextTokens, withoutText } from '../core/sourceText'
+import { hasTextTokens } from '../core/sourceText'
 import type { TextFactsByKey } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, allowancesIn, combatFactsIn, offeredOptionsOf } from './textFacts'
 import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
-import { allowancesWhile, type BattleChoiceAllowance, namesAllowedOptions } from '../core/battleChoices'
+import { allowancesWhile, type BattleChoiceAllowance } from '../core/battleChoices'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetAbilitiesIn } from './catalogue'
@@ -73,14 +73,11 @@ function battleChoiceAllowancesFor(
   )
   const offered = combatant.rules.map((rule) => ({
     name: rule.name,
-    words: withoutText(rule.description),
     options: offeredOptionsOf(rule.description, facts).map((options) => options.toLowerCase()),
   }))
   return allowancesWhile(stated, combatant.companions.length > 0).map((allowance) => ({
     ...allowance,
-    rules: offered
-      .filter((rule) => rule.options.includes(allowance.options.toLowerCase()) || namesAllowedOptions(allowance, rule.words))
-      .map((rule) => rule.name),
+    rules: offered.filter((rule) => rule.options.includes(allowance.options.toLowerCase())).map((rule) => rule.name),
   }))
 }
 
