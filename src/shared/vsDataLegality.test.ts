@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   vsDataChecks,
   vsDataDetachmentsOffering,
+  vsDataUnheld,
   vsRosterData,
   vsDataErrors,
   vsDataWithoutDetachments,
@@ -19,6 +20,7 @@ const data = vsRosterData(
     definitions: {
       faction: {
         host: record('Host', {
+          unitLimits: [{ keywords: ['WARDEN’S CHOSEN'], max: 1 }],
           allies: [
             { units: ['other.scout'], points: [{ battleSize: 'small', max: 100 }] },
             { units: ['other.warden', 'host.seer'], detachments: ['host.vigil'] },
@@ -57,6 +59,7 @@ const data = vsRosterData(
         'other.agent': record('Agent', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
         'other.warden': record('Warden', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
         'host.seer': record('Seer', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
+        'host.chosen': record("Warden's Chosen", { faction: 'host', keywords: ['CHARACTER', "WARDEN'S CHOSEN"], sizes: [1] }),
         'other.scout': record('Scout', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
       },
       'roster-option': {
@@ -136,6 +139,7 @@ const data = vsRosterData(
       'bs-scout': 'other.scout',
       'bs-warden': 'other.warden',
       'bs-seer': 'host.seer',
+      'bs-chosen': 'host.chosen',
     },
     enhancements: {
       'host.guard/bs-crown': 'host.guard.crown',
@@ -155,6 +159,7 @@ const data = vsRosterData(
       'bs-scout': 'Scout',
       'bs-warden': 'Warden',
       'bs-seer': 'Seer',
+      'bs-chosen': "Warden's Chosen",
     })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
@@ -373,5 +378,12 @@ describe('vsDataDetachmentsOffering', () => {
 
   it('is null once the list takes that Detachment', () => {
     expect(offering('bs-warden', ['bs-vigil'])).toBeNull()
+  })
+})
+
+describe('vsDataUnheld', () => {
+  it('leaves a unit its faction limits by name unheld where the unit spells the keyword with another apostrophe', () => {
+    const chosen = unit({ entryId: 'bs-chosen' })
+    expect(vsDataUnheld(data, { catalogueId: 'bs-host', detachmentIds: ['bs-guard'] }, [chosen])).toEqual(new Set([chosen.key]))
   })
 })
