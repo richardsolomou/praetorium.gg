@@ -13,6 +13,7 @@ import {
   importRosterCatalogueId,
   matchesImportFaction,
   assumeWarlord,
+  groupHosts,
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import type { LoadedRules } from '../shared/rules'
@@ -3316,5 +3317,31 @@ describe('a Warlord a list leaves unnamed', () => {
     const units = picks()
     assumeWarlord(units, () => (units[2]!.toggles['crown'] ? 0 : 1))
     expect(units.map((unit) => unit.toggles)).toEqual([{}, { crown: 0 }, { crown: 1 }])
+  })
+})
+
+describe('groupHosts', () => {
+  const canJoin: Record<string, string[]> = {
+    ogryns: ['command'],
+    command: ['shocks'],
+    servitors: ['techmarine', 'tacticals'],
+    techmarine: ['tacticals'],
+  }
+  const joins = (member: string, host: string) => (canJoin[member] ?? []).includes(host)
+
+  it('joins each unit to the one other unit it can join', () => {
+    expect(Object.fromEntries(groupHosts(['command', 'shocks', 'ogryns'], joins))).toEqual({ ogryns: 'command', command: 'shocks' })
+  })
+
+  it('joins a unit that can join several to the one nothing else takes it to', () => {
+    expect(groupHosts(['techmarine', 'tacticals', 'servitors'], joins).get('servitors')).toBe('tacticals')
+  })
+
+  it("joins a unit that can join none to the group's one bodyguard", () => {
+    expect(
+      groupHosts(['captain', 'intercessors', 'lieutenant'], (member, host) => member === 'captain' && host === 'intercessors').get(
+        'lieutenant',
+      ),
+    ).toBe('intercessors')
   })
 })
