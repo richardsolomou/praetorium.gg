@@ -165,7 +165,11 @@ export function formatRules(limit: number | null, pointsBudget?: number | null, 
     ? [pointsLimit, warlord]
     : [
         pointsLimit,
-        { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` },
+        {
+          id: 'detachment-points',
+          label: 'Detachment points',
+          hint: `Take one detachment at any cost, or multiple for up to ${budget} DP total`,
+        },
         warlord,
       ]
 }
@@ -259,15 +263,13 @@ export function borrowedDispositionError(
 }
 
 export function detachmentPointsError(
-  detachments: readonly { points: number | null }[],
+  detachments: readonly { points?: number | null }[],
   allowance: number | null,
   waived: readonly string[] = [],
 ): string | null {
-  if (allowance === null || !enforces(waived, 'detachment-points')) return null
+  if (detachments.length < 2 || allowance === null || !enforces(waived, 'detachment-points')) return null
   const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
-  return spent > allowance
-    ? `${detachments.length === 1 ? 'This detachment costs' : 'This combination costs'} ${spent} DP; detachments at this battle size may cost at most ${allowance} DP.`
-    : null
+  return spent > allowance ? `This combination costs ${spent} DP. Multiple detachments can cost up to ${allowance} DP total.` : null
 }
 
 type TableBuilt = {

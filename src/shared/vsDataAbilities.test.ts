@@ -6,6 +6,7 @@ const said = (text: string) => ({ blocks: [{ paragraph: [{ text }] }], questions
 const grinder = said('Soul Grinder Scuttling Walker')
 const onager = said('Onager Scuttling Walker')
 const warptime = said('Warptime')
+const chaosFire = said('Chaos Titanic Fire Support')
 const units: VsDataUnits = {
   units: {
     'grinder-entry': { id: 'chaos-daemons.soul-grinder', sizes: [], models: [], options: [] },
@@ -28,6 +29,24 @@ const printedWarptime = [{ id: 'ability:chaos-space-marines.sorcerer-in-terminat
 
 it('reads a datasheet ability as the record VS Data aliases its BSData profile to', () =>
   expect(datasheetAbilitySummary(units, 'onager-entry', 'walker-profile', [])).toBe(onager))
+
+it('reads a profile another unit’s record is aliased to as its own unit’s record of that rule', () =>
+  expect(
+    datasheetAbilitySummary(
+      {
+        ...units,
+        units: { 'titan-entry': { id: 'chaos-titan-legions.chaos-warbringer', sizes: [], models: [], options: [] } },
+        aliases: { 'fire-profile': 'titan-legions.warbringer.titanic-fire-support' },
+        abilities: {
+          'titan-legions.warbringer.titanic-fire-support': said('Imperial Titanic Fire Support'),
+          'chaos-titan-legions.chaos-warbringer.titanic-fire-support': chaosFire,
+        },
+      },
+      'titan-entry',
+      'fire-profile',
+      [],
+    ),
+  ).toBe(chaosFire))
 
 it('reads a profile several datasheets share as the record its own datasheet has', () =>
   expect(datasheetAbilitySummary(units, 'grinder-entry', 'walker-profile', [])).toBe(grinder))

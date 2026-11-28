@@ -81,8 +81,8 @@ export function DetachmentPicker({
             {allowance === null
               ? battleSizeName(limit)
               : selected.length
-                ? `${battleSizeName(limit)} · ${allowance - spent} of ${allowance} DP left`
-                : `${battleSizeName(limit)} · ${allowance} DP across detachments`}
+                ? `${battleSizeName(limit)} · ${Math.max(0, allowance - spent)} of ${allowance} DP left`
+                : `${battleSizeName(limit)} · ${allowance} DP for multiple detachments`}
           </p>
           <ComboboxEmpty className="text-dim">No detachments match.</ComboboxEmpty>
           <ComboboxList>

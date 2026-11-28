@@ -52,6 +52,8 @@ export type FactionData = {
 export type BattleSizeData = { points: number; detachmentPoints?: number; enhancements?: number; duplicates?: number }
 export type DetachmentData = {
   faction: string
+  /** Its detachment rules, by VS Data id, where the release links them. */
+  rules?: string[]
   enhancements?: string[]
   dispositions?: string[]
   excludedUnits?: string[]
@@ -92,6 +94,8 @@ export type CoreAbility = { models?: string[] } & (
 )
 export type UnitData = {
   faction: string
+  /** Its datasheet's own unit abilities, by VS Data id, where the release links them. */
+  abilities?: string[]
   keywords: string[]
   /** Keywords the unit holds where `when` holds, in place of those of its own `keywords` named in `replaces`. */
   conditionalKeywords?: { keywords: string[]; replaces?: string[]; when: When }[]

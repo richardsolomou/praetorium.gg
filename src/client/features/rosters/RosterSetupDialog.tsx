@@ -243,11 +243,8 @@ export function RosterSetupDialog({
     dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
   const allowance = detachmentPointBudget(draft.limit, faction?.battleSizes)
-  const pointsError = detachmentPointsError(
-    selected.map((detachment) => ({ points: detachment.points ?? null })),
-    allowance,
-    draft.waivedRules,
-  )
+  const pointsError = detachmentPointsError(selected, allowance, draft.waivedRules)
+  const showAllowance = allowance !== null && (selected.length !== 1 || spent <= allowance)
   // Choosing another detachment replaces a single-detachment list's only one, so nothing taken stands in its way.
   const refusals = new Map(
     (faction?.detachments ?? []).flatMap((detachment) => {
@@ -474,7 +471,7 @@ export function RosterSetupDialog({
           {takesNone ? null : (
             <span className={`readout text-xs ${pointsError ? 'text-destructive' : 'text-dim'}`}>
               {spent}
-              {allowance === null ? '' : `/${allowance}`} DP used
+              {showAllowance ? `/${allowance}` : ''} DP used
             </span>
           )}
         </div>

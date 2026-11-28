@@ -63,6 +63,9 @@ import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 import { baseSizeOf } from './vsDataBaseSizes'
 import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
+import { vsRecordFactsOf } from './vsDataLegality'
+import { vsDataRecordOfBsdata } from './vsData'
+import { type VsRosterUnit, vsHeldAbilities, vsLinkedAbilities } from '../core/vsDataRoster'
 import { compositionLines } from './vsDataUnitLines'
 import { rulesNamed } from './catalogueRules'
 
@@ -161,6 +164,8 @@ type DatasheetContext = {
   rosterKeywordIds?: readonly (readonly string[])[]
   /** Shared by paired projections of the same roster and unit. */
   modifiers?: readonly ProfileModifier[]
+  /** Each VS pick's VS Data unit by its place in `selections`, whose links decide the abilities it holds (`vsHoldingAt`). */
+  vsAtSelection?: Readonly<Record<number, VsRosterUnit>>
 }
 
 type Walked = NonNullable<ReturnType<typeof walk>>
@@ -466,8 +471,8 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     context && !abilitiesOnly
       ? [
           ...weaponAbilitiesFromDetachments(context.selections, context.unitSelectionIndex, loaded, catalogueId, context.keywordIds),
-          ...weaponAbilitiesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index),
-          ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
+          ...weaponAbilitiesInSelectedUnit(context, loaded),
+          ...weaponAbilitiesInAttachedUnit(context, loaded),
         ]
       : []
   // A datasheet read alone shows the save its own abilities give each model, as a roster fielding it would.
@@ -1001,6 +1006,7 @@ const abilitySignature = (ability: Datasheet['abilities'][number]) =>
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
 type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
 
+// The Detachments' rules are read from the catalogue until VS Data links a Detachment to them (richardsolomou/vs-data#233).
 function weaponAbilitiesFromDetachments(
   selections: readonly Selection[],
   unitSelectionIndex: number | undefined,
@@ -1198,49 +1204,87 @@ function contextualInfoLinkHidden(
   )
 }
 
-function weaponAbilitiesInSelectedUnit(
-  selections: readonly Selection[],
-  unitSelectionIndex: number | undefined,
-  index: LoadedCatalogue['index'],
-): GrantedWeaponAbility[] {
+/**
+ * What VS Data's links say of a VS pick's abilities at one place in the roster: which it holds and which it decides at
+ * all, so a BSData profile standing for a decided ability counts only where VS Data holds it, and one standing for any
+ * other ability keeps the catalogue's reading: one with no link yet, or a provisional one that may be a choice VS Data
+ * does not state (richardsolomou/vs-data#231).
+ */
+function vsHoldingAt(loaded: LoadedCatalogue, context: DatasheetContext, at: number) {
+  const picked = context.vsAtSelection?.[at]
+  const definitions = picked ? vsDefinitionsOf(loaded) : null
+  const links = loaded.vsRoster?.abilities
+  if (!picked || !definitions || !links) return null
+  const held = vsHeldAbilities(definitions, picked)
+  const linked = vsLinkedAbilities(definitions, picked.unit)
+  const sheet = context.selections[at]?.id
+  const shown = new Set<string>()
+  return {
+    /** Whether a profile at this place counts, marking the VS Data ability it stands for as shown. */
+    counts: (profileId: string) => {
+      const ability = vsDataRecordOfBsdata(links.records, profileId, sheet)?.slice('ability:'.length)
+      if (!ability || !linked.has(ability)) return true
+      if (!held.has(ability)) return false
+      shown.add(ability)
+      return true
+    },
+    /** The abilities VS Data holds here that no profile at this place stood for, with their names and facts. */
+    unshown: () =>
+      [...held].flatMap((ability) => {
+        const facts = shown.has(ability) ? undefined : vsRecordFactsOf(loaded, `ability:${ability}`)
+        return facts ? [{ name: links.names[ability] ?? ability, facts }] : []
+      }),
+  }
+}
+
+function weaponAbilitiesInSelectedUnit(context: DatasheetContext, loaded: LoadedCatalogue): GrantedWeaponAbility[] {
+  const { selections, unitSelectionIndex } = context
   if (unitSelectionIndex === undefined) return []
+  const { index } = loaded
   const found = new Map<string, GrantedWeaponAbility>()
+  const add = (granted: GrantedWeaponAbility) =>
+    found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
+  const holding = vsHoldingAt(loaded, context, unitSelectionIndex)
   const absent = absentIn(selections, [unitSelectionIndex], index)
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
     for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index, absent)) {
         const description = profileDescription(profile)
         const grant = description ? ownWeaponGrantOf(description, index.textFacts) : null
-        if (!grant) continue
-        const granted = { keyword: grant.keyword, source: profile.name, profileTypes: grant.profileTypes }
-        found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
+        if (!grant || (holding && !holding.counts(profile.id))) continue
+        add({ keyword: grant.keyword, source: profile.name, profileTypes: grant.profileTypes })
       }
     }
   }
+  for (const { name, facts } of holding?.unshown() ?? [])
+    if (facts.ownWeaponGrant) add({ keyword: facts.ownWeaponGrant.keyword, source: name, profileTypes: facts.ownWeaponGrant.profileTypes })
   return [...found.values()]
 }
 
-function weaponAbilitiesInAttachedUnit(
-  selections: readonly Selection[],
-  unitSelectionIndex: number | undefined,
-  companionIndexes: readonly number[],
-  index: LoadedCatalogue['index'],
-): GrantedWeaponAbility[] {
+function weaponAbilitiesInAttachedUnit(context: DatasheetContext, loaded: LoadedCatalogue): GrantedWeaponAbility[] {
+  const { selections, unitSelectionIndex } = context
+  const companionIndexes = context.companions ?? []
   if (unitSelectionIndex === undefined || !companionIndexes.length) return []
+  const { index } = loaded
   const found = new Map<string, GrantedWeaponAbility>()
+  const add = (granted: GrantedWeaponAbility) =>
+    found.set(`${granted.source}:${granted.keyword}:${granted.profileTypes.join(',')}`, granted)
   for (const at of [unitSelectionIndex, ...companionIndexes]) {
+    const holding = vsHoldingAt(loaded, context, at)
     const absent = absentIn(selections, [at], index)
     for (const definition of definitionsInSelections(selections, [at], index)) {
       for (const source of definitionAndTarget(definition, index)) {
         for (const profile of abilityProfilesOf(source, index, absent)) {
           const description = profileDescription(profile)
           const grant = description ? ledWeaponGrantOf(description, index.textFacts) : null
-          if (!grant) continue
-          const { keyword, profileTypes } = grant
-          found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
+          if (!grant || (holding && !holding.counts(profile.id))) continue
+          add({ keyword: grant.keyword, source: profile.name, profileTypes: grant.profileTypes })
         }
       }
     }
+    for (const { name, facts } of holding?.unshown() ?? [])
+      if (facts.ledWeaponGrant)
+        add({ keyword: facts.ledWeaponGrant.keyword, source: name, profileTypes: facts.ledWeaponGrant.profileTypes })
   }
   return [...found.values()]
 }

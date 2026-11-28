@@ -1,5 +1,41 @@
 # praetorium
 
+## 0.280.41 (2026-11-28)
+
+### Patch Changes
+
+- fdd9844: [rosters] Import official-app lists with the plasma pistols selected for Vanguard Veterans.
+- c126d08: [rosters] Paste a ListForge share link to import the full list, or get directions to the complete export when you paste Simple Text.
+
+## 0.280.40 (2026-11-28)
+
+### Patch Changes
+
+- 9f83fe4: [rosters] You can now take a single 3 DP detachment at Incursion.
+
+## 0.280.39 (2026-11-28)
+
+### Patch Changes
+
+- ec72959: [rosters] Corsair Voidscarred taking a Faolchu and Ynnari Reavers taking a grav-talon now show the weapon ability it gives their weapons.
+
+## 0.280.38 (2026-11-28)
+
+### Patch Changes
+
+- 003e6b6: [reference] Chaos Titans show their own rules, such as Titanic Fire Support for Chaos units, rather than the Imperial Titans'.
+- b48e3a6: [reference] Death Company Marines with Boltguns show their own Black Rage rule.
+- b48e3a6: [reference] Imperial Warbringer Nemesis Titans show their own Titanic Fire Support again, not the Chaos one.
+
+## 0.280.37 (2026-11-28)
+
+### Patch Changes
+
+- 9d03d8c: [rosters] Havocs, Death Guard Helbrutes, the Ta'unar, Seraphim and Achilles Ridgerunners are now built as the official app prints them, with its sizes, weapon counts and wargear.
+- e1c91e2: [rosters] The Corvus Blackstar is now built as the official app prints it, with its keywords and wargear.
+- 9d03d8c: [rosters] Chaos Havocs, a Death Guard Helbrute, the Ta'unar and the Reaver, Warlord and Warbringer Nemesis Titans start on the loadout their datasheets print, in the builder and the combat simulator.
+- e1c91e2: [rosters] Skitarii Rangers and Skitarii Vanguard are now built as the official app prints them, taking one data-tether or omnispex in all.
+
 ## 0.280.36 (2026-11-28)
 
 ### Patch Changes

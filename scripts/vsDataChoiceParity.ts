@@ -15,10 +15,19 @@ import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import keywordRulings from './vsDataKeywordRulings.json' with { type: 'json' }
 import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
 import type { RosterPick } from '../src/core/roster'
-import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
-import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
+import {
+  isUnitCompositionChoice,
+  VS_ALLEGIANCE,
+  VS_ENHANCEMENT,
+  VS_MODELS,
+  VS_UPGRADE,
+  vsFirstPick,
+  vsUnitChoices,
+  vsUnitToggles,
+} from '../src/core/unitChoices'
+import { type Per, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { carried, modelCounts, type VsRosterUnit } from '../src/core/vsDataRoster'
-import { vsFirstFielding, vsResized, vsUnitOptions, vsWithChoice } from '../src/core/vsDataUnit'
+import { vsFirstFielding, vsResized, vsUnitOptions, vsUnitProblems, vsWithChoice } from '../src/core/vsDataUnit'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { unitIdsIn } from '../src/shared/cataloguePicker'
 import { rosterDetachments } from '../src/shared/rosterDetachments'
@@ -123,7 +132,7 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     check: 'enhancements',
     units: /.*/,
     detail:
-      /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: only BSData talismanofburningblood only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
+      /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: (only BSData talismanofburningblood )?only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
     why: 'VS Data follows the app: the Standard needs ANCIENT, Shadow Legion admits no Daemon Prince, Pactbound psykers bear no Khorne mark, Cabal of Chaos follows the allegiance taken, and these Detachment upgrades take non-Characters',
   },
   {
@@ -154,8 +163,8 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'wargear counts',
     units: /^Seraphim Squad$/,
-    detail: /^ministorum-hand-flamer:/,
-    why: 'the app (build 995) gives Seraphim 8 hand flamers at 10 models',
+    detail: /^(ministorum-hand-flamer|inferno-pistol):/,
+    why: 'the app (build 995) gives Seraphim 8 hand flamers or inferno pistols at 10 models',
   },
   {
     check: 'wargear counts',
@@ -208,6 +217,25 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     why: 'the Emperor’s Champion’s own BSData entry prints VS Data’s keywords; only its Anointed copy differs',
   },
   {
+    check: 'wargear counts',
+    units: /^death-guard\.helbrute$/,
+    detail: /^heavy-flamer:/,
+    why: 'the card gives a Death Guard Helbrute with two fists up to 2 heavy flamers',
+  },
+  {
+    check: 'wargear counts',
+    units: /^tau-empire\.taunar-supremacy-armour$/,
+    detail: /^nexus-missile-launcher:/,
+    why: 'the card gives the Ta’unar 2 nexus missile launchers',
+  },
+  {
+    check: 'datasheet',
+    units: /^genestealer-cults\.achilles-ridgerunners$/,
+    detail:
+      /^characteristics or abilities differ with genestealer-cults\.achilles-ridgerunners\.spotter with genestealer-cults\.achilles-ridgerunners\.survey-augur, which loses Survey Augur$/,
+    why: 'the card lets any number of Ridgerunners take each swap, which the catalogue’s one group cannot hold together',
+  },
+  {
     check: 'sizes',
     units:
       /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
@@ -230,12 +258,22 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'simulator',
     units:
-      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers|world-eaters\.chaos-rhino|chaos-space-marines\.havocs|death-guard\.helbrute|titan-legions\.warhound-titan|imperial-knights\.armiger-moirax|chaos-knights\.war-dog-moirax|tau-empire\.taunar-supremacy-armour)$/,
+      /^(aeldari\.falcon|space-marines\.relic-razorback|tau-empire\.kroot-war-shaper|tau-empire\.kroot-lone-spear|imperial-knights\.canis-rex|thousand-sons\.chaos-spawn|necrons\.canoptek-tomb-crawlers|world-eaters\.chaos-rhino|chaos-space-marines\.havocs|death-guard\.helbrute|(chaos-)?titan-legions\.(chaos-)?(warhound|reaver|warlord|warbringer-nemesis)-titan|imperial-knights\.armiger-moirax|chaos-knights\.war-dog-moirax|tau-empire\.taunar-supremacy-armour)$/,
     // A weapon scoring nothing is the simulator missing its profile, not a loadout, so that stays a difference.
     detail: /^(?!.*\bnone\b)/,
     why: 'VS Data starts these on the default loadout the app (build 995) prints, and fires both of a Tomb Crawler’s twin gauss reapers, so their damage differs from BSData’s',
   },
 ]
+/**
+ * Datasheets every check passes that a VS Data release still over-admits in a way the parity can't see, by VS Data unit
+ * ID, so the builder keeps adding them as the catalogue builds them until a release with the fix is pinned.
+ */
+const HELD_BACK = new Map([
+  [
+    'imperial-agents.imperial-navy-breachers',
+    'richardsolomou/vs-data#201: each Armsman picks freely, where the card fixes one las-volley and one endurant shield',
+  ],
+])
 const RULED_SUFFIX = ' (ruled for VS Data)'
 
 const differences = new Map<string, Map<string, string[]>>()
@@ -301,21 +339,99 @@ function bsdataReach(unit: Priced, vsKeys: ReadonlySet<string>, allegiances: Rea
   return reach
 }
 
-/** The VS Data unit's reach. */
+/** A VS Data wargear ID's pieces by `wargearKey`, a bundle's contents in its place. */
+const keysOf = (id: string) => {
+  const found = new Map<string, number>()
+  leaves(definitions, id, 1, found)
+  return found
+}
+
+/** How many of each piece every build of the BSData unit holds: what a wargear choice's options must take at least. */
+function bsdataLeast(unit: Priced, vsKeys: ReadonlySet<string>, allegiances: ReadonlySet<string>) {
+  const least = new Map<string, number>()
+  for (const choice of unit.choices.filter((candidate) => !special(candidate) && !isUnitCompositionChoice(candidate)))
+    for (const option of choice.options) {
+      if (option.min <= 0 || allegiances.has(same(option.name))) continue
+      const pieces = (option as { pieceCounts?: { name: string; count: number }[] }).pieceCounts
+      const counts = pieces?.length
+        ? pieces.map((piece) => ({ ...piece, count: piece.count / Math.max(1, option.count) }))
+        : [{ name: option.name, count: 1 }]
+      for (const piece of counts) {
+        const key = vsSpelling(piece.name, vsKeys)
+        least.set(key, Math.max(least.get(key) ?? 0, piece.count * option.min))
+      }
+    }
+  return least
+}
+
+/**
+ * How many of each piece every build of the VS Data unit holds: wargear no option takes away, all but as many as capped
+ * options can take of it, and an option's one required choice.
+ */
+function vsLeast(picked: VsRosterUnit) {
+  const least = new Map<string, number>()
+  const add = (id: string, n: number) => {
+    for (const [key, k] of keysOf(id)) least.set(key, (least.get(key) ?? 0) + n * k)
+  }
+  const options = definitions.optionsOf(picked.unit)
+  const unit = definitions.get('unit', picked.unit)!
+  const counts = modelCounts(definitions, picked)
+  const models = [...counts.values()].reduce((total, n) => total + n, 0)
+  const bounded = (bound: { max: number; per?: Per; bySize?: { size: number; max: number }[] }, carriers: number) => {
+    const max = bound.bySize?.find((entry) => entry.size === models)?.max ?? bound.max
+    if (bound.per === 'carrier') return max * carriers
+    return max * (bound.per ? Math.floor(models / bound.per.models) : 1)
+  }
+  // How many carriers an option can take its choices on: no more than caps bounding every one of its choices allow, nor
+  // than a unit's option group holding them all, as the Black Knights' one grenade launcher in three across both swaps.
+  const reach = (option: (typeof options)[number], carriers: number) => {
+    const caps = option.data.caps ?? []
+    const capped = option.data.choices.every((choice) => caps.some((cap) => cap.choices.includes(choice)))
+      ? caps.reduce((total, cap) => total + bounded(cap, carriers), 0)
+      : carriers
+    const grouped = (unit.data.optionGroups ?? []).flatMap((group) =>
+      group.options.some(
+        (member) =>
+          member.option === option.id && option.data.choices.every((choice) => !member.choices || member.choices.includes(choice)),
+      )
+        ? [bounded(group, carriers)]
+        : [],
+    )
+    return Math.min(carriers, capped, ...grouped)
+  }
+  for (const model of definitions.modelsOf(picked.unit)) {
+    const n = counts.get(model.id) ?? 0
+    if (!n) continue
+    const own = options.filter((option) => !option.data.carrier || option.data.carrier === model.id)
+    for (const [id, k] of Object.entries(model.data.wargear)) {
+      const taking = own.filter((option) => id in (option.data.replaces ?? {}))
+      const swapped = taking.reduce((total, option) => total + reach(option, n), 0)
+      add(id, Math.max(0, n - swapped) * k)
+    }
+  }
+  for (const option of options) {
+    const required = option.data.choose.min
+    if (required <= 0 || option.data.choices.length !== 1) continue
+    add(option.data.choices[0]!, required * (option.data.carrier ? (counts.get(option.data.carrier) ?? 0) : 1))
+  }
+  return least
+}
+
+/**
+ * The VS Data unit's reach, from its first fielding and from no choice taken: a choice the first fielding makes, as the
+ * two lascannons a Havoc squad starts with, gives its carriers back to the other choices when the player lets it go.
+ */
 function vsReach(picked: VsRosterUnit) {
   const reach = reached()
-  const keysOf = (id: string) => {
-    const found = new Map<string, number>()
-    leaves(definitions, id, 1, found)
-    return found
+  for (const unit of [picked, { ...picked, options: {} }]) {
+    const held = new Set([...carried(definitions, unit)].flatMap(([id, n]) => (n > 0 ? [...keysOf(id).keys()] : [])))
+    for (const key of held) reach.names.add(key)
+    for (const option of vsUnitOptions(definitions, unit))
+      for (const choice of option.choices)
+        for (const [key, k] of keysOf(choice.id))
+          if (held.has(key)) reach.names.add(key)
+          else offer(reach, key, k * choice.most)
   }
-  const held = new Set([...carried(definitions, picked)].flatMap(([id, n]) => (n > 0 ? [...keysOf(id).keys()] : [])))
-  for (const key of held) reach.names.add(key)
-  for (const option of vsUnitOptions(definitions, picked))
-    for (const choice of option.choices)
-      for (const [key, k] of keysOf(choice.id))
-        if (held.has(key)) reach.names.add(key)
-        else offer(reach, key, k * choice.most)
   return reach
 }
 
@@ -336,18 +452,18 @@ for (const faction of loaded.factions) {
   }
 }
 
-// The defender every attacker is measured against, as the simulator fields it.
+// The defenders every attacker is measured against, as the simulator fields them: big guns saturate against Intercessors,
+// so a vehicle tells their loadouts apart.
 const marines = loaded.factions.find((faction) => faction.name === 'Imperium - Adeptus Astartes - Space Marines')!.id
-const intercessors = [...loaded.index.definitions.values()].find(
-  (entry) => entry.name === 'Intercessor Squad' && loaded.vsRoster?.units[entry.id],
-)!.id
-const defender = rosterCombatant(loaded, rules, {
-  catalogueId: marines,
-  detachmentIds: [],
-  picks: [{ entryId: intercessors }],
-  pickIndex: 0,
-})!
-const target = combatUnitTarget({ sheet: defender.selected, carriers: defender.carriers, models: defender.models }).target!
+const defenderTarget = (name: string) => {
+  const entryId = unitIdsIn(loaded, marines).find((id) => loaded.index.definitions.get(id)?.name === name)!
+  const defender = rosterCombatant(loaded, rules, { catalogueId: marines, detachmentIds: [], picks: [{ entryId }], pickIndex: 0 })!
+  return combatUnitTarget({ sheet: defender.selected, carriers: defender.carriers, models: defender.models }).target!
+}
+const targets = [
+  { name: 'Intercessors', target: defenderTarget('Intercessor Squad') },
+  { name: 'a Land Raider', target: defenderTarget('Land Raider') },
+]
 
 let units = 0
 const compared = new Set<string>()
@@ -393,6 +509,12 @@ for (const [entryId, catalogueId] of listing) {
     for (const [key, n] of bs.most)
       if (vs.most.has(key) && vs.most.get(key) !== n)
         differ('wargear counts', unitId, `${key}: BSData up to ${n}, VS Data up to ${vs.most.get(key)} at ${largest}`)
+    // A count the card fixes, as one Breacher's las-volley, which a VS Data option chosen freely lets a squad go without.
+    count('wargear minimums')
+    const vsAtLeast = vsLeast(vsBig)
+    for (const [key, n] of bsdataLeast(big, vs.names, allegianceNames))
+      if (n > (vsAtLeast.get(key) ?? 0))
+        differ('wargear minimums', unitId, `${key}: BSData at least ${n}, VS Data at least ${vsAtLeast.get(key) ?? 0} at ${largest}`)
 
     // VS Data's options grant no keywords yet, so a datasheet whose BSData keywords follow its wargear keeps BSData.
     count('keywords')
@@ -407,7 +529,11 @@ for (const [entryId, catalogueId] of listing) {
     const bsKeywords = keywordsOf(plain)
     const vsKeywords = keywordsOf(priceOf(faction.id, { entryId, vs: { models: {}, options: {}, ...firstPick } }))
       .split(',')
-      .filter((keyword) => !fromModels.has(keyword) || bsKeywords.split(',').includes(keyword))
+      // VS Data prints a datasheet's own name as a keyword, as the app does, where BSData spells it shorter or leaves it off.
+      .filter(
+        (keyword) =>
+          (!fromModels.has(keyword) && keyword !== same(definitions.get('unit', unitId)!.name)) || bsKeywords.split(',').includes(keyword),
+      )
       .join()
     if (vsKeywords !== bsKeywords) differ('keywords', unitId, `BSData ${bsKeywords}, VS Data ${vsKeywords}`)
     // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree, which follows the pick's VS
@@ -502,6 +628,8 @@ for (const [entryId, catalogueId] of listing) {
           one.option === other.option
             ? vsWithChoice(definitions, first, one.option, { [one.choice]: 1, [other.choice]: 1 })
             : vsWithChoice(definitions, one.once, other.option, { [other.choice]: 1 })
+        // A pair VS Data refuses, as a Skitarii squad's one data-tether or omnispex in all, is no pick to compare.
+        if (vsUnitProblems(definitions, both).length) return
         const missing = lost(both, [...one.gives, ...other.gives])
         if (missing.length) changing.push(`${one.choice} with ${other.choice}, which loses ${missing.join(', ')}`)
       }),
@@ -510,23 +638,29 @@ for (const [entryId, catalogueId] of listing) {
 
     // The simulator fields a VS pick by VS Data's carriers, so each weapon has to find its profile as the catalogue's does.
     count('simulator')
-    const damage = (pick: RosterPick) => {
+    const attacksOf = (pick: RosterPick) => {
       const unit = rosterCombatant(loaded, rules, { catalogueId: faction.id, detachmentIds: [], picks: [pick], pickIndex: 0 })
-      if (!unit) return 'none'
-      const attacker = { sheet: unit.selected, carriers: unit.carriers, models: unit.models }
-      const attacks = combatAttacks(attacker, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] })
-      return (['ranged', 'melee'] as const)
-        .map((phase) => {
-          const attack = attacks[phase].base
-          if (!attack) return `${phase} none`
-          const mean = calculateCombat({ ...attack, target, options: { ...DEFAULT_COMBAT_OPTIONS, phase } }).meanDamage
-          return `${phase} ${mean.toFixed(2)}`
-        })
-        .join(', ')
+      const attacker = unit && { sheet: unit.selected, carriers: unit.carriers, models: unit.models }
+      return attacker && combatAttacks(attacker, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] })
     }
-    const bsDamage = damage({ entryId })
-    const vsDamage = damage({ entryId, vs: { models: {}, options: {}, ...firstPick } })
-    if (bsDamage !== vsDamage) differ('simulator', unitId, `BSData ${bsDamage}, VS Data ${vsDamage} against Intercessors`)
+    const damage = (attacks: ReturnType<typeof attacksOf>, target: (typeof targets)[number]['target']) =>
+      attacks
+        ? (['ranged', 'melee'] as const)
+            .map((phase) => {
+              const attack = attacks[phase].base
+              if (!attack) return `${phase} none`
+              const mean = calculateCombat({ ...attack, target, options: { ...DEFAULT_COMBAT_OPTIONS, phase } }).meanDamage
+              return `${phase} ${mean.toFixed(2)}`
+            })
+            .join(', ')
+        : 'none'
+    const bsAttacks = attacksOf({ entryId })
+    const vsAttacks = attacksOf({ entryId, vs: { models: {}, options: {}, ...firstPick } })
+    for (const { name, target } of targets) {
+      const bsDamage = damage(bsAttacks, target)
+      const vsDamage = damage(vsAttacks, target)
+      if (bsDamage !== vsDamage) differ('simulator', unitId, `BSData ${bsDamage}, VS Data ${vsDamage} against ${name}`)
+    }
 
     count('warlord')
     const roster = { faction: book, detachments: [] as string[] }
@@ -612,8 +746,9 @@ for (const [check, byUnit] of differences) {
 // The datasheets the builder fields by VS Data: every matched-play one compared that differs only where VS Data follows the app.
 if (values.write) {
   const native = [...compared]
-    .filter((unit) => !differing.has(unit) && matchedPlay.has(unit) && !definitions.get('unit', unit)!.data.legends)
+    .filter((unit) => !differing.has(unit) && matchedPlay.has(unit) && !definitions.get('unit', unit)!.data.legends && !HELD_BACK.has(unit))
     .toSorted()
+  for (const [unit, why] of HELD_BACK) console.log(`held back ${unit}: ${why}`)
   fs.writeFileSync(NATIVE_FILE, `${JSON.stringify(native, null, 2)}\n`)
   console.log(`wrote ${native.length} datasheets to ${path.relative(process.cwd(), NATIVE_FILE)}`)
 }

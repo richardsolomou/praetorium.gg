@@ -12,6 +12,10 @@ The faction line is missing or isn't a faction name. Copy the export again from 
 
 The paste isn't [a format Praetorium reads](/docs/import-a-list), or it's only part of a list. Paste the full text export, not a screenshot transcription.
 
+### ListForge Simple Text omits model loadouts
+
+Paste the ListForge share link directly into **Roster text or exchange code**, or copy the list's **Detailed Text** export and paste that instead.
+
 ### A unit is "a … datasheet, not …"
 
 The faction line names a different army from the unit's, often because the export names a subfaction or the unit came from another book. Check the faction line, or add the unit in the builder.

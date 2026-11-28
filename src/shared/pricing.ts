@@ -36,7 +36,7 @@ import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
-import { battleSizesOf, buildPick, savedVersionOf, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { battleSizesOf, buildPick, savedVersionOf, vsDefinitionsOf, vsOwnSelections, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -798,8 +798,8 @@ function calculateRoster(
   const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
   const vsData = vsChecked?.errors ?? null
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
-  // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
-  // the catalogue's total counts every unit.
+  // chapter or the Unaligned Forces fortifications. Where it also counts a datasheet VS Data's limit doesn't list, as a
+  // Crucible daemon, both messages show, and only the catalogue's total counts every unit.
   const keyOf = new Map(picked.map((unit) => [catalogueTreeOf(unit), unit.key]))
   // A pick costs what the list pays for it; anything else in a force, what the catalogue charges.
   const pointsOf = (selection: Selection) => {
@@ -859,9 +859,21 @@ function calculateRoster(
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedByKey = new Map(picked.map((unit) => [unit.key, unit]))
+  // What each pick holds of its own, which its attachments ask about: a VS pick's from VS Data, with no catalogue tree.
+  const ownSelectionsOf = (unit: (typeof picked)[number]) =>
+    (unit.vs && vsOwnSelections(loaded, unit.entryId, unit.vs)) || catalogueTreeOf(unit)
+  // A VS pick's keywords are VS Data's, with the keyword naming its datasheet from the printed datasheet.
+  const unitKeywordsOf = (unit: (typeof picked)[number]) =>
+    unit.vs
+      ? vsKeywordsWithName(
+          unit,
+          vsPickKeywords(loaded, data, vsUnits, unit.key),
+          datasheetIn(loaded, catalogueOfUnit(unit), unit.entryId)?.keywords ?? [],
+        )
+      : keywordNamesOf(unit)
   const pickedSelections = data.units.map((_, key) => {
     const unit = pickedByKey.get(key)
-    return unit && catalogueTreeOf(unit)
+    return unit && ownSelectionsOf(unit)
   })
   const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
   const specialsByKey = new Map(
@@ -949,7 +961,7 @@ function calculateRoster(
       pickedSelections,
       data.units.map((_, key) => {
         const unit = pickedByKey.get(key)
-        return unit ? keywordNamesOf(unit) : undefined
+        return unit && unitKeywordsOf(unit)
       }),
       data.detachmentIds,
     ),
@@ -1076,14 +1088,7 @@ function calculateRoster(
       const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(catalogueTreeOf(unit))
-      // A VS pick takes the keyword naming its datasheet from the printed datasheet, which needs no catalogue tree.
-      const unitKeywords = unit.vs
-        ? vsKeywordsWithName(
-            unit,
-            vsPickKeywords(loaded, data, vsUnits, unit.key),
-            datasheetIn(loaded, catalogueId, unit.entryId)?.keywords ?? [],
-          )
-        : keywordNamesOf(unit)
+      const unitKeywords = unitKeywordsOf(unit)
       const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const companion = pickedByKey.get(key)
@@ -1197,7 +1202,7 @@ function calculateRoster(
             : [],
         ),
       )
-      const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, catalogueTreeOf(unit)))
+      const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, ownSelectionsOf(unit)))
       const held = unit.vs
         ? wargear
         : wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name)))
