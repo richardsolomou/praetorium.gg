@@ -135,10 +135,33 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   },
   {
     check: 'wargear counts',
-    units:
-      /^(Sword Brethren Squad|Death Company Marines with Jump Packs|Tyranid Warriors with Ranged Bio-weapons|Seraphim Squad|Overlord)$/,
-    detail: /^(hand-flamer|plasma-pistol|inferno-pistol|venom-cannon|barbed-strangler|ministorum-hand-flamer|resurrection-orb):/,
-    why: 'the app (build 995) gives Sword Brethren 2 hand flamers per 4, Death Company 2 plasma pistols and 1 inferno pistol or hand flamer per 5, Tyranid Warriors 1 of each per 3, Seraphim 8 hand flamers at 10, and an Overlord one resurrection orb with the staff or voidscythe swap',
+    units: /^Sword Brethren Squad$/,
+    detail: /^hand-flamer:/,
+    why: 'the app (build 995) gives Sword Brethren 2 hand flamers per 4 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Death Company Marines with Jump Packs$/,
+    detail: /^(plasma-pistol|inferno-pistol|hand-flamer):/,
+    why: 'the app (build 995) gives Death Company 2 plasma pistols and 1 inferno pistol or hand flamer per 5 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Tyranid Warriors with Ranged Bio-weapons$/,
+    detail: /^(venom-cannon|barbed-strangler):/,
+    why: 'the app (build 995) gives Tyranid Warriors 1 of each per 3 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Seraphim Squad$/,
+    detail: /^ministorum-hand-flamer:/,
+    why: 'the app (build 995) gives Seraphim 8 hand flamers at 10 models',
+  },
+  {
+    check: 'wargear counts',
+    units: /^Overlord$/,
+    detail: /^resurrection-orb:/,
+    why: 'the app (build 995) gives an Overlord one resurrection orb, with the staff or voidscythe swap',
   },
   {
     check: 'wargear counts',
@@ -148,10 +171,22 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   },
   {
     check: 'wargear',
-    units: /^(Wulfen|Scourges with Heavy Weapons|Scourges with Shardcarbines|Lieutenant)$/,
+    units: /^Wulfen$/,
+    detail: /^only VS Data offers death-totem$/,
+    why: 'the card gives Wulfen a death totem',
+  },
+  {
+    check: 'wargear',
+    units: /^Scourges with (Heavy Weapons|Shardcarbines)$/,
     detail:
-      /^(only VS Data offers (death-totem|storm-shield|power-weapon|splinter-pistol|blast-pistol)|only BSData offers 1-(blast|splinter)-pistol-and-1-power-weapon)$/,
-    why: 'the card gives Wulfen a death totem, the Solarite the Scourges’ pistol and power weapon, and a Lieutenant a storm shield only with the neo-volkite pistol and master-crafted power weapon',
+      /^only (VS Data offers (power-weapon|splinter-pistol|blast-pistol)|BSData offers 1-(blast|splinter)-pistol-and-1-power-weapon)$/,
+    why: 'the card gives the Scourges’ Solarite their pistol and power weapon apart',
+  },
+  {
+    check: 'wargear',
+    units: /^Lieutenant$/,
+    detail: /^only VS Data offers storm-shield$/,
+    why: 'the card gives a Lieutenant a storm shield only with the neo-volkite pistol and master-crafted power weapon',
   },
   {
     check: 'wargear',
