@@ -635,7 +635,10 @@ function combatOf(combat: z.infer<typeof combatSchema>): CombatFacts {
 
 const AGAINST = { 'psychic-attacks': 'psychic attacks', 'mortal-wounds': 'mortal wounds' }
 function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
-  const condition = grant.against ? { condition: `against ${grant.against.map((against) => AGAINST[against]).join(' and ')}` } : {}
+  const condition = {
+    ...(grant.against ? { condition: `against ${grant.against.map((against) => AGAINST[against]).join(' and ')}` } : {}),
+    ...(grant.conditional ? { conditional: true as const } : {}),
+  }
   if (grant.to === 'models') return { name: grant.ability, recipient: 'models', models: grant.models!, ...condition }
   return {
     written: grant.ability,

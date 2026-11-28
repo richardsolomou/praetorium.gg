@@ -211,7 +211,7 @@ export function* loadDatacardsSteps(
       ])
     }
 
-    for (const entry of detachmentRuleCards(parsed.rules, parsed.name, sections, parsed.texts)) {
+    for (const entry of detachmentRuleCards(parsed, parsed.name, sections, parsed.texts)) {
       const rules = detachmentRules.get(routeSlug(entry.detachment)) ?? new Map<string, Map<string, string>>()
       for (const rule of entry.rules) remember(rules, rule.name, rule.description)
       detachmentRules.set(routeSlug(entry.detachment), rules)

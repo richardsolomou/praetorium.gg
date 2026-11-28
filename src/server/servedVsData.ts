@@ -7,6 +7,7 @@ import { catalogueEditionId } from '../core/catalogueEdition'
 import { type TextLocations, textTokensIn } from '../core/sourceText'
 import { textHomeOf } from './publishedTextFiles'
 import { printedRuleSummary, ruleSummaryFinder } from './referenceSummaries'
+import { unitsInBook } from '../shared/vsDataAbilities'
 
 /** The pinned VS Data releases this snapshot serves, read once until the snapshot changes. */
 export const servedVsDataSummaries = () =>
@@ -17,7 +18,10 @@ export const servedVsDataSummaries = () =>
   })
 
 /** What VS Data says of the units of a catalogue's rules version, as datasheets and combatants read it. */
-export const servedVsDataUnits = async (catalogueId: string) => (await servedVsDataSummaries())?.unitsIn(catalogueEditionId(catalogueId))
+export const servedVsDataUnits = async (catalogueId: string) => {
+  const units = (await servedVsDataSummaries())?.unitsIn(catalogueEditionId(catalogueId))
+  return units && unitsInBook(units, catalogueId)
+}
 
 /**
  * `printedRuleSummary` for one answer, which reads where strings live now only when the answer names a file the snapshot

@@ -3,11 +3,14 @@ import type { Datasheet } from '../core/datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import type { CombatRule, CombatRuleChoice } from '../core/combatRules'
 import type { VsDataInvulnerableSave, VsDataUnits } from './vsData'
+import { plainQuotes } from '../core/text'
 
 type Member = { selected: Datasheet; rules: CombatRule[] }
 
 const VS_DATA_SAVE = 'vs-data-invulnerable:'
 const isInvulnerable = (name: string) => datasheetCharacteristicKind(name) === 'invulnerable-save'
+// VS Data writes a typographic apostrophe where the catalogue may write a straight one, as in Aun’va.
+const sameModel = (left: string, right: string) => plainQuotes(left) === plainQuotes(right)
 
 /** A summary's words alone, as a label: VS Data's own wording, never a source's. */
 export const summaryWords = (summary: RuleSummary) =>
@@ -40,9 +43,10 @@ function withSaves<T extends Member>(member: T, saves: readonly VsDataInvulnerab
   const unitProfiles = member.selected.profiles.filter((profile) => datasheetProfileKind(profile.type) === 'unit')
   // A model's own save is on its profile, so Ibram Gaunt's protects his wounds and not his Ghosts'.
   const savedBy = (name: string) =>
-    always.find((save) => save.model === name) ?? (unitProfiles.length === 1 ? always[0] : always.find((save) => !save.model))
+    always.find((save) => save.model && sameModel(save.model, name)) ??
+    (unitProfiles.length === 1 ? always[0] : always.find((save) => !save.model))
   // A model VS Data names otherwise than the datasheet, as its Kill Team Terminator is Garran Branatar, keeps the catalogue's figure.
-  const renamed = always.some((save) => save.model && !unitProfiles.some((profile) => profile.name === save.model))
+  const renamed = always.some(({ model }) => model && !unitProfiles.some((profile) => sameModel(profile.name, model)))
   const selected: Datasheet = {
     ...member.selected,
     profiles: member.selected.profiles.map((profile) => {
