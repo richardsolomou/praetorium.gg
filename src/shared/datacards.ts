@@ -38,7 +38,7 @@ export type DatasheetDetails = {
 export type RuleCard = {
   name: string
   description: string
-  /** The VS Data aliases a detachment rule's card answers to, `gdcDetachmentRuleAlias`. */
+  /** The VS Data aliases a detachment rule's card answers to, `gdcDetachmentRuleAliasIn`. */
   aliases?: readonly string[]
 }
 /**
@@ -242,7 +242,7 @@ export function factionContent(
     if (id && stratagem) stratagemCards.push({ id, name: stratagem, detachment: stringField(entry, 'detachment') ?? null })
   }
   const detachmentRules = new Map<string, Map<string, { descriptions: Set<string>; aliases: Set<string> }>>()
-  for (const entry of detachmentRuleCards(parsed.rules, name, sections, texts)) {
+  for (const entry of detachmentRuleCards(parsed, name, sections, texts)) {
     const key = joinKey(entry.detachment)
     const cards = detachmentRules.get(key) ?? new Map<string, { descriptions: Set<string>; aliases: Set<string> }>()
     for (const rule of entry.rules) {
@@ -385,19 +385,18 @@ function imaged(whole: string, before: string | null, after: string | null) {
   return first >= 0 && first <= last ? paragraphs.slice(first, last + 1).join('\n\n') : null
 }
 export function detachmentRuleCards(
-  rules: unknown,
+  file: { rules?: unknown },
   faction: string,
   sections: SectionProse,
   texts: SourceTexts,
 ): { detachment: string; rules: RuleCard[] }[] {
-  return records(rules, 'detachment').flatMap((entry) => {
+  return records(file.rules, 'detachment').flatMap((entry) => {
     const detachment = stringField(entry, 'detachment')
     if (!detachment) return []
     const cards = records(entry, 'rules').flatMap((card) => {
       const name = localizedField(card, 'name')
       const description = ruleText(card, faction, detachment, sections, texts)
-      // As `gdcRuleRecords` writes it, a file without detachment ids included.
-      return name && description ? [{ name, description, aliases: [gdcDetachmentRuleAlias(entry.detachment_id, name)] }] : []
+      return name && description ? [{ name, description, aliases: [gdcDetachmentRuleAliasIn(file, entry, name)] }] : []
     })
     return cards.length ? [{ detachment, rules: cards }] : []
   })
@@ -724,8 +723,18 @@ export const gdcAliasName = (name: unknown) =>
 /** VS Data's alias of a Game Datacards enhancement or upgrade card. */
 export const gdcEnhancementAlias = (id: unknown) => `gdc.enhancement.${gdcAliasId(id)}`
 /** VS Data's alias of a Game Datacards detachment rule, by its detachment's UUID and its name. */
-export const gdcDetachmentRuleAlias = (detachmentId: unknown, name: unknown) =>
+const gdcDetachmentRuleAlias = (detachmentId: unknown, name: unknown) =>
   `gdc.detachment.rule.${gdcAliasId(detachmentId)}.${gdcAliasName(name)}`
+/**
+ * `gdcDetachmentRuleAlias` of a rule `entry` of a card `file` lists: by the entry's detachment UUID, or, in a file whose
+ * rules carry none, by the UUID of the file's detachment of the entry's name.
+ */
+export const gdcDetachmentRuleAliasIn = (file: unknown, entry: Record<string, unknown>, name: unknown) =>
+  gdcDetachmentRuleAlias(
+    entry.detachment_id ??
+      records(file, 'detachments').find((detachment) => localizedField(detachment, 'name') === stringField(entry, 'detachment'))?.id,
+    name,
+  )
 
 export function localizedField(value: unknown, field: string): string | null {
   if (!value || typeof value !== 'object') return null

@@ -15,7 +15,9 @@ import {
 } from '../contracts/rules'
 import { spannedParagraph, type SummaryBlock, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
+import { idsIn } from '../shared/vsDataPoints'
 import {
+  type BsdataRecords,
   type GdcRuleKind,
   gdcRuleRecords,
   vsDataIndex,
@@ -28,11 +30,27 @@ import {
 import { bsdataRecordsIn } from './bsdataRecords'
 import { readCatalogueComposition } from './catalogueComposition'
 import { editionTextFiles, textHash } from './sourceTexts'
+import { legacyUnitIds } from './vsDataPoints'
 
 /** An alias naming a VS Data id, rather than another source's, such as `bsdata.` or `gdc.`. */
 const isVsDataId = (alias: string) => !/^(bsdata|gdc)\./.test(alias)
 
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
+
+/**
+ * The ability each BSData profile is, by its id, or by `<datasheet>/<id>` where it is another on each datasheet; a
+ * datasheet whose own record is no ability, as a core keyword, keeps an empty one, never the id's, and one whose record
+ * the rules version lacks reads the id's, as a bare frozen key reaches every version.
+ */
+export function abilityAliases(records: BsdataRecords, summarized: (key: string) => boolean): Record<string, string> {
+  const ability = (key: string) => (key.startsWith('ability:') && summarized(key) ? key.slice('ability:'.length) : undefined)
+  return {
+    ...Object.fromEntries(Object.entries(records.byId).flatMap(([id, key]) => (ability(key) ? [[id, ability(key)!] as const] : []))),
+    ...Object.fromEntries(
+      Object.entries(records.bySheet).flatMap(([sheet, key]) => (summarized(key) ? [[sheet, ability(key) ?? ''] as const] : [])),
+    ),
+  }
+}
 
 /**
  * One source file's summaries, by its token ID, or the mission pack's; for an ID no file of the snapshot has, word that a
@@ -100,6 +118,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
   // were kept this way holds other files here, which name none.
   const releaseOf = (entry: (typeof order)[number]) => entry.summaries ?? entry.edition.id
   const held = order.filter((entry) => fs.existsSync(path.join(folder, `${releaseOf(entry)}.json`)))
+  const baseOf = (edition: string) => held.find((candidate) => candidate.edition.id === edition)?.base
   if (!held.length) return null
   const release = (edition: string) => {
     const entry = held.find((candidate) => candidate.edition.id === edition)
@@ -119,7 +138,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
       const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
       const abilitySummaries = [...summaries].filter(([key]) => key.startsWith('ability:'))
-      const bsdata = bsdataRecordsIn(file.entries, held.find((candidate) => candidate.edition.id === edition)?.base ? null : edition)
+      const bsdata = bsdataRecordsIn(file.entries, baseOf(edition) ? null : edition)
       // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
       // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
       const abilitiesBy = <T>(value: (ability: (typeof abilitySummaries)[number]) => T) =>
@@ -130,40 +149,35 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           // Last, so an ability's own id wins over another's former one.
           ...abilitySummaries.map((ability) => [ability[0].slice('ability:'.length), value(ability)] as const),
         ])
-      // A unit's BSData aliases name its entry id with dots for dashes.
+      const servedUnit = (id: string, unit: (typeof file.units)[string]) => ({
+        ...unit,
+        id,
+        ...(unit.invulnerableSaves
+          ? {
+              invulnerableSaves: unit.invulnerableSaves.map((save) => {
+                const summary = save.condition ? summaries.get(`unit-profile:${save.condition}`) : undefined
+                return summary ? { ...save, summary } : save
+              }),
+            }
+          : {}),
+      })
+      // A unit's BSData aliases name its entry id with dots for dashes; a datasheet one book reads as another unit, as a
+      // chaos book's Library Titan, keeps that unit under `<book>/<datasheet>` (`unitsInBook`).
       const units = {
-        units: Object.fromEntries(
-          Object.entries(file.units).flatMap(([id, unit]) =>
+        units: Object.fromEntries([
+          ...Object.entries(file.units).flatMap(([id, unit]) =>
             index
               .aliasesOf({ kind: 'unit', id })
               .filter((alias) => alias.startsWith('bsdata.'))
-              .map(
-                (alias) =>
-                  [
-                    alias.slice('bsdata.'.length).replaceAll('.', '-'),
-                    {
-                      ...unit,
-                      id,
-                      ...(unit.invulnerableSaves
-                        ? {
-                            invulnerableSaves: unit.invulnerableSaves.map((save) => {
-                              const summary = save.condition ? summaries.get(`unit-profile:${save.condition}`) : undefined
-                              return summary ? { ...save, summary } : save
-                            }),
-                          }
-                        : {}),
-                    },
-                  ] as const,
-              ),
+              .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), servedUnit(id, unit)] as const),
           ),
-        ),
+          ...[...idsIn(legacyUnitIds, baseOf(edition) ? null : edition)].flatMap(([key, id]) => {
+            const unit = key.includes('/') ? file.units[id] : undefined
+            return unit ? [[key, servedUnit(id, unit)] as const] : []
+          }),
+        ]),
         abilities: abilitiesBy(([, summary]) => summary),
-        // The ability each BSData profile is, by its id, or by `<datasheet>/<id>` where it is another on each datasheet.
-        aliases: Object.fromEntries(
-          Object.entries({ ...bsdata.byId, ...bsdata.bySheet }).flatMap(([id, key]) =>
-            key.startsWith('ability:') && summaries.has(key) ? [[id, key.slice('ability:'.length)] as const] : [],
-          ),
-        ),
+        aliases: abilityAliases(bsdata, (key) => summaries.has(key)),
         // A faction a catalogue names as VS Data does but under another id, as its Adeptus Titanicus is `titan-legions`;
         // a name that is itself an id, as Aeldari is, stays that faction's.
         factions: Object.fromEntries(
