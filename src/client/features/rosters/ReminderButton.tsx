@@ -12,7 +12,9 @@ export type ReminderControls = {
 }
 
 export function ReminderButton({ subject, controls, rule }: { subject: ReminderSubject; controls: ReminderControls; rule: ReactNode }) {
+  // The dialog draws the rule outside this page's tree, so it takes the datasheet or detachment the rule is read through along.
   const owner = useContext(DatasheetUnit)
+  const shown = <DatasheetUnit.Provider value={owner}>{rule}</DatasheetUnit.Provider>
   const active = controls.active(subject)
   const label = `${active ? 'Edit' : 'Set'} alert for ${subject.name}`
   return (
@@ -25,7 +27,7 @@ export function ReminderButton({ subject, controls, rule }: { subject: ReminderS
             size="icon-xs"
             className={active ? 'text-parchment' : 'text-faint hover:text-bone'}
             aria-label={label}
-            onClick={() => controls.onSelect(subject, <DatasheetUnit.Provider value={owner}>{rule}</DatasheetUnit.Provider>)}
+            onClick={() => controls.onSelect(subject, shown)}
           />
         }
       >
