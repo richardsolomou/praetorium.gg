@@ -3,7 +3,7 @@ import { combatCarriers } from '../core/combatLoadout'
 import { toBase64 } from '../core/base64'
 import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
 import { evaluate, type Selection } from '../core/evaluate'
-import type { BuiltUnit, RosterPick, VsPick } from '../core/roster'
+import { type BuiltUnit, catalogueTreeOf, type RosterPick, type VsPick } from '../core/roster'
 import { isUnitCompositionChoice, type UnitChoice, VS_ALLEGIANCE, VS_MODELS, vsWithSpread } from '../core/unitChoices'
 import type { VsDataDefinitions } from '../core/vsDataConstruction'
 import { vsUnitProblems } from '../core/vsDataUnit'
@@ -89,13 +89,13 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
       ? built.vs
         ? vsUnitProblems(vs.definitions, built.vs.unit).map((problem) => problem.message)
         : ['unbuilt']
-      : evaluate([built.selection], loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments }).errors.map(
+      : evaluate([catalogueTreeOf(built)], loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments }).errors.map(
           (error) => `${error.entryId}:${error.message}`,
         )
   const known = new Set(errors(base))
   const weapons = (datasheetViewsIn(loaded, data.catalogueId, pick.entryId, context).available?.profiles ?? []).filter(isWeaponProfile)
   const catalogueCarriers = (built: BuiltUnit) =>
-    combatCarriers(built.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
+    combatCarriers(catalogueTreeOf(built), loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
   const carriersOf = (built: BuiltUnit) =>
     built.vs ? vsCarriersFiring(built.vs.carriers, weapons, catalogueCarriers(base)) : catalogueCarriers(built)
   const carriers = carriersOf(base)
@@ -254,7 +254,7 @@ export async function* combatLoadoutCandidates(
   )
   const errors = (built: BuiltUnit[]) =>
     evaluate(
-      built.map((unit) => unit.selection),
+      built.map((unit) => catalogueTreeOf(unit)),
       loaded.index,
       {
         primaryCatalogueId: data.catalogueId,
@@ -292,7 +292,19 @@ export async function* combatLoadoutCandidates(
   const prepared = (built: BuiltUnit[]) => {
     const replaced = new Map(memberSelections.map((unit, at) => [unit!.selectionIndex, built[at]!]))
     return {
-      selections: context.selections.map((selection, at) => replaced.get(at)?.selection ?? selection),
+      selections: context.selections.map((selection, at) => {
+        const member = replaced.get(at)
+        return member ? catalogueTreeOf(member) : selection
+      }),
+      vsUnits: {
+        ...context.vsUnits,
+        ...Object.fromEntries(
+          indexes.flatMap((pickIndex, at) => {
+            const vs = built[at]?.vs
+            return vs ? [[pickIndex, vs]] : []
+          }),
+        ),
+      },
       unitSelections: context.unitSelections.map((unit) => {
         const member = replaced.get(unit.selectionIndex)
         // A VS pick fights with what VS Data fields for this candidate, not what the requested loadout carried.
@@ -330,7 +342,7 @@ export async function* combatLoadoutCandidates(
   const enqueue = async (members: RosterPick[], built: BuiltUnit[], depth: number) => {
     if (built.some((unit, index) => unit.size.models !== units[index]!.size.models)) return
     // A VS pick's catalogue tree stays at its default loadout, so its state is also what VS Data fields.
-    const key = await digest(JSON.stringify(built.map((unit) => [withoutEmptyEntries(unit.selection), unit.vs?.unit ?? null])))
+    const key = await digest(JSON.stringify(built.map((unit) => [withoutEmptyEntries(catalogueTreeOf(unit)), unit.vs?.unit ?? null])))
     if (seen.has(key)) return
     if (queue.length - head >= SEARCH_LIMITS.queued) throw incomplete()
     retain(key)
