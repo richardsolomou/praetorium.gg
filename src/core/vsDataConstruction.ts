@@ -84,6 +84,8 @@ export type UnitData = {
   faction: string
   /** Its datasheet's own unit abilities, by VS Data id, where the release links them. */
   abilities?: string[]
+  /** The core abilities its datasheet prints, as Deep Strike or Scouts 7" (`inches`). */
+  coreAbilities?: { ability: string; inches?: number }[]
   keywords: string[]
   /** Keywords the unit holds where `when` holds, in place of those of its own `keywords` named in `replaces`. */
   conditionalKeywords?: { keywords: string[]; replaces?: string[]; when: When }[]

@@ -63,6 +63,7 @@ import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 import { baseSizeOf } from './vsDataBaseSizes'
 import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
+import type { VsDataDefinitions } from '../core/vsDataConstruction'
 import { vsRecordFactsOf } from './vsDataLegality'
 import { vsDataRecordOfBsdata } from './vsData'
 import { type VsRosterUnit, vsHeldAbilities, vsLinkedAbilities } from '../core/vsDataRoster'
@@ -202,8 +203,15 @@ export function contextualAbilityNamesIn(
   return [
     ...new Set([
       ...intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)),
+      // A datasheet's keyword line links its core abilities on its models as often as on itself, as a Starfang's Scouts 7";
+      // an upgrade's links name the rules its text refers to, which it does not grant outright.
       ...definitions.flatMap((definition) =>
-        definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index, root.absentAbilities)),
+        definitionAndTarget(definition, loaded.index).flatMap((source) => [
+          ...(targetOf(definition, loaded.index.definitions).type === 'model'
+            ? linkedAbilityNames(source, loaded.index, catalogueId, context.selections)
+            : []),
+          ...abilityProfileNames(source, loaded.index, root.absentAbilities),
+        ]),
       ),
       ...grantedAbilitiesInAttachedUnit(
         context.selections,
@@ -216,6 +224,22 @@ export function contextualAbilityNamesIn(
       ).map((ability) => ability.name),
     ]),
   ]
+}
+
+/**
+ * The abilities VS Data gives a VS pick that its catalogue tree may not: its datasheet's core abilities, as a Skull Altar's
+ * Infiltrators, and those its Enhancement gives the bearer's own unit, as Mistweave's Infiltrators, which the tree names
+ * only by the Enhancement's name.
+ */
+export function vsAbilityNamesOf(loaded: LoadedCatalogue, definitions: VsDataDefinitions, picked: VsRosterUnit): string[] {
+  const core = (definitions.get('unit', picked.unit)?.data.coreAbilities ?? []).map(({ ability, inches }) =>
+    ability === 'scouts' && inches !== undefined ? `Scouts ${inches}"` : ability.replaceAll('-', ' '),
+  )
+  const enhancement = picked.enhancement ? vsRecordFactsOf(loaded, `ability:${picked.enhancement}`)?.abilityGrants?.grants : undefined
+  const given = (enhancement ?? []).flatMap((grant) =>
+    'written' in grant && grant.recipient !== 'leader' && !grant.attached && !grant.target && !grant.conditional ? [grant.written] : [],
+  )
+  return [...core, ...given]
 }
 
 /**

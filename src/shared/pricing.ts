@@ -37,7 +37,7 @@ import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
 import { battleSizesOf, buildPick, savedVersionOf, vsDefinitionsOf, vsOwnSelections, vsPickKeywords, vsPickPrices } from './vsDataBuild'
-import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf, vsAbilityNamesOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
 import type { GrantPick } from '../core/battle'
@@ -1094,15 +1094,17 @@ function calculateRoster(
         const companionSelectionIndex = companion ? selectionIndex.get(catalogueTreeOf(companion)) : undefined
         return companionSelectionIndex !== undefined && companion !== unit ? [companionSelectionIndex] : []
       })
-      const deployment = deploymentRules(
-        contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, {
+      const vsDefinitions = unit.vs ? vsDefinitionsIn(loaded, unit.vs) : null
+      const deployment = deploymentRules([
+        ...contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, {
           selections,
           unitSelectionIndex,
           companions,
           keywordIds: unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex),
           rosterKeywordIds: keywordMatrixFor(catalogueId),
         }),
-      )
+        ...(unit.vs && vsDefinitions ? vsAbilityNamesOf(loaded, vsDefinitions, unit.vs.unit) : []),
+      ])
       // A unit already holding the ability has nothing to gain from the pick.
       const grantPicks = grantPicksFor(unitKeywords).filter(
         (pick) =>
@@ -1110,7 +1112,6 @@ function calculateRoster(
           !(deployment.prebattleRules as readonly string[]).includes(pick.ability),
       )
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
-      const vsDefinitions = unit.vs ? vsDefinitionsIn(loaded, unit.vs) : null
       // An Enhancement VS Data's checker would refuse the unit is not offered, though one already taken stays to be undone.
       const refused =
         vsData === null
