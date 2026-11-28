@@ -163,6 +163,18 @@ export function carried(definitions: VsDataDefinitions, picked: VsRosterUnit): M
   return held
 }
 
+/**
+ * How many Enhancements `units` count towards a roster's limit, as `checkVsRoster` counts them: each first copy of one,
+ * an Upgrade's included, and never one `outsideLimit`.
+ */
+export function countedEnhancements(definitions: VsDataDefinitions, units: readonly VsRosterUnit[]): number {
+  const counted = units.flatMap((picked) => {
+    const enhancement = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
+    return enhancement && !enhancement.data.outsideLimit ? [enhancement.id] : []
+  })
+  return new Set(counted).size
+}
+
 /** Whether an Enhancement's eligibility admits this unit, before the roster's Warlord is considered. */
 export function enhancementAdmits(
   definitions: VsDataDefinitions,
