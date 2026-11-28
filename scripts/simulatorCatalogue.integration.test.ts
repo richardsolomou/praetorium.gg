@@ -249,6 +249,12 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(shot('unobserved') < spotted && spotted < shot('direct')).toBe(true)
   })
 
+  it("calculates a Detachment rule by its card's own facts, as Invasion Fleet's Hyper-adaptations", () => {
+    const tyrant = side('Tyranids', ['Winged Hive Tyrant'], { detachment: 'Invasion Fleet' })
+    const rule = tyrant.rules.find((candidate) => candidate.name === 'Hyper-adaptations')!
+    expect(combatRuleChoices(rule).map((choice) => unquotedLabel(choice.label, rule.description))).toContain('Swarming Instincts')
+  })
+
   it('Black Templars field no retired Templar Vows', () => {
     const templars = side('Black Templars', ['Sword Brethren Squad'])
     expect(templars.rules.map((rule) => rule.name)).not.toContain('Templar Vows')
