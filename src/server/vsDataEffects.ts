@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { remember } from '../core/collections'
-import { textOfFactsKey, type TextFacts, type TextFactsByKey } from '../core/textFacts'
+import { textOfFactsKey, type TextFacts, type TextFactsByKey, type VsRecordFacts } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey, vsDataRecordOfBsdata } from '../shared/vsData'
+import type { VsAbilityLinks } from '../shared/vsDataLegality'
 import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
 import { bsdataRecordsIn } from './bsdataRecords'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -22,6 +23,10 @@ export type VsDataJoin = { record: string; by: 'card' | 'id' } | { record: null;
 
 export type VsDataTextFacts = TextFactsByKey & {
   join: (key: string) => VsDataJoin
+  /** Every record VS Data has read, by record key, as `get` reads a text joining it. */
+  records: () => VsRecordFacts
+  /** The ability records BSData's profiles are, by VS Data's aliases and the frozen map, and each ability's name. */
+  abilities: () => VsAbilityLinks
   /** The records the cards printing a lone whole-string token are, which a catalogue text it stands in for must be. */
   printed: (key: string) => readonly string[]
 }
@@ -124,18 +129,26 @@ export function vsDataTextFacts(
   const joins = new Map<string, VsDataJoin>()
   const facts = new Map<string, TextFacts>()
   const join = (key: string) => remember(joins, key, () => joinOf(key))
+  const factsOf = (record: string) =>
+    remember(facts, record, () => {
+      const read = named(record, effects[record]!)
+      return textFactsOfVsData(record === FEEL_NO_PAIN && read.combat ? { ...read, combat: asDefenders(read.combat) } : read)
+    })
   return {
     join,
+    records: () => Object.fromEntries(Object.keys(effects).map((record) => [record, factsOf(record)])),
+    abilities: () => {
+      const ability = (key: string | null) => key === null || key.startsWith('ability:')
+      const only = <T extends string | null>(map: Readonly<Record<string, T>>) =>
+        Object.fromEntries(Object.entries(map).filter(([, key]) => ability(key)))
+      return { records: { byId: only(records.byId), bySheet: only(records.bySheet) }, names: release.names?.abilities ?? {} }
+    },
     printed: (key) => (WHOLE_STRING.has(key.slice(0, key.indexOf(':'))) ? (printed.get(key.slice(key.indexOf(':') + 1)) ?? []) : []),
     get: (key) => {
       const text = textOfFactsKey(key)
       const record = text === key ? join(key).record : ownRecordsOf(text)?.get(key.slice(text.length + 1))
       // A record without blocks is one VS Data has not read yet.
-      if (!record || !effects[record]) return undefined
-      const read = named(record, effects[record])
-      return remember(facts, record, () =>
-        textFactsOfVsData(record === FEEL_NO_PAIN && read.combat ? { ...read, combat: asDefenders(read.combat) } : read),
-      )
+      return record && effects[record] ? factsOf(record) : undefined
     },
   }
 }

@@ -1,5 +1,7 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { checkVsRoster, enhancementAdmits, keywordsOf, type VsProblem, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
+import type { TextFacts, VsRecordFacts } from '../core/textFacts'
+import type { BsdataRecords } from './vsData'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
@@ -22,7 +24,19 @@ export type VsRosterData = {
   attachments: Record<string, VsAttachment>
   /** The datasheets VS Data defines a unit for there, which it alone decides as hosts of a joiner it has a record for. */
   attachmentHosts: string[]
+  /** What each rule record of this rules version does, by record key (`vsRecordFactsOf`). */
+  facts?: VsRecordFacts
+  abilities?: VsAbilityLinks
 }
+
+/**
+ * The ability record each BSData profile is (`vsDataRecordOfBsdata`), so a reader holding a profile knows which VS Data
+ * ability it stands for, and each ability's English name by VS Data id, which a rule read by its record is shown by.
+ */
+export type VsAbilityLinks = { records: BsdataRecords; names: Readonly<Record<string, string>> }
+
+/** What a VS Data rule record does in the loaded rules version, by its record key, as `ability:<id>`. */
+export const vsRecordFactsOf = (loaded: { vsRoster?: VsRosterData }, key: string): TextFacts | undefined => loaded.vsRoster?.facts?.[key]
 
 export function vsRosterData(
   construction: VsDataConstruction,
