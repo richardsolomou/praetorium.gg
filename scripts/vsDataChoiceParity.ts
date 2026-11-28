@@ -405,8 +405,13 @@ for (const [entryId, catalogueId] of listing) {
     for (const detachment of detachments) {
       const bsdataId = detachmentOf(faction.id, detachment.id)
       const context = { roster: { faction: book, detachments: [detachment.id] } }
-      const choices = vsUnitChoices(definitions, vsFirstPick(definitions, unitId, context), context)
-      const vsEnhancements = choices
+      const picked = vsFirstPick(definitions, unitId, context)
+      const choices = vsUnitChoices(definitions, picked, context)
+      // A unit that must take an allegiance starts unsworn, so its Enhancements are measured as it holds the first one, as
+      // BSData's default offers them.
+      const required = choices.find((choice) => choice.key === VS_ALLEGIANCE && !choice.optional)?.options[0]?.id
+      const measured = required ? vsUnitChoices(definitions, { ...picked, allegiance: required }, context) : choices
+      const vsEnhancements = measured
         .filter((choice) => choice.key === VS_ENHANCEMENT || choice.key === VS_UPGRADE)
         .flatMap((choice) => choice.options.map((option) => enhancementName(option.name)))
       const allegiances = choices.find((choice) => choice.key === VS_ALLEGIANCE)?.options.map((option) => same(option.name)) ?? []
