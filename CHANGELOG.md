@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.280.18 (2026-11-28)
+
+### Patch Changes
+
+- 984750f: [rosters] The roster setup dialog shows every detachment at once instead of in its own scrolling box.
+- 984750f: [rosters] Detachments you can't take now stay in the list, greyed out in place, instead of disappearing, and tapping one says why.
+- bcd3855: [assistant] Every assistant tool that takes a faction also accepts its keyword name, such as Asuryani for Aeldari or Legiones Daemonica for Chaos Daemons.
+- bcd3855: [rosters] An imported list whose units name its chapter or army, as a Dark Angels list stated as Space Marines, now comes in as that chapter or army more often.
+- 984750f: [rosters] The roster setup dialog no longer repeats what's missing beside its Create button.
+- 984750f: [rosters] The roster setup dialog labels the Points limit box beside the battle size.
+
 ## 0.280.17 (2026-11-28)
 
 ### Patch Changes
