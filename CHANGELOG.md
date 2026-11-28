@@ -1,5 +1,36 @@
 # praetorium
 
+## 0.280.12 (2026-11-28)
+
+### Patch Changes
+
+- f49539b: [simulator] Hyper-adaptations, Surprise Assault and Synaptic Imperatives now offer their choices in the simulator.
+- f49539b: [simulator] The simulator no longer lists Artillery Support or Pledges to the Dark Prince, which have no effect in combat.
+- f49539b: [simulator] Prey on the Weak and Debt to the Soul Forge now calculate their effects in the simulator, and they and Superior Craftsmanship appear only on the units they name.
+- [rosters] Print packs show the summaries of Detachment rules the official cards don't print.
+- [reference] Datasheet abilities VS Data publishes once for several units show their summary again.
+
+## 0.280.11 (2026-11-28)
+
+### Patch Changes
+
+- 416fec7: [reference] An ability a unit gains only under a condition, as Belisarius Cawl's Lone Operative near another Adeptus Mechanicus unit, now shows an asterisk and when it applies, on datasheets and in the roster editor, instead of reading as always on.
+
+## 0.280.10 (2026-11-28)
+
+### Patch Changes
+
+- 841bce4: [reference] The Library Titans in Chaos books show the Chaos Titan's datasheet details and ability summaries, not the Imperial Titan's.
+- 49f8596: [reference] Datasheet abilities show their own rule's summary instead of another unit's rule of the same name, and hundreds more abilities show one.
+- 49f8596: [reference] Detachment rules the official cards don't print show their summaries on Detachment pages and in print packs.
+- 7e6f3f1: [simulator] A unit built from VS Data now shows, beside each weapon option in its loadout, the odds the unit would have with that option, as other units do.
+
+## 0.280.9 (2026-11-28)
+
+### Patch Changes
+
+- 45f715c: [reference] Missions, deployments, terrain layouts and force dispositions now credit the source their rules data comes from.
+
 ## 0.280.8 (2026-11-28)
 
 ### Patch Changes
