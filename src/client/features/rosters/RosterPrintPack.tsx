@@ -62,7 +62,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         signal.throwIfAborted()
         const detail = await client.query({ ...detachmentDetailQuery(input.catalogueId, detachment!.slug), staleTime: 0 })
         if (!detail) throw new Error('A selected detachment reference is unavailable.')
-        detachments.push({ ...detail, slug: detachment!.slug })
+        detachments.push({ ...detail, owner: detachmentRulesOwner(input.catalogueId, faction.slug, detachment!.slug) })
       }
       const cards = await client.query({
         ...detachmentRulesQuery(
@@ -292,10 +292,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               <p>No army rule description is available.</p>
             )}
             {data.detachments.map((detachment) => (
-              <DatasheetUnit.Provider
-                key={detachment.name}
-                value={detachmentRulesOwner(input.catalogueId, data.faction.slug, detachment.slug)}
-              >
+              <DatasheetUnit.Provider key={detachment.name} value={detachment.owner}>
                 <section>
                   <h3 className="pack-subhead">{detachment.name}</h3>
                   {detachment.rules.length ? (
