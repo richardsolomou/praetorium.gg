@@ -54,6 +54,11 @@ export type RosterPick = {
    * schema drops it), so every save, comparison and battle reads the pick as it is stored.
    */
   translatedVs?: VsPick
+  /**
+   * The retained rules version a pick's `vs` was saved in, where its list was later converted or copied into another:
+   * the version a reader falls back to when the list's own no longer holds the pick.
+   */
+  rulesVersion?: string
 }
 
 /**
