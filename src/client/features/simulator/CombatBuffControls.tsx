@@ -50,12 +50,9 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
     })
   })
   // A rule reads its records as the datasheet holding it does: a leader's own rule as the leader's, the rest as the bodyguard's.
-  const ownerOf = (rule: CombatRule) => {
-    const holder = members.find(({ sheet }) => sheet?.name === rule.source) ?? members[0]
-    return holder?.sheet
-      ? datasheetUnit(combatant.picks.positioned[holder.index]?.catalogueId ?? combatant.catalogueId, holder.sheet.id)
-      : null
-  }
+  const holderOf = (rule: CombatRule) => members.find(({ sheet }) => sheet?.name === rule.source) ?? members[0]
+  const unitOf = (holder: (typeof members)[number] | undefined) =>
+    holder?.sheet ? datasheetUnit(combatant.picks.positioned[holder.index]?.catalogueId ?? combatant.catalogueId, holder.sheet.id) : null
   const rules = combatant.allRules
     .filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
     .map((rule) => ({
@@ -111,7 +108,13 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
               {group.map(({ rule, choices }) => {
                 const selected = combatant.ruleSelections[rule.id] ?? combatRuleDefault(rule)
                 const labelContent = (
-                  <CombatRuleLabel side={side} rule={rule} owner={ownerOf(rule)} rules={combatant.sheets.data?.selected?.keywordRules} />
+                  <CombatRuleLabel
+                    side={side}
+                    rule={rule}
+                    unit={unitOf(holderOf(rule))}
+                    owners={{ abilities: holderOf(rule)?.sheet?.abilities ?? [] }}
+                    rules={combatant.sheets.data?.selected?.keywordRules}
+                  />
                 )
                 const note = [
                   rule.source,

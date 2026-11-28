@@ -1,28 +1,60 @@
 import type { CombatRule } from '../../../core/combatRules'
+import type { Datasheet } from '../../../core/datasheet'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import type { KeywordRule } from '../../components/Keyword'
 import { RuleText } from '../../components/RuleText'
 import { DatasheetUnit } from '../../components/UnitFromVsData'
 
+/** Whose records a unit's combat rules read: the unit's own abilities, and each detachment's owner by detachment id. */
+export type CombatRuleOwners = {
+  abilities: readonly Pick<Datasheet['abilities'][number], 'id' | 'source'>[]
+  detachments?: Readonly<Record<string, string>>
+}
+
 /**
- * What finds a combat rule's summary as its datasheet finds it: a unit's ability by its BSData id and name, an army rule
- * by its name, and a Detachment rule or Stratagem by its words alone, since the unit around it does not own them.
+ * What finds a combat rule's summary as its datasheet finds it: the unit's own ability by its BSData id and name, an army
+ * rule by its name, and a detachment rule by its name under the detachment. An enhancement or a granted ability, which
+ * its detachment owns, and a Stratagem read by their words alone, as the unit around them would filter their records out.
  */
-export function combatRuleLookup({ id, name }: Pick<CombatRule, 'id' | 'name'>): { name?: string; abilityId?: string } {
-  if (id.startsWith('unit:')) return { name, abilityId: id.slice('unit:'.length) }
-  return id.startsWith('army:') ? { name } : {}
+export function combatRuleLookup(
+  { id, name }: Pick<CombatRule, 'id' | 'name'>,
+  owners: CombatRuleOwners,
+): { name?: string; abilityId?: string; owner?: string } {
+  const [kind, held] = id.split(':')
+  if (kind === 'unit') return owners.abilities.some((ability) => ability.id === held && !ability.source) ? { name, abilityId: held } : {}
+  if (kind === 'army') return { name }
+  const owner = kind === 'detachment' && held ? owners.detachments?.[held] : undefined
+  return owner ? { name, owner } : {}
+}
+
+export function CombatRuleSummary({
+  rule,
+  owners,
+  rules,
+  className,
+}: {
+  rule: Pick<CombatRule, 'id' | 'name' | 'description'>
+  owners: CombatRuleOwners
+  rules?: KeywordRule[]
+  className?: string
+}) {
+  const { owner, ...lookup } = combatRuleLookup(rule, owners)
+  const text = <RuleText text={rule.description} rules={rules} className={className} {...lookup} />
+  return owner ? <DatasheetUnit.Provider value={owner}>{text}</DatasheetUnit.Provider> : text
 }
 
 export function CombatRuleLabel({
   side,
   rule,
-  owner,
+  unit,
+  owners,
   rules,
 }: {
   side: string
   rule: Pick<CombatRule, 'id' | 'name' | 'description'>
   /** The `datasheetUnit` of the datasheet holding the rule, whose records its summary is read from. */
-  owner: string | null
+  unit: string | null
+  owners: CombatRuleOwners
   rules?: KeywordRule[]
 }) {
   return (
@@ -32,8 +64,8 @@ export function CombatRuleLabel({
       className="min-w-0 text-left text-sm text-bone"
       body={
         rule.description ? (
-          <DatasheetUnit.Provider value={owner}>
-            <RuleText text={rule.description} rules={rules} className="mt-0 text-xs" {...combatRuleLookup(rule)} />
+          <DatasheetUnit.Provider value={unit}>
+            <CombatRuleSummary rule={rule} owners={owners} rules={rules} className="mt-0 text-xs" />
           </DatasheetUnit.Provider>
         ) : (
           'No description available.'

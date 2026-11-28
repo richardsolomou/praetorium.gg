@@ -8,9 +8,8 @@ import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { combatantDatasheetQuery, type Fielded } from '../../../queries'
 import { readableRules } from '../../simulator/readableRules'
-import { combatRuleLookup } from '../../simulator/CombatRuleLabel'
+import { CombatRuleSummary, type CombatRuleOwners } from '../../simulator/CombatRuleLabel'
 import { HoverTooltip } from '../../../components/HoverTooltip'
-import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
 import { useStableValue } from '../../../useStableValue'
 import { useBattleChoicePicks } from './battleChoicePicks'
@@ -130,6 +129,8 @@ type Props = {
   chosen: Readonly<Record<string, readonly string[]>>
   onChoose: (rule: string, options: readonly string[]) => void
   rules: Datasheet['keywordRules']
+  /** Whose records each rule's summary is read from, as the unit's datasheet reads them. */
+  owners: CombatRuleOwners
 }
 
 // Options that share a closing word, as every Doctrina Imperative does, read without it.
@@ -139,13 +140,23 @@ function shortLabels(options: readonly { label: string }[]) {
   return new Map(options.map(({ label }) => [label, shared ? label.split(' ').slice(0, -1).join(' ') : label]))
 }
 
-function RuleName({ rule, rules, className }: { rule: BattleChoice['rule']; rules: Props['rules']; className: string }) {
+function RuleName({
+  rule,
+  rules,
+  owners,
+  className,
+}: {
+  rule: BattleChoice['rule']
+  rules: Props['rules']
+  owners: CombatRuleOwners
+  className: string
+}) {
   return (
     <HoverTooltip
       label={`${rule.name} rules`}
       title={rule.name}
       className={className}
-      body={<RuleText text={rule.description} rules={rules} className="mt-0 text-xs" {...combatRuleLookup(rule)} />}
+      body={<CombatRuleSummary rule={rule} owners={owners} rules={rules} className="mt-0 text-xs" />}
     >
       {rule.name}
     </HoverTooltip>
@@ -155,7 +166,7 @@ function RuleName({ rule, rules, className }: { rule: BattleChoice['rule']; rule
 const smallChip = `${pressedClass} min-h-6 px-1.5 py-0`
 
 /** One line per rule under the unit's characteristics, so a pick shows its change beside them. */
-export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
+export function BattleChoices({ choices, chosen, onChoose, rules, owners }: Props) {
   if (!choices.length) return null
   return (
     <section aria-label="In battle" className="flex flex-col gap-y-1.5">
@@ -163,7 +174,7 @@ export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
         const short = shortLabels(options)
         return (
           <div key={rule.name} className="flex min-w-0 flex-wrap items-center gap-1">
-            <RuleName rule={rule} rules={rules} className="eyebrow mr-0.5 text-left" />
+            <RuleName rule={rule} rules={rules} owners={owners} className="eyebrow mr-0.5 text-left" />
             {together ? (
               <span className="text-xs text-bone">{togetherLabel(together)}</span>
             ) : (
