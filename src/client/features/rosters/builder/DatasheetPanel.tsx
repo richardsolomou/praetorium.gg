@@ -10,7 +10,7 @@ import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import { Keyword, KeywordExplanation, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
-import { RuleText } from '../../../components/RuleText'
+import { RuleText, SummaryById } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
 import { DatasheetUnit, datasheetUnit, unitTransport, useUnitAbilitySummary, useVsDataUnit } from '../../../components/UnitFromVsData'
 import { InvulnerableSaves, shownSaves } from '../../../components/InvulnerableSaves'
@@ -128,6 +128,7 @@ export function DatasheetPanel({
           (ability) => !saves.length || !isWrittenInvulnerableSave(ability.name),
         )}
         rules={sheet.keywordRules}
+        catalogueId={catalogueId}
         reminders={abilityReminders}
         detachmentRules={detachmentRules}
         detachmentRuleOwners={detachmentRuleOwners}
@@ -226,12 +227,15 @@ function DatasheetLoading() {
 export function AbilitySummary({
   abilities,
   rules,
+  catalogueId,
   reminders,
   detachmentRules,
   detachmentRuleOwners,
 }: {
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
+  /** The list's catalogue, whose rules version a VS pick's ability summary (`vsDataId`) is read in. */
+  catalogueId?: string
   reminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
   detachmentRuleOwners?: Readonly<Record<string, string>>
@@ -289,6 +293,8 @@ export function AbilitySummary({
           {found.map((ability) => {
             const text = ability.description ? (
               <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} />
+            ) : ability.vsDataId && catalogueId ? (
+              <SummaryById catalogueId={catalogueId} id={ability.vsDataId} />
             ) : null
             // A rule the list's detachment gives the unit by name, as Possessed Slaughterband's Brazen Fury on Eightbound, is that detachment's.
             const granted = detachmentRules?.find((rule) => rule.name === ability.name)

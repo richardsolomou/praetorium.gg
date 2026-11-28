@@ -3,7 +3,8 @@ import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { catalogueTreeOf } from '../core/roster'
 import { hasTextTokens } from '../core/sourceText'
-import type { TextFactsByKey } from '../core/textFacts'
+import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import { vsRecordFactsOf } from './vsDataLegality'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, allowancesIn, combatFactsIn, offeredOptionsOf } from './textFacts'
 import { recordedCombatText } from '../core/combatReading'
@@ -40,6 +41,14 @@ export const rosterProjectionCache = (): RosterProjectionCache => ({ supportSour
 type Projection = NonNullable<ReturnType<typeof rosterDatasheetContext>> & RosterProjectionCache
 
 const weaponAbilityRulesByCatalogue = new WeakMap<LoadedCatalogue, ReturnType<typeof rulesNamed>>()
+
+/** Whether any reading of a rule has an effect only the model holding it gains. */
+const bearerOnly = (combat: TextFacts['combat']) =>
+  Boolean(
+    combat?.leaves.some((leaf) =>
+      [...(leaf.compiled?.choices ?? []), ...leaf.legacy].some((choice) => choice.effects.some((effect) => effect.bearerOnly)),
+    ),
+  )
 
 /**
  * One unit's combatant for its datasheet: a rule's option can give a weapon ability its weapons lack, so every weapon
@@ -333,8 +342,11 @@ function rosterCombatRules(
   const supportKeywords = [sheet.keywords]
   const models = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models
   const recordedCombat = (description: string, holder?: string) => combatFactsIn(description, loaded.index.textFacts, holder)
-  /** `holder` is the datasheet rule or profile the description is, which identical words on another datasheet may not read alike. */
-  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>, holder?: string) => {
+  /**
+   * `holder` is the datasheet rule or profile the description is, which identical words on another datasheet may not read
+   * alike; `vsFacts` are the facts of a VS Data ability the catalogue prints no text for, read in place of its words.
+   */
+  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>, holder?: string, vsFacts?: TextFacts) => {
     const placed: CombatRule = {
       ...rule,
       appliedDefences: (['save', 'invulnerable-save', 'toughness'] as const).filter(
@@ -349,9 +361,9 @@ function rosterCombatRules(
     }
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
-    const recorded = recordedCombat(rule.description, holder)
-    // A token without combat facts does something unknown, which the simulator lists as not calculated.
-    if (recorded === undefined && hasTextTokens(rule.description)) {
+    const recorded = vsFacts ? vsFacts.combat : recordedCombat(rule.description, holder)
+    // A token or VS Data ability without combat facts does something unknown, which the simulator lists as not calculated.
+    if (recorded === undefined && (vsFacts || hasTextTokens(rule.description))) {
       candidates.push({ ...placed, keywords: sheet.keywords })
       return
     }
@@ -359,20 +371,25 @@ function rosterCombatRules(
     if (judged) candidates.push(judged)
   }
   for (const ability of [...sheet.abilities, ...(sheet.enhancements ?? [])]) {
-    if (!ability.description) continue
+    const recordFacts = ability.vsDataId ? (vsRecordFactsOf(loaded, `ability:${ability.vsDataId}`) ?? {}) : undefined
+    // No carrier holds a VS Data ability by its id yet, so one only its bearer gains is left uncalculated, never given to the whole unit.
+    const vsFacts =
+      recordFacts && ability.kind === 'wargear' && bearerOnly(recordFacts.combat) ? { ...recordFacts, combat: undefined } : recordFacts
+    if (!ability.description && !vsFacts) continue
+    const grants = vsFacts ? (vsFacts.abilityGrants?.grants ?? []) : abilityGrantsIn(ability.description!, loaded.index.textFacts).grants
     add(
       {
         id: `unit:${ability.id}`,
         name: ability.name,
         source: sheet.name,
-        description: ability.description,
+        description: ability.description ?? '',
         scope: 'unit',
         ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
         ...(ability.kind === 'wargear' ? { heldBy: ability.id } : {}),
         // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword, or to the leader, to those models alone.
         included:
           (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
-          abilityGrantsIn(ability.description, loaded.index.textFacts).grants.some(
+          grants.some(
             (grant) =>
               !('condition' in grant && grant.condition) &&
               /^Feel No Pain [2-6]\+$/i.test(
@@ -382,6 +399,7 @@ function rosterCombatRules(
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
       ability.id,
+      vsFacts,
     )
   }
   for (const { unit, source } of others) {

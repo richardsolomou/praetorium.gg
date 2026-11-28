@@ -485,11 +485,12 @@ const keywordNames = (keywords: readonly string[]) =>
 export function vsHeldAbilities(definitions: VsDataDefinitions, picked: VsRosterUnit): Set<string> {
   const bound = choiceBound(definitions, picked.unit)
   const own = (definitions.get('unit', picked.unit)?.data.abilities ?? []).filter((id) => !bound.has(id))
-  const carriedRules = [...carried(definitions, picked)].flatMap(([id, n]) =>
-    n > 0 ? (definitions.get('wargear', id)?.data.rules ?? []) : [],
-  )
-  return new Set([...own, ...carriedRules, ...(picked.enhancement ? [picked.enhancement] : [])])
+  return new Set([...own, ...vsCarriedAbilities(definitions, picked), ...(picked.enhancement ? [picked.enhancement] : [])])
 }
+
+/** The abilities the wargear a picked unit carries brings (`rules`). */
+export const vsCarriedAbilities = (definitions: VsDataDefinitions, picked: VsRosterUnit): Set<string> =>
+  new Set([...carried(definitions, picked)].flatMap(([id, n]) => (n > 0 ? (definitions.get('wargear', id)?.data.rules ?? []) : [])))
 
 /**
  * The abilities VS Data's links decide for a unit: its own, those the wargear it can take brings, and every Enhancement.

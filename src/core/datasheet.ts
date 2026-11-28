@@ -32,6 +32,8 @@ export type Datasheet = {
     source?: string
     description: string | null
     kind: AbilityKind
+    /** The VS Data ability a VS pick holds that the catalogue prints no text for, whose summary and facts it reads. */
+    vsDataId?: string
     /** The keyword a granted ability is limited to, when only some models in the unit have it. */
     models?: string
     /** When a granted ability holds, as "against Psychic Attacks", which its chip marks with an asterisk. */

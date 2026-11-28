@@ -65,7 +65,7 @@ import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import { vsRecordFactsOf } from './vsDataLegality'
 import { vsDataRecordOfBsdata } from './vsData'
-import { type VsRosterUnit, vsAbilityCarriers, vsHeldAbilities, vsLinkedAbilities } from '../core/vsDataRoster'
+import { type VsRosterUnit, vsAbilityCarriers, vsCarriedAbilities, vsHeldAbilities, vsLinkedAbilities } from '../core/vsDataRoster'
 import { plainQuotes } from '../core/text'
 import { compositionLines } from './vsDataUnitLines'
 import { rulesNamed } from './catalogueRules'
@@ -815,7 +815,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     modelKeywords,
     catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
-    abilities: uniqueAbilities(withGrantsOverLinks([...abilities.values()], grantedAbilities)),
+    abilities: uniqueAbilities(withGrantsOverLinks(vsSheetAbilities(loaded, context, [...abilities.values()]), grantedAbilities)),
     enhancements: [...enhancements.values()],
     keywordRules: [...keywordRules.values(), ...vsKeywordRules(loaded, vsLines, [...keywordRules.values()])],
   }
@@ -1203,6 +1203,7 @@ function vsHoldingAt(loaded: LoadedCatalogue, context: DatasheetContext, at: num
   const links = loaded.vsRoster?.abilities
   if (!picked || !definitions || !links) return null
   const held = vsHeldAbilities(definitions, picked)
+  const carried = vsCarriedAbilities(definitions, picked)
   const linked = vsLinkedAbilities(definitions, picked.unit)
   const sheet = context.selections[at]?.id
   const shown = new Set<string>()
@@ -1215,15 +1216,41 @@ function vsHoldingAt(loaded: LoadedCatalogue, context: DatasheetContext, at: num
       shown.add(ability)
       return true
     },
-    /** The abilities VS Data holds here that no profile at this place stood for, with their names and facts. */
+    /** The abilities VS Data holds here that no profile at this place stood for, with their names and any facts. */
     unshown: () =>
-      [...held].flatMap((ability) => {
-        const facts = shown.has(ability) ? undefined : vsRecordFactsOf(loaded, `ability:${ability}`)
-        return facts ? [{ ability, name: links.names[ability] ?? ability, facts }] : []
-      }),
+      [...held]
+        .filter((ability) => !shown.has(ability))
+        .map((ability) => ({ ability, name: links.names[ability] ?? ability, facts: vsRecordFactsOf(loaded, `ability:${ability}`) })),
+    /** The pick's Enhancement, which a page prints with the choice rather than among its abilities. */
+    enhancement: picked.enhancement,
+    /** The abilities the wargear the pick carries brings. */
+    carried,
     /** The names of the models carrying the wargear that brings an ability. */
     carriers: (ability: string) => vsAbilityCarriers(definitions, picked, ability).map((model) => model.name),
   }
+}
+
+/**
+ * A VS pick's own abilities by VS Data's links: a catalogue one standing for an ability its unit links only while the
+ * pick holds it, and each held one no catalogue ability stands for by its VS Data summary (`vsDataId`), wargear's where
+ * wargear it carries brings it.
+ */
+function vsSheetAbilities(loaded: LoadedCatalogue, context: DatasheetContext | undefined, abilities: Datasheet['abilities']) {
+  const at = context?.unitSelectionIndex
+  const holding = context && at !== undefined ? vsHoldingAt(loaded, context, at) : null
+  if (!holding) return abilities
+  const kept = abilities.filter((ability) => holding.counts(ability.id))
+  const added = holding
+    .unshown()
+    .filter(({ ability }) => ability !== holding.enhancement)
+    .map(({ ability, name }): Datasheet['abilities'][number] => ({
+      id: `vs:${ability}`,
+      name,
+      description: null,
+      kind: holding.carried.has(ability) ? 'wargear' : 'datasheet',
+      vsDataId: ability,
+    }))
+  return [...kept, ...added]
 }
 
 function weaponAbilitiesInSelectedUnit(context: DatasheetContext, loaded: LoadedCatalogue): GrantedWeaponAbility[] {
@@ -1246,7 +1273,7 @@ function weaponAbilitiesInSelectedUnit(context: DatasheetContext, loaded: Loaded
     }
   }
   for (const { name, facts } of holding?.unshown() ?? [])
-    if (facts.ownWeaponGrant) add({ keyword: facts.ownWeaponGrant.keyword, source: name, profileTypes: facts.ownWeaponGrant.profileTypes })
+    if (facts?.ownWeaponGrant) add({ keyword: facts.ownWeaponGrant.keyword, source: name, profileTypes: facts.ownWeaponGrant.profileTypes })
   return [...found.values()]
 }
 
@@ -1272,7 +1299,7 @@ function weaponAbilitiesInAttachedUnit(context: DatasheetContext, loaded: Loaded
       }
     }
     for (const { name, facts } of holding?.unshown() ?? [])
-      if (facts.ledWeaponGrant)
+      if (facts?.ledWeaponGrant)
         add({ keyword: facts.ledWeaponGrant.keyword, source: name, profileTypes: facts.ledWeaponGrant.profileTypes })
   }
   return [...found.values()]
@@ -1290,7 +1317,7 @@ function invulnerableSavesInSelectedUnit(context: DatasheetContext, loaded: Load
     holding?.counts,
   )
   for (const { ability, name, facts } of holding?.unshown() ?? [])
-    if (facts.invulnerableSave)
+    if (facts?.invulnerableSave)
       saves.push({ value: facts.invulnerableSave, source: name, originIds: [], models: holding!.carriers(ability) })
   return saves
 }
