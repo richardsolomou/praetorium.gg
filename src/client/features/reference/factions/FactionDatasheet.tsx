@@ -44,13 +44,13 @@ import { Blocks, blocksText, RuleSummarySkeleton, RuleSummaryText, Runs, textOf 
 import {
   DatasheetUnit,
   datasheetUnit,
-  unitComposition,
   unitLoadout,
   unitOptions,
   unitTransport,
   useUnitAbilitySummary,
   useVsDataUnit,
 } from '../../../components/UnitFromVsData'
+import { unitComposition } from '../../../../shared/vsDataUnitLines'
 import { InvulnerableSaves, shownSaves } from '../../../components/InvulnerableSaves'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'

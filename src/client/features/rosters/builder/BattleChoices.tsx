@@ -8,11 +8,12 @@ import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { combatantDatasheetQuery, type Fielded } from '../../../queries'
 import { readableRules } from '../../simulator/readableRules'
+import { CombatRuleSummary, type CombatRuleOwners } from '../../simulator/CombatRuleLabel'
 import { HoverTooltip } from '../../../components/HoverTooltip'
-import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
 import { useStableValue } from '../../../useStableValue'
 import { useBattleChoicePicks } from './battleChoicePicks'
+import { unitPicksOf, withUnitPicks } from '../../../../core/battleChoicePicks'
 
 function useCombatantDatasheet({
   enabled,
@@ -71,14 +72,10 @@ export function useBattleChoices({
   )
   const lineUp = picks.map((pick) => pick.entryId).join(',')
   const units = stored.picks.lineUp === lineUp ? stored.picks.units : {}
-  const unitKey = (choice: BattleChoice) => `${pickIndex}:${choice.rule.name}`
+  const unitPick = (choice: BattleChoice) => (pickIndex === null ? undefined : unitPicksOf(units, picks, pickIndex, choice.rule.name))
   const pickOf = (choice: BattleChoice) =>
     // Only the units a player selected for a rule such as Noospheric Transference have the army's pick.
-    choice.selected && !units[unitKey(choice)]?.length
-      ? undefined
-      : choice.armyWide
-        ? stored.picks.army[choice.rule.name]
-        : units[unitKey(choice)]
+    choice.selected && !unitPick(choice)?.length ? undefined : choice.armyWide ? stored.picks.army[choice.rule.name] : unitPick(choice)
   const picked = useStableValue<Record<string, readonly string[]>>(
     Object.fromEntries(choices.flatMap((choice) => (pickOf(choice)?.length ? [[choice.rule.name, pickOf(choice)!]] : []))),
   )
@@ -106,18 +103,21 @@ export function useBattleChoices({
     choose: (rule: string, options: readonly string[]) => {
       const choice = choices.find((candidate) => candidate.rule.name === rule)
       if (!choice) return
-      const next = { army: { ...stored.picks.army }, lineUp, units: { ...units } }
-      const store = (to: Record<string, string[]>, key: string, values: string[]) => {
-        if (values.length) to[key] = values
-        else delete to[key]
+      const army = { ...stored.picks.army }
+      let unitPicks = units
+      const forUnit = (values: string[]) => {
+        if (pickIndex !== null) unitPicks = withUnitPicks(unitPicks, picks, pickIndex, rule, values)
       }
       // Past the limit, the newest pick replaces the oldest, as a new Order replaces the last.
       const kept = options.slice(-choice.limit)
       // Picking an option selects the unit and sets the army's pick; clearing it leaves the pick to the other selected units.
-      if (choice.selected) store(next.units, unitKey(choice), kept.length ? [choice.selected] : [])
-      if (kept.length || !choice.selected)
-        store(choice.armyWide ? next.army : next.units, choice.armyWide ? choice.rule.name : unitKey(choice), kept)
-      stored.save(next)
+      if (choice.selected) forUnit(kept.length ? [choice.selected] : [])
+      if (kept.length || !choice.selected) {
+        if (!choice.armyWide) forUnit(kept)
+        else if (kept.length) army[rule] = kept
+        else delete army[rule]
+      }
+      stored.save({ army, lineUp, units: unitPicks })
     },
     keywordRules,
     sheet,
@@ -129,6 +129,8 @@ type Props = {
   chosen: Readonly<Record<string, readonly string[]>>
   onChoose: (rule: string, options: readonly string[]) => void
   rules: Datasheet['keywordRules']
+  /** Whose records each rule's summary is read from, as the unit's datasheet reads them. */
+  owners: CombatRuleOwners
 }
 
 // Options that share a closing word, as every Doctrina Imperative does, read without it.
@@ -138,13 +140,23 @@ function shortLabels(options: readonly { label: string }[]) {
   return new Map(options.map(({ label }) => [label, shared ? label.split(' ').slice(0, -1).join(' ') : label]))
 }
 
-function RuleName({ rule, rules, className }: { rule: BattleChoice['rule']; rules: Props['rules']; className: string }) {
+function RuleName({
+  rule,
+  rules,
+  owners,
+  className,
+}: {
+  rule: BattleChoice['rule']
+  rules: Props['rules']
+  owners: CombatRuleOwners
+  className: string
+}) {
   return (
     <HoverTooltip
       label={`${rule.name} rules`}
       title={rule.name}
       className={className}
-      body={<RuleText text={rule.description} rules={rules} className="mt-0 text-xs" />}
+      body={<CombatRuleSummary rule={rule} owners={owners} rules={rules} className="mt-0 text-xs" />}
     >
       {rule.name}
     </HoverTooltip>
@@ -154,7 +166,7 @@ function RuleName({ rule, rules, className }: { rule: BattleChoice['rule']; rule
 const smallChip = `${pressedClass} min-h-6 px-1.5 py-0`
 
 /** One line per rule under the unit's characteristics, so a pick shows its change beside them. */
-export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
+export function BattleChoices({ choices, chosen, onChoose, rules, owners }: Props) {
   if (!choices.length) return null
   return (
     <section aria-label="In battle" className="flex flex-col gap-y-1.5">
@@ -162,7 +174,7 @@ export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
         const short = shortLabels(options)
         return (
           <div key={rule.name} className="flex min-w-0 flex-wrap items-center gap-1">
-            <RuleName rule={rule} rules={rules} className="eyebrow mr-0.5 text-left" />
+            <RuleName rule={rule} rules={rules} owners={owners} className="eyebrow mr-0.5 text-left" />
             {together ? (
               <span className="text-xs text-bone">{togetherLabel(together)}</span>
             ) : (

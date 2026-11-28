@@ -141,8 +141,25 @@ export function textRosterLines(roster: TextRoster): string[] {
   ]
 }
 
-/** What an import needs to know of a catalogue faction, as the battle list already names them. */
-export type ImportFaction = { id: string; slug: string; displayName: string; detachments?: readonly { name: string }[] }
+/**
+ * What an import needs to know of a catalogue faction, as the battle list already names them, with the VS Data faction it
+ * plays and each Detachment's VS Data ID where it has them.
+ */
+export type ImportFaction = {
+  id: string
+  slug: string
+  displayName: string
+  vsFaction?: { id: string; name: string } | null
+  detachments?: readonly { name: string; vsId?: string | null }[]
+}
+
+/** The ids BattleBase can file a faction under: its VS Data ID and its VS Data name's, else the catalogue's slugs. */
+const factionKeys = (faction: ImportFaction) =>
+  faction.vsFaction ? [faction.vsFaction.id, routeSlug(faction.vsFaction.name)] : [faction.slug, routeSlug(faction.displayName)]
+
+/** A Detachment's id within its faction, as BattleBase spells it: its VS Data ID's, else its name's. */
+const detachmentKey = (detachment: { name: string; vsId?: string | null }) =>
+  detachment.vsId ? detachment.vsId.slice(detachment.vsId.indexOf('.') + 1) : routeSlug(detachment.name)
 
 const SMALL_WORDS = new Set(['a', 'an', 'and', 'at', 'for', 'in', 'of', 'on', 'or', 'the', 'to'])
 
@@ -161,7 +178,7 @@ export function importFaction(id: string | null | undefined, factions: readonly 
   if (!wanted) return { name: null, faction: null }
   const faction =
     factions
-      .filter((candidate) => candidate.slug === wanted || routeSlug(candidate.displayName) === wanted)
+      .filter((candidate) => factionKeys(candidate).includes(wanted))
       .sort((left, right) => Number(catalogueEditionId(left.id) !== null) - Number(catalogueEditionId(right.id) !== null))[0] ?? null
   return { name: faction?.displayName ?? titled(wanted), faction }
 }
@@ -175,11 +192,11 @@ export function importFaction(id: string | null | undefined, factions: readonly 
 export function importDetachment(id: string, faction: ImportFaction | null, factions: readonly ImportFaction[]) {
   const bare = `-${id.replace(/^detachment-/, '')}-`
   const listed = (faction?.detachments ?? [])
-    .filter((detachment) => bare.includes(`-${routeSlug(detachment.name)}-`))
-    .sort((left, right) => right.name.length - left.name.length)[0]
+    .filter((detachment) => bare.includes(`-${detachmentKey(detachment)}-`))
+    .sort((left, right) => detachmentKey(right).length - detachmentKey(left).length)[0]
   if (listed) return listed.name
   const filedUnder = factions
-    .map((candidate) => `-${candidate.slug}-`)
+    .flatMap((candidate) => factionKeys(candidate).map((key) => `-${key}-`))
     .filter((prefix) => bare.startsWith(prefix) && bare.length > prefix.length)
     .sort((left, right) => right.length - left.length)[0]
   return filedUnder ? titled(bare.slice(filedUnder.length, -1)) : null

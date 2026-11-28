@@ -40,8 +40,11 @@ export type ReferenceSources = {
   rules: () => LoadedRules | null
   /** Where each file a token names lives upstream; without it, withheld words say only that they are withheld. */
   textLocations?: TextLocations | ScannableTextLocations
-  /** Each faction's route and detachments, which file detachments under their pages and say which offer a force disposition. */
-  factions?: readonly (ReferenceFaction & DispositionFaction)[]
+  /**
+   * Each faction's route and detachments, which file detachments under their pages and say which offer a force disposition,
+   * and the VS Data faction it plays, which an agent can name it by.
+   */
+  factions?: readonly (ReferenceFaction & DispositionFaction & { vsFaction?: { id: string; name: string } | null; isDefault?: boolean })[]
   /** The VS Data summaries the pages show, which stand in for the words they withhold. */
   summaries?: VsDataSummaries | null
 }
@@ -59,6 +62,8 @@ export type ReferenceCorpus = {
   revision: string
   /** The summaries its sections show, which its records' data shows the same way. */
   summaries: RuleSummaryFinder
+  /** The factions it was built with, which answer to their VS Data faction's names. */
+  factions?: ReferenceSources['factions']
 }
 
 const NO_LOCATIONS: TextLocations = { files: {}, holds: () => false, recordsHolding: () => [] }
@@ -157,7 +162,14 @@ function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus
         const found = ids.get(`rule:${document.slug}:${entry.anchor}`)
         if (found && !ids.has(`rule:${document.slug}:${former}`)) ids.set(`rule:${document.slug}:${former}`, found)
       }
-  const corpus = { catalogue, documents, byId: ids as ReadonlyMap<string, ReferenceDocument>, revision, summaries: files.summaries }
+  const corpus = {
+    catalogue,
+    documents,
+    byId: ids as ReadonlyMap<string, ReferenceDocument>,
+    revision,
+    summaries: files.summaries,
+    factions: sources.factions,
+  }
   corpora.set(canonical, {
     catalogue: loaded,
     rules,

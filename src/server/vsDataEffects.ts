@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { remember } from '../core/collections'
-import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import { textOfFactsKey, type TextFacts, type TextFactsByKey } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey, vsDataRecordOfBsdata } from '../shared/vsData'
 import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
@@ -81,6 +81,12 @@ export function vsDataTextFacts(
     const [core] = cores
     return cores.size === 1 && core && effects[core] ? core : null
   }
+  // The records a catalogue rule or profile is, on the datasheet it is held within where the frozen map files a profile
+  // several datasheets share under each.
+  const recordsOf = (holder: { id: string; within: readonly string[] }) =>
+    [...holder.within.map((sheet) => vsDataRecordOfBsdata(records, holder.id, sheet)), vsDataRecordOfBsdata(records, holder.id)].flatMap(
+      (key) => (key && RULE_RECORD.test(key) ? [key] : []),
+    )
   const joinOf = (factsKey: string): VsDataJoin => {
     const keys = factsKey.startsWith('+') ? factsKey.slice(1).split('+') : [factsKey]
     const tokens = keys.map((key) => ({ transform: key.slice(0, key.indexOf(':')), hash: key.slice(key.indexOf(':') + 1) }))
@@ -89,25 +95,34 @@ export function vsDataTextFacts(
       : []
     const card = agreed(held)
     if (card) return { record: card, by: 'card' }
-    if (keys.length !== 1) return { record: null, by: held.length ? 'ambiguous' : 'none' }
-    // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it are, on the
-    // datasheet each is held within where the frozen map files a profile several datasheets share under each.
-    const holders = definitions.holders?.(factsKey) ?? []
+    if (keys.length !== 1) {
+      // A text of several parts, as a card printing a catalogue text's paragraphs between its own strings, joins the
+      // record every part joins alone; parts all joining one record by card would have joined it above.
+      const parts = keys.map(join)
+      const [first] = parts
+      if (first?.record && parts.every((part) => part.record === first.record)) return { record: first.record, by: 'id' }
+      return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    }
+    // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it are.
     const within = (candidates: readonly string[]) => (held.length ? candidates.filter((key) => held.includes(key)) : candidates)
-    const byId = within([
-      ...new Set(
-        holders.flatMap((holder) =>
-          [
-            ...holder.within.map((sheet) => vsDataRecordOfBsdata(records, holder.id, sheet)),
-            vsDataRecordOfBsdata(records, holder.id),
-          ].flatMap((key) => (key && RULE_RECORD.test(key) ? [key] : [])),
-        ),
-      ),
-    ])
+    const byId = within([...new Set((definitions.holders?.(factsKey) ?? []).flatMap(recordsOf))])
     const found = agreed(byId) ?? standingIn(byId)
     if (found) return { record: found, by: 'id' }
     return { record: null, by: byId.length || held.length ? 'ambiguous' : 'none' }
   }
+  // Where the rules or profiles holding one text are records that do not agree, as `agreed` reads them, each one's own
+  // record, by its id: the text alone joins none of them, or the one its card is, as the words say nothing of which
+  // datasheet prints them.
+  const ownRecords = new Map<string, ReadonlyMap<string, string> | null>()
+  const ownRecordsOf = (factsKey: string) =>
+    remember(ownRecords, factsKey, () => {
+      const own = (definitions.holders?.(factsKey) ?? []).flatMap((holder) => {
+        const candidates = recordsOf(holder)
+        const record = agreed(candidates) ?? standingIn(candidates)
+        return record && effects[record] ? [[holder.id, record] as const] : []
+      })
+      return new Set(own.map(([, record]) => record)).size > 1 && !agreed(own.map(([, record]) => record)) ? new Map(own) : null
+    })
   const joins = new Map<string, VsDataJoin>()
   const facts = new Map<string, TextFacts>()
   const join = (key: string) => remember(joins, key, () => joinOf(key))
@@ -115,7 +130,8 @@ export function vsDataTextFacts(
     join,
     printed: (key) => (WHOLE_STRING.has(key.slice(0, key.indexOf(':'))) ? (printed.get(key.slice(key.indexOf(':') + 1)) ?? []) : []),
     get: (key) => {
-      const { record } = join(key)
+      const text = textOfFactsKey(key)
+      const record = text === key ? join(key).record : ownRecordsOf(text)?.get(key.slice(text.length + 1))
       // A record without blocks is one VS Data has not read yet.
       if (!record || !effects[record]) return undefined
       const read = named(record, effects[record])

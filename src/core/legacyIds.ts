@@ -66,3 +66,50 @@ export const currentMissionId = legacyIds(rawMissions)
 /** Whether two stored or current mission IDs name the same thing. */
 export const sameMissionId = (left: string | null | undefined, right: string | null | undefined) =>
   left !== null && left !== undefined && right !== null && right !== undefined && currentMissionId(left) === currentMissionId(right)
+
+export type LegacyOptions = z.infer<typeof legacyOptionsSchema>['units']
+type Selections = Record<string, Record<string, number>>
+
+/**
+ * A BSData pick's choices read through its datasheet's entry of the per-choice map, as `legacyOptionsSchema` says: the
+ * VS Data selections they add to the unit's defaults, and the allegiance one takes; null where a key or the base is
+ * unmatched. `firstHeld` is how many of an option a group holds at the datasheet's first fielding.
+ */
+export function legacyOptionSelections(
+  entry: LegacyOptions[string],
+  pick: { choices?: Readonly<Record<string, string>>; spreads?: Readonly<Record<string, Record<string, number>>>; floor?: boolean },
+  firstHeld: (key: string, option: string) => number,
+): { selections: Selections; allegiance?: string } | null {
+  if (entry.base === 'unmatched') return null
+  const selections: Selections = {}
+  let allegiance: string | undefined
+  const add = (parts: Selections, times: number) => {
+    for (const [option, chosen] of Object.entries(parts))
+      for (const [wargear, n] of Object.entries(chosen)) {
+        const into = (selections[option] ??= {})
+        into[wargear] = (into[wargear] ?? 0) + n * times
+      }
+  }
+  add(entry.base?.options ?? {}, 1)
+  const keyed = (key: string, times: number) => {
+    const translation = entry.choices[key]
+    if (!translation) return false
+    if ('options' in translation) add(translation.options, times)
+    else allegiance = translation.allegiance
+    return true
+  }
+  const choices: Record<string, string> = {}
+  const spreads: Record<string, Record<string, number>> = {}
+  for (const [key, value] of Object.entries(pick.floor ? (entry.floor ?? {}) : {}))
+    if (typeof value === 'string') choices[key] = value
+    else spreads[key] = value
+  Object.assign(choices, pick.choices)
+  Object.assign(spreads, pick.spreads)
+  for (const [key, option] of Object.entries(choices)) if (!keyed(`${key}|${option}`, 1)) return null
+  for (const [key, counts] of Object.entries(spreads))
+    for (const [option, n] of Object.entries(counts)) {
+      const times = n - firstHeld(key, option)
+      if (times && !keyed(`${key}|${option}`, times)) return null
+    }
+  return { selections, ...(allegiance ? { allegiance } : {}) }
+}
