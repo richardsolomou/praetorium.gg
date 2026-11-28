@@ -72,13 +72,14 @@ function deviceSource(): ConstructionWorkerSource | null {
   if (typeof Worker === 'undefined' || outdated) return null
   const saved = connected() ? currentReference() : referenceData()
   if (!saved || unavailable.has(saved.download.revision)) return null
-  const { catalogue, rules, editions } = saved.download.construction
+  const { catalogue, rules, vs, editions } = saved.download.construction
   const absolute = (asset: string) => new URL(asset, location.href).href
   return {
     id: saved.download.revision,
     parts: {
       catalogue: absolute(catalogue),
       rules: absolute(rules),
+      ...(vs ? { vs: absolute(vs) } : {}),
       editions: Object.fromEntries(Object.entries(editions).map(([id, asset]) => [id, absolute(asset)])),
     },
   }

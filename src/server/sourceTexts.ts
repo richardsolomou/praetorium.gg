@@ -32,7 +32,8 @@ export function sourceTexts(upstream: string): SourceTexts {
   return (raw, transform) => textToken({ file, transform, hash: textHash(raw) })
 }
 
-export const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
+// Encoded from the digest's leading bytes rather than sliced from its hex, which would keep the whole hex string alive.
+export const textHash = (raw: string) => hash('sha256', raw, 'buffer').toString('hex', 0, TEXT_HASH_LENGTH / 2)
 
 /** Values read between pauses in a resumable scan of a source file. */
 const SCAN_STEP = 256
@@ -269,12 +270,11 @@ export function* textRecordsSteps(file: string): Steps<ReadonlyMap<string, reado
     const holder = own ?? record
     for (const entry of Array.isArray(value) ? value : Object.values(value)) {
       if (typeof entry === 'string' && holder) {
-        const holding = remember(
-          records,
-          remember(hashes, entry, () => textHash(entry)),
-          () => [],
-        )
-        if (!holding.includes(holder)) holding.push(holder)
+        const key = remember(hashes, entry, () => textHash(entry))
+        const holding = records.get(key)
+        // Most strings have one holder, and an array grown from empty reserves room for seventeen.
+        if (!holding) records.set(key, [holder])
+        else if (!holding.includes(holder)) holding.push(holder)
       } else if (entry && typeof entry === 'object') yield* visit(entry as object, holder)
       if (++scanned % SCAN_STEP === 0) yield
     }
