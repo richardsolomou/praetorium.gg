@@ -292,12 +292,15 @@ describe("VS Data's typed transport capacity", () => {
 
   it('keeps the load wargear gives a transport where VS Data records none', () => {
     const printed = printedTransport(
-      'This model has a transport capacity of 11 TAU INFANTRY models. If this model is equipped with a Tidewall defence platform, it has a transport capacity of 22 TAU INFANTRY models instead.',
+      'This model has a transport capacity of 11 T’AU EMPIRE INFANTRY models. If this model is equipped with a Tidewall defence platform, it has a transport capacity of 22 T’AU INFANTRY models instead.',
     )
-    const shieldline = withPrintedWargear(vsTransport({ loads: [[{ limit: 11, count: 'models', selectors: ['TAU INFANTRY'] }]] })!, printed)
+    const shieldline = withPrintedWargear(
+      vsTransport({ loads: [[{ limit: 11, count: 'models', selectors: ['T’AU EMPIRE INFANTRY'] }]] })!,
+      printed,
+    )
     expect(
-      transportLoad(transportRule(shieldline, [{ name: 'Tidewall defence platform', count: 1 }])!, [
-        { name: 'Strike Team', alive: 20, keywords: ['Tau', 'Infantry'] },
+      transportLoad(transportRule(shieldline, [{ name: 'Tidewall Defence Platform', count: 1 }])!, [
+        { name: 'Strike Team', alive: 20, keywords: ["Faction: T'au Empire", 'Infantry'] },
       ]),
     ).toMatchObject([{ used: 20 }])
   })
