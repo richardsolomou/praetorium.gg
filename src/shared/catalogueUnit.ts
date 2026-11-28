@@ -118,7 +118,7 @@ function vsFirstPrices(
   const units = Array.from({ length: Math.max(...copies) }, () => ({ entryId, vs }))
   const prices = vsPickPrices(loaded, { catalogueId, detachmentIds, limit: 0 }, units)
   const found = copies.map((copy) => prices.get(copy - 1))
-  return found.every((price) => price !== undefined) ? (found as number[]) : null
+  return found.every((price): price is number => price !== undefined) ? found : null
 }
 
 /** The Detachment options a list's roster selections hold. */

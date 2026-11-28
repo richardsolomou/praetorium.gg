@@ -686,7 +686,7 @@ it('prices a datasheet whose models are all optional from the unit it lists', ()
 it('lists a datasheet the builder adds by VS Data at what its first pick costs, its printed wargear included', () => {
   const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
   const tank = 'astra-militarum.leman-russ-battle-tank'
-  const loaded = {
+  const tankBook = {
     ...bookOf({ selectionEntries: [{ id: 'russ', name: 'Leman Russ Battle Tank', type: 'unit', costs: points(160) }] }),
     vsRoster: vsRosterData(
       {
@@ -727,5 +727,5 @@ it('lists a datasheet the builder adds by VS Data at what its first pick costs, 
     ),
   }
 
-  expect(priceOf(loaded, 'cat', 'russ')).toBe(165)
+  expect(priceOf(tankBook, 'cat', 'russ')).toBe(165)
 })
