@@ -2,7 +2,6 @@ import type { EvaluationError } from '../core/evaluate'
 import { groupBy } from '../core/collections'
 import { enforces, formatDatasheetLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { KOTC_ENHANCEMENTS } from '../core/battleFormat'
-import { type FactionRestrictions, restrictedBy } from './datacards'
 
 type KotcUnit = {
   entryId: string
@@ -10,21 +9,6 @@ type KotcUnit = {
   keywords: readonly string[]
   toughness: number | null
   warlord: boolean
-}
-
-export function factionRestrictionViolations(restrictions: FactionRestrictions | undefined, units: readonly KotcUnit[]) {
-  if (!restrictions) return []
-  return units.flatMap((unit) => {
-    const restricted = restrictedBy(restrictions, unit.name, unit.keywords)
-    if (!restricted) return []
-    return [
-      {
-        entryId: unit.entryId,
-        entryName: unit.name,
-        message: `is not allowed in this faction${restricted.keyword ? ` (${restricted.keyword})` : ''}`,
-      },
-    ]
-  })
 }
 
 /** What is wrong with how many Warlords an army names: the core rules ask for exactly one. */
