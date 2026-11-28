@@ -10,6 +10,7 @@ import {
 import { combatReadingFor } from '../../../core/combatReading'
 import type { LoadoutUnit } from '../rosters/builder/loadoutModel'
 import { CombatRuleLabel } from './CombatRuleLabel'
+import { datasheetUnit } from '../../components/UnitFromVsData'
 import { Choice, Toggle } from './CombatControls'
 import type { Combatant } from './useCombatant'
 import { Problem } from '../../components/Problem'
@@ -48,6 +49,10 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
         : []
     })
   })
+  // A rule reads its records as the datasheet holding it does: a leader's own rule as the leader's, the rest as the bodyguard's.
+  const holderOf = (rule: CombatRule) => members.find(({ sheet }) => sheet?.name === rule.source) ?? members[0]
+  const unitOf = (holder: (typeof members)[number] | undefined) =>
+    holder?.sheet ? datasheetUnit(combatant.picks.positioned[holder.index]?.catalogueId ?? combatant.catalogueId, holder.sheet.id) : null
   const rules = combatant.allRules
     .filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
     .map((rule) => ({
@@ -102,11 +107,13 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
               <h4 className="eyebrow text-faint">{title}</h4>
               {group.map(({ rule, choices }) => {
                 const selected = combatant.ruleSelections[rule.id] ?? combatRuleDefault(rule)
+                const holder = holderOf(rule)
                 const labelContent = (
                   <CombatRuleLabel
                     side={side}
-                    name={rule.name}
-                    description={rule.description}
+                    rule={rule}
+                    unit={unitOf(holder)}
+                    owners={{ abilities: holder?.sheet?.abilities ?? [] }}
                     rules={combatant.sheets.data?.selected?.keywordRules}
                   />
                 )

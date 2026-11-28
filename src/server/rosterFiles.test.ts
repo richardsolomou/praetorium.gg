@@ -3418,4 +3418,10 @@ describe('groupHosts', () => {
       ),
     ).toBe('intercessors')
   })
+
+  it('is held on the model a VS pick names', () => {
+    const units = [{ toggles: { crown: 0 }, vs: { models: {}, options: {} } }]
+    assumeWarlord(units, undefined, () => 'captain')
+    expect(units[0]!.vs).toEqual({ models: {}, options: {}, warlord: 'captain' })
+  })
 })

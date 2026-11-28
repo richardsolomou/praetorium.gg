@@ -1,7 +1,7 @@
 import { app } from './app'
 import { battlebaseBattlePage, battlebaseBattles, battlebaseCode, battlebasePlayer } from './battlebase'
 import { battlebaseNames } from './battlebaseData'
-import { battlebaseContext } from './battlebaseImport'
+import { battlebaseContext, importFactions } from './battlebaseImport'
 import { inTurn } from './rpc'
 
 export async function linkedBattlebaseAccount(userId: string) {
@@ -36,9 +36,10 @@ export async function importBattlebaseHistory(userId: string, username?: string,
     ? await instance.repository.linkExternalAccount({ source: 'battlebase', playerId: player.id, userId, name: player.username })
     : 0
   const nextCursor = page && battles.length === ASSISTANT_IMPORT_PAGE ? battles.at(-1)!.id : null
+  const read = importFactions(factions, loaded)
   const outcomes = inTurn(battles, async (battle) =>
     instance.service.importBattlebaseBattle(userId, player.id, battle, (parsed) =>
-      battlebaseContext(parsed, { loaded, rules, factions, names }),
+      battlebaseContext(parsed, { loaded, rules, factions: read, names }),
     ),
   )
   // Each battle streams its outcome as it comes in; the totals follow the last.

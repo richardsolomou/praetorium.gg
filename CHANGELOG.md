@@ -1,5 +1,33 @@
 # praetorium
 
+## 0.280.20 (2026-11-28)
+
+### Patch Changes
+
+- 3f8f525: [battles] Hovering a unit's or Detachment's in-battle rule, such as Martial Ka'tah beside its stances, shows its summary as the datasheet does.
+- 9028872: [battles] Units can embark in an Orion Assault Dropship: 12 Adeptus Custodes Infantry, or a Dreadnought and 6 Adeptus Custodes Infantry.
+- 3f8f525: [simulator] Hovering a unit's own ability or its army rule in the simulator shows the same summary as its datasheet.
+- 9028872: [battles] A Tidewall Shieldline carries up to 22 T'au Empire Infantry models while its Tidewall Defence Platform stands.
+
+## 0.280.19 (2026-11-28)
+
+### Patch Changes
+
+- d04f5e2: [rosters] Archiving a list while a data update is arriving no longer sends you a points notification for it.
+- 1004a77: [battles] Battles imported from BattleBase find the Dêlve Assault Shift, Needgaârd Oathband, Haloscreed Battleclade and Brood Brother Auxilia Detachments by the spellings BattleBase uses, rather than adding a second Detachment named after its own id.
+- 919e7ef: [rosters] An imported list brings in each unit the builder adds from VS Data the same way, so its loadout edits like a unit you added yourself, at the same points and wargear.
+
+## 0.280.18 (2026-11-28)
+
+### Patch Changes
+
+- 984750f: [rosters] The roster setup dialog shows every detachment at once instead of in its own scrolling box.
+- 984750f: [rosters] Detachments you can't take now stay in the list, greyed out in place, instead of disappearing, and tapping one says why.
+- bcd3855: [assistant] Every assistant tool that takes a faction also accepts its keyword name, such as Asuryani for Aeldari or Legiones Daemonica for Chaos Daemons.
+- bcd3855: [rosters] An imported list whose units name its chapter or army, as a Dark Angels list stated as Space Marines, now comes in as that chapter or army more often.
+- 984750f: [rosters] The roster setup dialog no longer repeats what's missing beside its Create button.
+- 984750f: [rosters] The roster setup dialog labels the Points limit box beside the battle size.
+
 ## 0.280.17 (2026-11-28)
 
 ### Patch Changes

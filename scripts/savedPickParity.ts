@@ -13,9 +13,9 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/prici
 import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { type SavedList, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
-import { catalogueUnitErrors, leaves, legacyIds, specialOf, vsKnownWargear, vsWargear } from './lib/vsDataRosters'
+import { catalogueUnitErrors, legacyIds, specialOf } from './lib/vsDataRosters'
 import { same } from '../src/shared/vsDataModelNames'
-import { vsSpelling } from '../src/shared/wargearSpellings'
+import { leaves, vsKnownWargear, vsSpelling, vsWargear } from '../src/shared/wargearSpellings'
 
 /**
  * The saved-pick gate, report-only: every list and unit loadout in a local production copy priced and checked as Praetorium does today

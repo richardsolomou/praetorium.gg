@@ -13,6 +13,8 @@ import { fetchWithRetry } from './fetch'
 import { replaceFile } from './replaceFile'
 import { miniHeadquartersEvents } from './miniHeadquartersLists'
 import { importedRosterDraft, importRosterInput } from './rosterImport'
+import type { RosterPick } from '../core/roster'
+import { vsWarlordOf } from '../shared/importedVsPicks'
 import { assumeWarlord } from '../shared/rosterFiles'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
@@ -124,7 +126,11 @@ async function importWinningList(text: string) {
   const disposition = 'disposition' in result ? (result.disposition ?? null) : null
   const roster = { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, disposition, limit, units: result.units }
   const price = () => calculateRosterPrice(roster, imported.loaded, imported.rules)
-  assumeWarlord(result.units, () => price()?.errors.length ?? Number.POSITIVE_INFINITY)
+  assumeWarlord<RosterPick>(
+    result.units,
+    () => price()?.errors.length ?? Number.POSITIVE_INFINITY,
+    (pick) => (imported.loaded ? vsWarlordOf(imported.loaded, roster.catalogueId, pick.entryId) : undefined),
+  )
   const priced = price()
   if (!priced) return null
   const verdict: NonNullable<Verdict> = {
