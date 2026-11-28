@@ -456,7 +456,8 @@ function rosterCombatRules(
     for (const option of options) {
       // A card's words are withheld as tokens; where a rules version records nothing for them, the catalogue's own copy of
       // the same rule, where it has one, records what they decide.
-      const catalogued = () => detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? []
+      let copies: NonNullable<ReturnType<typeof detachmentCatalogueDetail>>['rules'] | undefined
+      const catalogued = () => (copies ??= detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? [])
       for (const rule of detachmentReference(loaded, rules, data.catalogueId, routeSlug(option.name))?.rules ?? []) {
         const unrecorded = rule.description && hasTextTokens(rule.description) && recordedCombat(rule.description) === undefined
         const judgeable = unrecorded
