@@ -44,7 +44,7 @@ import {
 } from '../core/battle'
 import { catalogueFactionName, factionDisplayName, vsFactionOf } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
-import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
+import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
   attachmentReason,
@@ -182,8 +182,8 @@ export function importRosterCatalogueId(file: string) {
   return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
-/** What a text's faction is matched against: a book's catalogue name, and the VS Data faction it plays where it has one. */
-export type ImportFactionNames = { name: string; vsFaction?: { name: string } | null }
+/** What a text's faction is matched against: a book's frozen BSData names, and the VS Data faction it plays where it has one. */
+export type ImportFactionNames = { bookNames: readonly string[]; vsFaction?: { name: string } | null }
 
 /**
  * Whether a text's faction names this book: any name of the VS Data faction it plays, as "Heretic Astartes" and "Chaos Space
@@ -192,7 +192,7 @@ export type ImportFactionNames = { name: string; vsFaction?: { name: string } | 
  * still read too, as does a book whose VS Data faction is its parent's, as an earlier rules version's Salamanders book.
  */
 export function matchesImportFaction(stated: string, book: ImportFactionNames, translations: CatalogueTranslations = NO_TRANSLATIONS) {
-  if (matchesCatalogueName(stated, book.name, translations)) return true
+  if (book.bookNames.some((name) => matchesBookName(stated, name, translations))) return true
   if (!book.vsFaction) return false
   const wanted = new Set([stated, stated.split(' - ').at(-1)!].map(unaccented))
   // A faction's names are grouped together in the translations, and the community's translate each of them.
@@ -201,7 +201,7 @@ export function matchesImportFaction(stated: string, book: ImportFactionNames, t
     .some((name) => wanted.has(unaccented(name)))
 }
 
-function matchesCatalogueName(stated: string, name: string, translations: CatalogueTranslations) {
+function matchesBookName(stated: string, name: string, translations: CatalogueTranslations) {
   const wanted = new Set([stated, catalogueFactionName(stated)].map(unaccented))
   const leaf = name.split(' - ').at(-1) ?? ''
   return [...translationsOf(name, translations), ...translationsOf(leaf, translations)].some((candidate) =>
@@ -217,7 +217,7 @@ export const UNSUPPORTED_ARMY_TEXT = 'it is not a supported army-text export'
 export function importRosterFile(
   data: ImportRosterInput,
   loaded: LoadedCatalogue | null,
-  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  factionNames?: readonly string[],
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
@@ -246,7 +246,7 @@ export function matchParsedRoster(
   parsed: TextRoster,
   loaded: LoadedCatalogue | null,
   {
-    factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+    factionNames,
     translations = NO_TRANSLATIONS,
     removed = NO_REMOVALS,
     names = NO_IMPORT_NAMES,
@@ -269,7 +269,7 @@ export function importParsedRoster(
   parsed: TextRoster,
   format: RosterTextFormat,
   loaded: LoadedCatalogue | null,
-  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  factionNames?: readonly string[],
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
@@ -457,12 +457,19 @@ export function groupHosts<T>(members: readonly T[], joins: (member: T, host: T)
 
 const onlyOne = <T>(found: readonly T[]) => (found.length === 1 ? found[0] : undefined)
 
-function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[], spellings: Spellings) {
+function importTextRoster(
+  parsed: TextRoster,
+  loaded: LoadedCatalogue | null,
+  offeredNames: readonly string[] | undefined,
+  spellings: Spellings,
+) {
   const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
   const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
+  const bookNames = (book: LoadedCatalogue['factions'][number]) => frozenBookNames(appNames.bookNames, book.id, () => [book.name])
+  const factionNames = offeredNames ?? loaded?.factions.flatMap((book) => bookNames(book).slice(0, 1)) ?? []
   const stated = loaded?.factions.find((candidate) =>
-    matchesImportFaction(parsed.faction, { name: candidate.name, vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
+    matchesImportFaction(parsed.faction, { bookNames: bookNames(candidate), vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
   )
   // A list can state a chapter's parent faction, whose units then name the chapter.
   const names = parsed.units.map((unit) => unit.name)
@@ -542,7 +549,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
   // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
   // A list can also name it after its faction, as 40k.app's "Chaos Warhound Titan" is a Chaos army's "Warhound Titan".
-  const factionWords = new Set(normalized(faction.name).split(/[\s-]+/))
+  const factionWords = new Set(bookNames(faction).flatMap((name) => normalized(name).split(/[\s-]+/)))
   const spelled = (name: string) => name.replaceAll('defence', 'defense')
   // A retired datasheet can keep the current one's name, hidden until it moves to Legends, as the 200-point Marneus Calgar does.
   const shownFirst = (matches: typeof datasheets) =>
@@ -665,7 +672,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   return {
     name: title,
     catalogueId: faction.id,
-    catalogueName: faction.name,
+    catalogueName: bookNames(faction)[0] ?? null,
     detachmentIds,
     disposition,
     limit,

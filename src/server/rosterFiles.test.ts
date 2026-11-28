@@ -1827,7 +1827,7 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
         },
       },
       { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
-      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map() },
+      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map(), bookNames: new Map() },
     )
     const imported = importRosterFile(
       {
@@ -2977,7 +2977,7 @@ describe('import faction names', () => {
     ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
     ['Imperial Agents', 'Imperium - Agents of the Imperium'],
   ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
-    expect(matchesImportFaction(keyword, { name: catalogue })).toBe(true)
+    expect(matchesImportFaction(keyword, { bookNames: [catalogue] })).toBe(true)
   })
 
   it.each(['Chaos Daemons', 'Chaos - Chaos Daemons', 'Daemons du Chaos'])(
@@ -2987,7 +2987,9 @@ describe('import faction names', () => {
         ['Legiones Daemonica', ['Chaos Daemons']],
         ['Chaos Daemons', ['Legiones Daemonica', 'Daemons du Chaos']],
       ])
-      expect(matchesImportFaction(stated, { name: 'Chaos - Daemons', vsFaction: { name: 'Legiones Daemonica' } }, translations)).toBe(true)
+      expect(
+        matchesImportFaction(stated, { bookNames: ['Chaos - Daemons'], vsFaction: { name: 'Legiones Daemonica' } }, translations),
+      ).toBe(true)
     },
   )
 })

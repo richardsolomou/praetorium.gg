@@ -10,6 +10,7 @@ const darkAngels: NonNullable<Awaited<ReturnType<typeof faction>>> = {
   baseCatalogueId: 'dark-angels-book',
   displayName: 'Dark Angels',
   name: 'Dark Angels',
+  bookNames: [],
   vsFaction: null,
   icon: null,
   edition: null,
