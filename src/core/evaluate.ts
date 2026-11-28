@@ -582,10 +582,11 @@ function heldBy(member: Node, grants: Map<Node, Map<string, boolean>>): Set<stri
 
 /**
  * Picks VS Data checks, and those of them it prices: their selections stay in the tree, so every other pick's conditions
- * still count them, but none of their nodes reports a limit, nor costs points where VS Data prices the pick. With
- * `ownLimits`, each pick's own entry still reports its roster limits and errors, for a list VS Data cannot place.
+ * still count them, but none of their nodes reports a limit, nor costs points where VS Data prices the pick. A pick in
+ * `ownLimits` still has its own entry report its roster limits and errors: one in a list VS Data cannot place, or one
+ * VS Data's limits cannot hold.
  */
-export type VsPicks = { checked: ReadonlySet<Selection>; priced: ReadonlySet<Selection>; ownLimits?: boolean }
+export type VsPicks = { checked: ReadonlySet<Selection>; priced: ReadonlySet<Selection>; ownLimits?: ReadonlySet<Selection> }
 
 /** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
 export function evaluateForces(
@@ -604,7 +605,7 @@ export function evaluateForces(
     const checked = vsPicks.checked.has(unit.selection)
     for (const node of priced || checked ? descendants(unit) : []) {
       if (priced) unpriced.add(node)
-      if (checked && (node !== unit || !vsPicks.ownLimits)) unchecked.add(node)
+      if (checked && (node !== unit || !vsPicks.ownLimits?.has(unit.selection))) unchecked.add(node)
     }
   }
   // Read up front rather than on the first question about a keyword, so a list that

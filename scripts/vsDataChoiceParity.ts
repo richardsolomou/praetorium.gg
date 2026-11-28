@@ -256,7 +256,7 @@ const NATIVE_FILE = path.join(import.meta.dirname, '../src/shared/vsNativeUnits.
 const bookOf = (catalogueId: string) => ids.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
 // A datasheet is compared in its own book's catalogue where one lists it, as an ally's Detachments are not the roster's.
 const listing = new Map<string, string>()
-// Legends and Crucible datasheets stay with the catalogue's checks (`vsDataChecks`), so the builder adds them from BSData.
+// Legends and Crucible datasheets are built from BSData, as most stay with the catalogue's checks (`vsDataChecks`).
 const matchedPlay = new Set(loaded.factions.flatMap((faction) => unitIdsIn(loaded, faction.id).flatMap((id) => mapped.get(id) ?? [])))
 for (const faction of loaded.factions) {
   const book = bookOf(faction.id)

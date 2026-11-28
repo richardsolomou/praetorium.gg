@@ -348,12 +348,13 @@ export function vsDataIndex(entries: Readonly<Record<string, readonly string[]>>
  * profile several datasheets carry is a different record on each, from the frozen map, else by VS Data's `bsdata.*`
  * alias of it, whose dots stand for the id's dashes.
  */
-export type BsdataRecords = { byId: Readonly<Record<string, string>>; bySheet: Readonly<Record<string, string>> }
+/** `bySheet` holds a pair frozen as having no record as null, which the id's alias must not stand in for. */
+export type BsdataRecords = { byId: Readonly<Record<string, string>>; bySheet: Readonly<Record<string, string | null>> }
 
 /** A rules version's `BsdataRecords`: its release's identity entries and the frozen map, read as `idsIn` reads one. */
 export function bsdataRecords(
   entries: Readonly<Record<string, readonly string[]>>,
-  frozen: Readonly<Record<string, string>>,
+  frozen: Readonly<Record<string, string | null>>,
   edition: string | null,
 ): BsdataRecords {
   const byId: Record<string, string> = {}
@@ -363,8 +364,10 @@ export function bsdataRecords(
 }
 
 /** The record a BSData id is, on the datasheet `sheet` where it is one. */
-export const vsDataRecordOfBsdata = (records: BsdataRecords, id: string, sheet?: string): string | undefined =>
-  (sheet ? records.bySheet[`${sheet}/${id}`] : undefined) ?? records.byId[id]
+export function vsDataRecordOfBsdata(records: BsdataRecords, id: string, sheet?: string): string | undefined {
+  const held = sheet ? records.bySheet[`${sheet}/${id}`] : undefined
+  return held === undefined ? records.byId[id] : (held ?? undefined)
+}
 
 /** The kinds of Game Datacards record VS Data summarizes, as the coverage report counts them. */
 export type GdcRuleKind =

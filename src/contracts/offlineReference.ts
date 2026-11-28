@@ -56,19 +56,22 @@ export type OfflineConstructionData = OfflineConstructionSource & {
   shared?: true
   editions?: (OfflineConstructionSource | OfflineConstructionBase)[]
 }
-/** The current rules' construction data apart from its rules, which battles read alone. */
+/** The current rules' construction data apart from its rules, which battles read alone, and from VS Data's, its own part. */
 export type OfflineConstructionCatalogue = Omit<OfflineConstructionSource, 'rules'> & { editions: OfflineConstructionBase[] }
+/** The current rules' VS Data construction data, apart so neither it nor the catalogue's nears a part's limit. */
+export type OfflineConstructionVs = Pick<OfflineConstructionSource, 'vsRoster' | 'vsPoints' | 'vsProfiles'>
 export type OfflineConstructionRules = Pick<OfflineConstructionSource, 'revision' | 'rules'>
 
 /**
  * The published download as separate gzip JSON parts, so a device stores them compressed and decodes only the parts a
  * page reads. Reference queries outside the core are in `parts` by `referencePart`; construction data has the current
- * rules' catalogue and rules apart, and each other rules version on its own, sharing the current rules' data.
+ * rules' catalogue, rules and VS Data apart, and each other rules version on its own, sharing the current rules' data. A
+ * download published before VS Data had its own part keeps it in the catalogue's.
  */
 export type OfflineReferenceVersion = {
   revision: string
   reference: { core: string; search: string; parts: Record<string, string> }
-  construction: { catalogue: string; rules: string; editions: Record<string, string> }
+  construction: { catalogue: string; rules: string; vs?: string; editions: Record<string, string> }
 }
 export type OfflineAppVersion = { revision: string; css: string; script: string }
 
@@ -126,6 +129,7 @@ export function referenceAssets(version: OfflineReferenceVersion) {
     ...Object.values(version.reference.parts),
     version.construction.catalogue,
     version.construction.rules,
+    ...(version.construction.vs ? [version.construction.vs] : []),
     ...Object.values(version.construction.editions),
   ]
 }

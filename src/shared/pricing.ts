@@ -61,8 +61,9 @@ import { deploymentRules } from './rosterDeployment'
 import {
   vsDataChecks,
   vsDataEnhancementOptions,
-  vsDataErrors,
+  vsDataCheck,
   vsDataAllyLimited,
+  vsDataUnheld,
   vsDataPlaces,
   vsDataWithoutDetachments,
   vsPickErrors,
@@ -260,13 +261,13 @@ const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUn
 function vsPicksOf(
   picked: readonly { key: number; selection: Selection; vs?: unknown }[],
   vsPrices: ReadonlyMap<number, number>,
-  ownLimits: boolean,
+  ownLimits: (unit: { key: number }) => boolean,
 ) {
   const vs = picked.filter((unit) => unit.vs)
   return {
     checked: new Set(vs.map((unit) => unit.selection)),
     priced: new Set(vs.flatMap((unit) => (vsPrices.has(unit.key) ? [unit.selection] : []))),
-    ownLimits,
+    ownLimits: new Set(vs.flatMap((unit) => (ownLimits(unit) ? [unit.selection] : []))),
   }
 }
 
@@ -460,7 +461,12 @@ export function calculateRosterTotals(
   const { picked, forceSelections, vsPrices } = rosterForces(loaded, data, detachmentSelection, sharedBuiltUnitsFor(loaded))
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
-  const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId }, vsPicksOf(picked, vsPrices, false))
+  const evaluated = evaluateForces(
+    forces,
+    loaded.index,
+    { primaryCatalogueId: data.catalogueId },
+    vsPicksOf(picked, vsPrices, () => false),
+  )
   const pointsBySelection = selectionPointsOf(forces, evaluated)
   const adjustment = adjustUnitPoints(loaded, data, picked, vsPrices, pointsBySelection)
   return {
@@ -699,12 +705,24 @@ function calculateRoster(
   // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
   // limits then stand only for the datasheets VS Data leaves to it.
   const placed = vsDataPlaces(loaded.vsRoster, data)
-  const whole = evaluateForces(forces, loaded.index, options, vsPicksOf(picked, vsPrices, !placed))
+  // A unit VS Data's own limits cannot hold keeps the catalogue's, as two Emperor's Champions.
+  const unheld = vsDataUnheld(
+    loaded.vsRoster,
+    data,
+    picked.map((unit) => ({ ...unit, vs: unit.vs?.unit })),
+  )
+  const whole = evaluateForces(
+    forces,
+    loaded.index,
+    options,
+    vsPicksOf(picked, vsPrices, (unit) => !placed || unheld.has(unit.key)),
+  )
   const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
   // VS Data's ally points limits count what each unit costs the list.
   const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: selectionPoints.get(unit.selection) ?? 0 }))
-  const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
+  const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
+  const vsData = vsChecked?.errors ?? null
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
   // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
   // the catalogue's total counts every unit.
@@ -788,7 +806,9 @@ function calculateRoster(
    */
   const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
-  const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
+  const leftToCatalogue = new Set(
+    picked.filter((unit) => unheld.has(unit.key) || !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name),
+  )
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
   // What VS Data's checker says instead: a datasheet's own copy limit, a keyword's roster limit (a limit on the category
   // itself, not one a unit puts on its models through it) other than one only datasheets left to the catalogue meet, and
@@ -797,7 +817,7 @@ function calculateRoster(
   const vsCopyLimits = new Set(vsData?.filter((error) => error.message.startsWith('is limited to')).map((error) => error.entryId))
   const copyLimited = new Set(
     picked.flatMap((unit) => {
-      if (!vsCopyLimits.has(unit.entryId)) return []
+      if (!vsCopyLimits.has(unit.entryId) || unheld.has(unit.key)) return []
       const definition = loaded.index.definitions.get(unit.entryId)
       return [unit.entryId, ...(definition ? [targetOf(definition, loaded.index.definitions).id] : [])]
     }),
@@ -915,7 +935,7 @@ function calculateRoster(
     unitLimits: data.includeUnitLimits
       ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
           id,
-          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections, vsChecked),
           vs: vsFirstPickOf(loaded, data, id),
         }))
       : undefined,

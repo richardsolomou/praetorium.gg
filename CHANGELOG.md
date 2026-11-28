@@ -1,5 +1,24 @@
 # praetorium
 
+## 0.280.25 (2026-11-28)
+
+### Patch Changes
+
+- 338e411: [rosters] A Deathwatch list is no longer offered the Legends and Crucible Agents of the Imperium copies of its kill teams, which its Agents allies leave out.
+- 2626b99: [rosters] Wolf Guard Headtakers show their Storm Shield's rule summary.
+- 147f75c: [rosters] When an imported list names a datasheet its army doesn't have, the warning names the army that has it in more cases, including datasheets spelled as the official app spells them.
+- 196c7ab: [rosters] The unit picker limits allied Agents of the Imperium by kind, as many Characters, Retinue units and Requisitioned units as the battle size allows, and says which Inquisitor or Voidfarers Character lets you add more Inquisitorial Agents or Voidsmen-at-Arms.
+- 196c7ab: [rosters] Allied Chaos Daemons in a Chaos Space Marines or Chaos Knights army can be added again, limited only by their points.
+- 196c7ab: [rosters] A unit that becomes Battleline in a Detachment, such as Outrider Squads in Darkflight Pursuit or Gretchin in Runt Swarm, can be taken six times there.
+- 196c7ab: [rosters] Ghosts of the Webway and Serpent's Brood lists can take up to three Death Jesters, Shadowseers and Troupe Masters.
+- 196c7ab: [rosters] At Incursion every unit is limited to two copies, Crucible characters and squads such as Paladins included.
+- 196c7ab: [rosters] Legends Epic Heroes such as Chaplain Kastiel are limited to one per army.
+- 196c7ab: [rosters] The Silent King is limited to one per army.
+- 196c7ab: [rosters] Titan armies can hold up to three of each Titan, like any other unit at that battle size.
+- 196c7ab: [rosters] Victrix Honour Guard are limited to one unit per army, as their Chapter Ancient and Chapter Champion are Epic Heroes.
+- 196c7ab: [rosters] Yvraine, the Visarch and the Yncarne join an Aeldari army only with the Devoted of Ynnead Detachment.
+- 76d71da: [rosters] Wulfen with Storm Shields no longer show another unit's Storm Shield rule; their 4+ invulnerable save is on their profile.
+
 ## 0.280.24 (2026-11-28)
 
 ### Patch Changes

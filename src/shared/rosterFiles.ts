@@ -615,7 +615,7 @@ function importTextRoster(
         ? variants[0]!
         : { entryId: guessed ?? null, unit: listed }
     if (!entryId) {
-      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded, removed) })
+      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded, removed, appNames) })
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
