@@ -877,6 +877,7 @@ const withVsEnhancements: LoadedCatalogue = {
       'necrons.skyshroud-spearhead/veil': 'necrons.skyshroud-spearhead.veil-of-darkness',
       'necrons.pantheon-of-woe/relic': 'necrons.pantheon-of-woe.demanding-leadership',
     },
+    attachments: {},
   },
 }
 
