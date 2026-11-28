@@ -15,6 +15,7 @@ import {
   type OfflineConstructionCatalogue,
   type OfflineConstructionData,
   type OfflineConstructionRules,
+  type OfflineConstructionVs,
   type OfflineConstructionSource,
   type OfflineReferenceVersion,
   type DownloadedTextFacts,
@@ -33,13 +34,14 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     ? textFactsByKey(unpackRuntimeData<DownloadedTextFacts | ReadonlyMap<string, TextFacts>>(saved.definitionFacts))
     : undefined
   const vsProfiles = saved.vsProfiles ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsProfiles']>>(saved.vsProfiles) : undefined
+  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
+  // A download saved before roster definitions carried attachments has none, and its lists read the catalogue's alone.
   const index = {
     ...buildIndex(files, saved.revision, {
       get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
     }),
-    ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+    ...(vsRoster?.attachments ? { attachments: vsRoster.attachments } : {}),
   }
-  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
   const catalogue = {
     ...catalogueFromIndex(index, files, datacards, vsRoster),
     ...(saved.keywords ? { keywords: saved.keywords } : {}),
@@ -102,12 +104,13 @@ export async function loadConstructionData(
   catalogueId: string | undefined,
   read: (asset: string, limit: number) => Promise<unknown>,
 ): Promise<OfflineConstructionData> {
-  const [catalogue, { rules }] = (await Promise.all([
+  const [catalogue, { rules }, vs] = (await Promise.all([
     read(parts.catalogue, MAX_CONSTRUCTION_PART_BYTES),
     read(parts.rules, MAX_REFERENCE_PART_BYTES),
-  ])) as [OfflineConstructionCatalogue, OfflineConstructionRules]
+    parts.vs ? read(parts.vs, MAX_CONSTRUCTION_PART_BYTES) : {},
+  ])) as [OfflineConstructionCatalogue, OfflineConstructionRules, OfflineConstructionVs]
   let data = assembled.get(catalogue)
-  if (!data) assembled.set(catalogue, (data = { ...catalogue, rules, shared: true, editions: [...catalogue.editions] }))
+  if (!data) assembled.set(catalogue, (data = { ...catalogue, ...vs, rules, shared: true, editions: [...catalogue.editions] }))
   const edition = catalogueId ? catalogueEditionId(catalogueId) : null
   const asset = edition && parts.editions[edition]
   if (!isConstructionData(data)) throw new Error('The saved construction data is invalid')

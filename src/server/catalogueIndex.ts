@@ -137,6 +137,8 @@ export function* loadCatalogueSteps(
   holding = shown
   const shownCards = withoutTwinSearch(datacards)
   const readFacts = new Map<string, TextFacts | undefined>()
+  // Held alone, so the facts keep none of the cards' other readings alive.
+  const cardWords = cards.textWords
   const factsOf = (key: string) => {
     // A text's facts for one rule or profile holding it are recorded only where its holders read differently.
     const text = textOfFactsKey(key)
@@ -145,7 +147,7 @@ export function* loadCatalogueSteps(
     const facts = withLegality(recorded ?? NO_FACTS, shown.fact(text) ?? cardFacts?.get(text))
     const vsData = facts.combat
     const roles = () => {
-      const said = shown.said(text) ?? cards.textWords?.(text)
+      const said = shown.said(text) ?? cardWords?.(text)
       return said === undefined ? [] : combatRuleRoles(said)
     }
     let combat: TextFacts['combat']
@@ -168,7 +170,7 @@ export function* loadCatalogueSteps(
             }
           : undefined,
       ),
-      ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+      ...(vsRoster ? { attachments: vsRoster.attachments } : {}),
     },
     definitions: shown,
     factionContents: shownCards.factions,

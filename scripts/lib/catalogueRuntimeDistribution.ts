@@ -72,11 +72,32 @@ export function installRuntimeArchive(directory: string, output: string, bytes: 
  * hours, so a lookup made before an upload would otherwise hide the object. Objects never change once written, so a
  * cached hit is always current.
  */
-async function storeObject(url: string, init: RequestInit) {
-  const response = await fetchWithRetry(url, init)
+async function storeObject(url: string, init: RequestInit, timeoutMs?: number) {
+  const response = await fetchWithRetry(url, init, { timeoutMs })
   if (response.status !== 404) return response
   await response.body?.cancel()
-  return fetchWithRetry(`${url}?uncached=${Date.now()}`, init)
+  return fetchWithRetry(`${url}?uncached=${Date.now()}`, init, { timeoutMs })
+}
+
+/**
+ * The bucket behind a public store address, read through its API when this job holds the bucket's key: the public
+ * domain's first read of a new object can crawl at kilobytes a second from hera's Cloudflare edge for minutes on end,
+ * while the API serves it in about a second.
+ */
+function bucketObject(url: string) {
+  for (const [base, client] of [
+    [CI_OUTPUTS_BASE_URL, ciOutputsR2Client],
+    [DEFAULT_PUBLIC_ASSETS_BASE_URL, publicAssetsR2Client],
+  ] as const) {
+    if (!url.startsWith(`${base}/`)) continue
+    try {
+      const bucket = client()
+      if (bucket) return (init: RequestInit) => bucket.client.fetch(`${bucket.base}${url.slice(base.length + 1)}`, init)
+    } catch {
+      // A shared `R2_ACCOUNT_ID` without this bucket's key reads it publicly.
+    }
+  }
+  return null
 }
 
 /** Whether the store already holds `key`; an unreachable store reads as holding it, so nothing retries uploads against it. */
@@ -91,19 +112,26 @@ export async function storeHasArchive(key: string, store = runtimeStoreUrl()) {
   }
 }
 
-/** A missing or unreachable object is a cache miss, never a failed build. */
+/** A missing or unreachable object is a cache miss, never a failed build; a stalled or dropped read is retried on a new connection. */
 export async function downloadArchive(key: string, store: string | null) {
   if (!store) return null
-  try {
-    const response = await storeObject(`${store}/${key}.zip`, { signal: AbortSignal.timeout(60_000) })
-    if (!response.ok || !response.body) {
-      await response.body?.cancel()
+  const url = `${store}/${key}.zip`
+  const bucket = bucketObject(url)
+  for (let attempt = 1; ; attempt++) {
+    try {
+      // Each attempt's limit covers the body too, which arrives in seconds unless the connection stalls.
+      const init = { signal: AbortSignal.timeout(30_000) }
+      const response = bucket ? await bucket(init) : await storeObject(url, init, 30_000)
+      if (!response.ok || !response.body) {
+        await response.body?.cancel()
+        return null
+      }
+      return await boundedBytes(response, MAX_BYTES, 'Archive is too large')
+    } catch (error) {
+      if (attempt < 4 && (error instanceof TypeError || (error instanceof Error && error.name === 'TimeoutError'))) continue
+      console.error(`${key} not restored from the store:`, errorText(error))
       return null
     }
-    return await boundedBytes(response, MAX_BYTES, 'Archive is too large')
-  } catch (error) {
-    console.error(`${key} not restored from the store:`, errorText(error))
-    return null
   }
 }
 

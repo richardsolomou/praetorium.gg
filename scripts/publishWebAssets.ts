@@ -57,10 +57,13 @@ class TransientResponse extends Error {}
 
 const transient = (response: Response) => response.status === 429 || response.status >= 500
 
-/** Repeats one whole request, body included, when the network or the server failed rather than the bytes. */
+/**
+ * Repeats one whole request, body included, when the network or the server failed rather than the bytes. The bucket's
+ * first read of a new asset through hera's Cloudflare edge can stall on one connection after another, so it takes several.
+ */
 function retryTransient<T>(attempt: () => Promise<T>, stopped: AbortSignal, retryMs: number) {
   return pRetry(attempt, {
-    retries: 3,
+    retries: 6,
     minTimeout: retryMs,
     shouldRetry: ({ error }) =>
       !stopped.aborted && (error instanceof TransientResponse || error instanceof TypeError || error.name === 'TimeoutError'),
@@ -184,7 +187,7 @@ export async function publishWebAssets(
 
 export async function verifyWebAssetRoute(directories: string[], origin: string, request = fetch, retryMs = 1_000) {
   const cancelled = new AbortController()
-  const stopped = AbortSignal.any([cancelled.signal, AbortSignal.timeout(180_000)])
+  const stopped = AbortSignal.any([cancelled.signal, AbortSignal.timeout(600_000)])
   const signal = () => AbortSignal.any([stopped, AbortSignal.timeout(30_000)])
   const assets = new Map<string, string>()
   for (const directory of directories) {
