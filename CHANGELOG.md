@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.280.21 (2026-11-28)
+
+### Patch Changes
+
+- 0c63948: [simulator] The Corvus Blackstar's Auspex Array is now calculated instead of shown as not calculated.
+- 0c63948: [simulator] Damaged brackets that several vehicles and monsters print alike, such as a Falcon's or a Chaos Land Raider's, are now calculated instead of shown as not calculated.
+- 0c63948: [simulator] Storm shields on Terminators are now calculated as their own wargear instead of shown as not calculated.
+
 ## 0.280.20 (2026-11-28)
 
 ### Patch Changes
