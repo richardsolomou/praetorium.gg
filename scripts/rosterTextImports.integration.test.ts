@@ -804,6 +804,34 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it("reads a squad's wargear in VS Data's spelling as the model that carries it", () => {
+    const result = imported(
+      officialApp(
+        'Aeldari',
+        `Corsair Voidscarred (140 Points)
+    • 5x Power sword
+    • 10x Close combat weapon
+    • 1x Neuro disruptor
+    • 1x Mistshield
+    • 1x Paired Hekatarii blades
+    • 6x Shuriken pistol
+    • 1x Channeller Stones
+    • 1x Executioner
+    • 1x Witch staff
+    • 1x Faolchú
+    • 1x Wraithcannon
+    • 2x Blaster
+    • Models: 10`,
+      ),
+    )
+    const [unit] = calculateRosterPrice(
+      { catalogueId: result.catalogueId!, detachmentIds: result.detachmentIds, disposition: null, limit: 2000, units: result.units },
+      catalogue,
+      rules,
+    )!.units
+    expect(unit!.wargear).toContainEqual({ name: 'Channeler stones', count: 1 })
+  })
+
   it('reads a Grey Knights Ancient as the model carrying the banner', () => {
     const file = officialApp(
       'Grey Knights',
