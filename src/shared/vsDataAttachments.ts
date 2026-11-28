@@ -96,7 +96,8 @@ export function vsAttachmentsIndex(
   }
   const attachments: Record<string, VsAttachment> = {}
   for (const [entryId, unit] of units) {
-    const record = fielded(definitions, unit) && definitions.get('attachment', unit)
+    // A copied or Legends datasheet's attachment record publishes before its roster definition, which may not exist yet.
+    const record = !definitions.unavailable.has(unit) && definitions.get('attachment', unit)
     if (!record) continue
     if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
     const found = resolved.get(unit)
