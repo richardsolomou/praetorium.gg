@@ -152,9 +152,10 @@ export function describeDatasheetAbilitiesWithContributions(
 /**
  * Whether the datasheet may take a Detachment's Enhancement: as the Enhancement's rule facts admit some model of the
  * datasheet's VS Data unit under that Detachment, with or without an allegiance the unit may take there (and carry the
- * wargear it needs), carrying any wargear the Enhancement needs. A datasheet VS Data does not define is read from its
- * Game Datacards card's wording instead, and so, beside VS Data's reading, is a Warhammer Legends or Crucible one,
- * which no app build prints to check VS Data's copy against.
+ * wargear it needs), carrying any wargear the Enhancement needs. A datasheet VS Data does not define, or an Enhancement
+ * it has no record of, is read from its Game Datacards card's wording instead. Beside VS Data's reading, so is a Warhammer
+ * Legends or Crucible datasheet, which no app build prints to check VS Data's copy against, and any datasheet of an
+ * earlier rules version, whose frozen maps can still name another faction's unit of the same name.
  */
 function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: NonNullable<ReturnType<typeof datasheetIn>>) {
   const definitions = vsDefinitionsOf(loaded)
@@ -162,7 +163,7 @@ function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: 
   const unit = unitId ? definitions?.get('unit', unitId) : undefined
   const card = cardEligibility(sheet)
   if (!definitions || !unit) return card
-  const copied = isNonMatchedPlayName(sheet.name)
+  const alsoCard = isNonMatchedPlayName(sheet.name) || Boolean(loaded.edition && !loaded.edition.default)
   const faction = loaded.vsRoster?.books[catalogueId.slice(catalogueId.indexOf('~') + 1)] ?? unit.data.faction
   const carried = [
     ...definitions.modelsOf(unit.id).flatMap((model) => Object.keys(model.data.wargear)),
@@ -192,7 +193,7 @@ function enhancementsTaken(loaded: LoadedCatalogue, catalogueId: string, sheet: 
   }
   return (enhancement: { vsDataId?: string; eligibility: EnhancementEligibility | null }) => {
     const record = enhancement.vsDataId ? definitions.get('enhancement', enhancement.vsDataId) : undefined
-    return Boolean(record && admits(record)) || (copied && card(enhancement))
+    return record ? admits(record) || (alsoCard && card(enhancement)) : card(enhancement)
   }
 }
 
