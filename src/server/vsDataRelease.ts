@@ -729,8 +729,10 @@ export function writeVsDataConstruction(directory: string, file: string) {
     const raw = read(entry.path)
     const ruled = ruleSchema.safeParse(raw)
     if (ruled.success && ruled.data.rulesVersion.update === manifest.rulesVersion.update) {
-      const { ruleType, detachment } = ruled.data.data
-      if (ruleType === 'unit-ability') unitAbilities.add(ruled.data.id)
+      const { ruleType, detachment, provisional } = ruled.data.data
+      // A provisional unit ability, copied without an official source, may be a choice VS Data does not state yet, so only
+      // an app-printed one counts as the unit's own; one tied to wargear is held with it through the wargear's `rules`.
+      if (ruleType === 'unit-ability' && !provisional) unitAbilities.add(ruled.data.id)
       // A Detachment's rule names its Detachment as a Stratagem does (vs-data#233).
       if (ruleType === 'detachment-rule' && detachment) detachmentRules.set(ruled.data.id, detachment.id)
     }
@@ -800,7 +802,7 @@ const constructionRecordSchema = refSchema.extend({
 const addSorted = (held: unknown, id: string) => [...new Set([...(Array.isArray(held) ? (held as string[]) : []), id])].toSorted()
 const ruleSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
-  data: z.object({ ruleType: z.string().optional(), detachment: refSchema.optional() }),
+  data: z.object({ ruleType: z.string().optional(), detachment: refSchema.optional(), provisional: z.boolean().optional() }),
 })
 const abilityWargearSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),

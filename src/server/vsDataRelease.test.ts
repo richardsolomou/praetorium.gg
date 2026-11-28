@@ -663,6 +663,50 @@ it('gives a unit the unit abilities whose identity entries reference it', () => 
   ).toEqual(['necrons.blades.evasion'])
 })
 
+it('leaves a provisional unit ability out of the unit’s own, as VS Data does not say whether it is a choice', () => {
+  fs.rmSync(directory, { recursive: true })
+  const blades = { kind: 'unit', id: 'necrons.blades', name: 'Blades', aliases: [], category: 'rosters', data: { faction: 'necrons' } }
+  const copied = {
+    kind: 'ability',
+    id: 'necrons.blades.copied',
+    name: 'Copied',
+    aliases: [],
+    data: { ruleType: 'unit-ability', provisional: true },
+  }
+  const linked = { kind: 'ability', id: 'necrons.blades.copied', name: 'Copied', references: [{ kind: 'unit', id: 'necrons.blades' }] }
+  writeFiles(directory, vsDataReleaseFiles([blades, copied], 'MFM 1.6', [linked]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.unit?.['necrons.blades']?.data.abilities,
+  ).toBeUndefined()
+})
+
+it('gives no unit an ability its rules version marks absent, as the Captain on Bike lacks the Relic Shield', () => {
+  fs.rmSync(directory, { recursive: true })
+  const captain = {
+    kind: 'unit',
+    id: 'sm.captain-on-bike',
+    name: 'Captain on Bike',
+    aliases: [],
+    category: 'rosters',
+    data: { faction: 'sm' },
+  }
+  const shield = {
+    kind: 'ability',
+    id: 'sm.captain-on-bike.relic-shield',
+    name: 'Relic Shield',
+    absent: true as const,
+    references: [{ kind: 'unit', id: 'sm.captain-on-bike' }],
+  }
+  writeFiles(directory, vsDataReleaseFiles([captain], 'MFM 1.6', [shield]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.unit?.['sm.captain-on-bike']?.data.abilities,
+  ).toBeUndefined()
+})
+
 it('gives a Detachment each detachment rule naming it', () => {
   fs.rmSync(directory, { recursive: true })
   const pantheon = {

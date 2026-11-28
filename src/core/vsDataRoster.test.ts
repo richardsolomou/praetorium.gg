@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from './vsDataConstruction'
-import { checkVsRoster, keywordsOf, priceVsRoster, type VsRoster, vsNameLimitUnheld, vsUnitAllowance } from './vsDataRoster'
+import {
+  checkVsRoster,
+  keywordsOf,
+  priceVsRoster,
+  type VsRoster,
+  vsHeldAbilities,
+  vsNameLimitUnheld,
+  vsUnitAllowance,
+} from './vsDataRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const construction: VsDataConstruction = {
@@ -51,6 +59,7 @@ const construction: VsDataConstruction = {
         keywords: ['INFANTRY', 'CHARACTER'],
         sizes: [1],
         conditionalKeywords: [{ keywords: ['MOUNTED'], replaces: ['INFANTRY'], when: { wargear: 'host.rider.bike' } }],
+        abilities: ['host.rider.charge', 'host.rider.oath'],
       }),
       'host.oracle': record('Oracle', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
@@ -100,11 +109,11 @@ const construction: VsDataConstruction = {
     },
     wargear: {
       'host.walker.claw': record('Claw', {}),
-      'host.rider.bike': record('Bike', {}),
+      'host.rider.bike': record('Bike', { rules: ['host.rider.charge'] }),
       'host.walker.cannon': record('Cannon', {}),
       'host.walker.lance': record('Lance', {}),
       'host.walker.two-lances': record('2 Lance', { includes: { 'host.walker.lance': 2 } }),
-      'host.captain.shield': record('Shield', {}),
+      'host.captain.shield': record('Shield', { rules: ['host.captain.ward'] }),
     },
     enhancement: {
       'host.guard.relic': record('Relic', {
@@ -407,5 +416,21 @@ describe('vsNameLimitUnheld', () => {
 
   it('leaves a unit whose keywords hold its faction’s name limit exactly', () => {
     expect(vsNameLimitUnheld(definitions, roster([], 'order', []), 'order.herald')).toBe(false)
+  })
+})
+
+describe('vsHeldAbilities', () => {
+  const rider = { unit: 'host.rider', models: { 'host.rider.rider': 1 } }
+
+  it('holds the abilities the wargear a unit carries brings', () => {
+    expect(vsHeldAbilities(definitions, { unit: 'host.captain', models: { 'host.captain.captain': 1 } })).toContain('host.captain.ward')
+  })
+
+  it('holds a unit’s own ability that no wargear brings', () => {
+    expect(vsHeldAbilities(definitions, rider)).toContain('host.rider.oath')
+  })
+
+  it('holds an ability some wargear brings only with that wargear, though the unit names it', () => {
+    expect(vsHeldAbilities(definitions, rider)).not.toContain('host.rider.charge')
   })
 })

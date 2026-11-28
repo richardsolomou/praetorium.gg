@@ -4,6 +4,7 @@ import { remember } from '../core/collections'
 import { textOfFactsKey, type TextFacts, type TextFactsByKey, type VsRecordFacts } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey, vsDataRecordOfBsdata } from '../shared/vsData'
+import type { VsAbilityLinks } from '../shared/vsDataLegality'
 import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
 import { bsdataRecordsIn } from './bsdataRecords'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -24,6 +25,8 @@ export type VsDataTextFacts = TextFactsByKey & {
   join: (key: string) => VsDataJoin
   /** Every record VS Data has read, by record key, as `get` reads a text joining it. */
   records: () => VsRecordFacts
+  /** The ability records BSData's profiles are, by VS Data's aliases and the frozen map, and each ability's name. */
+  abilities: () => VsAbilityLinks
   /** The records the cards printing a lone whole-string token are, which a catalogue text it stands in for must be. */
   printed: (key: string) => readonly string[]
 }
@@ -134,6 +137,12 @@ export function vsDataTextFacts(
   return {
     join,
     records: () => Object.fromEntries(Object.keys(effects).map((record) => [record, factsOf(record)])),
+    abilities: () => {
+      const ability = (key: string | null) => key === null || key.startsWith('ability:')
+      const only = <T extends string | null>(map: Readonly<Record<string, T>>) =>
+        Object.fromEntries(Object.entries(map).filter(([, key]) => ability(key)))
+      return { records: { byId: only(records.byId), bySheet: only(records.bySheet) }, names: release.names?.abilities ?? {} }
+    },
     printed: (key) => (WHOLE_STRING.has(key.slice(0, key.indexOf(':'))) ? (printed.get(key.slice(key.indexOf(':') + 1)) ?? []) : []),
     get: (key) => {
       const text = textOfFactsKey(key)

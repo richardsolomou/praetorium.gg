@@ -1,3 +1,4 @@
+import { remember } from './collections'
 import type { Definition, Per, Requirement, UnitData, VsDataDefinitions, When, OptionData, Bounds } from './vsDataConstruction'
 import { costRowFor, pointsAt, type PointsRef, unitCostRows } from './vsDataPoints'
 
@@ -476,6 +477,32 @@ const sameName = (text: string) => text.toUpperCase().replaceAll('’', "'")
 
 const keywordNames = (keywords: readonly string[]) =>
   keywords.map((keyword) => keyword.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' ')
+
+/**
+ * The abilities a picked unit holds by VS Data's typed links: those of the wargear it carries (`rules`), its own
+ * (`abilities`) but any some wargear's `rules` names, which it holds only with that choice, and its Enhancement.
+ */
+export function vsHeldAbilities(definitions: VsDataDefinitions, picked: VsRosterUnit): Set<string> {
+  const chosen = choiceBound(definitions)
+  const own = (definitions.get('unit', picked.unit)?.data.abilities ?? []).filter((id) => !chosen.has(id))
+  const carriedRules = [...carried(definitions, picked)].flatMap(([id, n]) =>
+    n > 0 ? (definitions.get('wargear', id)?.data.rules ?? []) : [],
+  )
+  return new Set([...own, ...carriedRules, ...(picked.enhancement ? [picked.enhancement] : [])])
+}
+
+/** Every ability VS Data's links decide for the units holding it: any a piece of wargear or a unit names, and every Enhancement. */
+export const vsLinkedAbilities = (definitions: VsDataDefinitions): ReadonlySet<string> =>
+  remember(linkedAbilities, definitions, () => {
+    const units = definitions.all('unit').flatMap((unit) => unit.data.abilities ?? [])
+    const enhancements = definitions.all('enhancement').map((enhancement) => enhancement.id)
+    return new Set([...choiceBound(definitions), ...units, ...enhancements])
+  })
+
+const choiceBound = (definitions: VsDataDefinitions): ReadonlySet<string> =>
+  remember(boundAbilities, definitions, () => new Set(definitions.all('wargear').flatMap((wargear) => wargear.data.rules ?? [])))
+const linkedAbilities = new WeakMap<VsDataDefinitions, ReadonlySet<string>>()
+const boundAbilities = new WeakMap<VsDataDefinitions, ReadonlySet<string>>()
 
 /**
  * Every reason the roster is not legal under these definitions, in roster order: VS Data's `checkRoster`
