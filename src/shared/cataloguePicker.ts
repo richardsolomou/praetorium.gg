@@ -168,13 +168,13 @@ export function detachmentsUnlocking(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
-  detachments: { ids: readonly string[]; selections: readonly Selection[] },
+  taken: { ids: readonly string[]; selections: readonly Selection[] },
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
   const offering = vsDataDetachmentsOffering(
     loaded.vsRoster,
-    { catalogueId, detachmentIds: detachments.ids },
+    { catalogueId, detachmentIds: taken.ids },
     { entryId, name: entry.name ?? '' },
   )
   // Where VS Data offers the unit, the catalogue's visibility rules may still hide it, so an ally entry that names no
@@ -184,7 +184,7 @@ export function detachmentsUnlocking(
       offering.includes(loaded.vsRoster?.detachments[option.id] ?? '') ? [option.name] : [],
     )
   const options = { primaryCatalogueId: catalogueId, mustering: true }
-  const roster = detachments.selections
+  const roster = taken.selections
   if (!hiddenByRules(entry, loaded.index, { ...options, roster })) return null
   const listed = cachedIn(
     listedUnitIds,

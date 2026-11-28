@@ -21,7 +21,7 @@ const data = vsRosterData(
         host: record('Host', {
           allies: [
             { units: ['other.scout'], points: [{ battleSize: 'small', max: 100 }] },
-            { units: ['other.watch', 'host.seer'], detachments: ['host.vigil'] },
+            { units: ['other.warden', 'host.seer'], detachments: ['host.vigil'] },
           ],
         }),
         other: record('Other', {}),
@@ -55,7 +55,7 @@ const data = vsRosterData(
           uniformOptions: [['host.squad.trooper-carbines', 'host.squad.sergeant-carbine']],
         }),
         'other.agent': record('Agent', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
-        'other.watch': record('Watch', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
+        'other.warden': record('Warden', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
         'host.seer': record('Seer', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
         'other.scout': record('Scout', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
       },
@@ -134,7 +134,7 @@ const data = vsRosterData(
       'bs-squad': 'host.squad',
       'bs-agent': 'other.agent',
       'bs-scout': 'other.scout',
-      'bs-watch': 'other.watch',
+      'bs-warden': 'other.warden',
       'bs-seer': 'host.seer',
     },
     enhancements: {
@@ -153,7 +153,7 @@ const data = vsRosterData(
       'bs-squad': 'Squad',
       'bs-agent': 'Agent [Crucible]',
       'bs-scout': 'Scout',
-      'bs-watch': 'Watch',
+      'bs-warden': 'Warden',
       'bs-seer': 'Seer',
     })[id],
 )
@@ -364,7 +364,7 @@ describe('vsDataDetachmentsOffering', () => {
     vsDataDetachmentsOffering(data, { catalogueId: 'bs-host', detachmentIds }, { entryId, name: entryId })
 
   it('names the Detachment whose ally entry offers an ally the list’s own do not', () => {
-    expect(offering('bs-watch', ['bs-guard'])).toEqual(['host.vigil'])
+    expect(offering('bs-warden', ['bs-guard'])).toEqual(['host.vigil'])
   })
 
   it('names it for a unit of the army’s own faction that an ally entry binds', () => {
@@ -372,6 +372,6 @@ describe('vsDataDetachmentsOffering', () => {
   })
 
   it('is null once the list takes that Detachment', () => {
-    expect(offering('bs-watch', ['bs-vigil'])).toBeNull()
+    expect(offering('bs-warden', ['bs-vigil'])).toBeNull()
   })
 })
