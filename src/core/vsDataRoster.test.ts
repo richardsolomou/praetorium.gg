@@ -13,6 +13,7 @@ const construction: VsDataConstruction = {
       other: record('Other', {}),
       chapter: record('Chapter', { parent: 'host', excludedDetachments: ['host.guard'] }),
       titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
+      band: record('Band', { unitLimits: [{ keywords: ['CHARACTER'], max: 1 }] }),
     },
     'battle-size': { small: record('Small', { points: 500, enhancements: 1 }) },
     detachment: {
@@ -35,6 +36,8 @@ const construction: VsDataConstruction = {
       'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),
       'titan.engine': record('Engine', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
+      'band.boss': record('Boss', { faction: 'band', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
+      'band.retinue': record('Retinue', { faction: 'band', keywords: ['INFANTRY'], sizes: [2] }),
     },
     model: {
       'host.walker.walker': record('Walker', {
@@ -52,6 +55,9 @@ const construction: VsDataConstruction = {
       'host.squad.leader': record('Leader', { unit: 'host.squad', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
       'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: {} }),
       'titan.engine.engine': record('Engine', { unit: 'titan.engine', min: 1, max: 1, wargear: {} }),
+      'band.boss.boss': record('Boss', { unit: 'band.boss', min: 1, max: 1, wargear: {} }),
+      'band.retinue.master': record('Master', { unit: 'band.retinue', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
+      'band.retinue.follower': record('Follower', { unit: 'band.retinue', min: 1, max: 1, wargear: {} }),
     },
     'roster-option': {
       'host.rider.mount': record('Mount', { unit: 'host.rider', choose: { min: 0, max: 1 }, choices: ['host.rider.bike'] }),
@@ -219,6 +225,11 @@ describe('keywordsOf', () => {
 
 describe('checkVsRoster', () => {
   const codes = (units: VsRoster['units']) => checkVsRoster(definitions, roster(units)).map((problem) => problem.code)
+
+  it('counts a unit a Character model leads towards a CHARACTER limit', () => {
+    const band = roster([{ unit: 'band.boss' }, { unit: 'band.retinue' }], 'band', [])
+    expect(checkVsRoster(definitions, band).map((problem) => problem.code)).toContain('unit-limit')
+  })
 
   it('refuses an Enhancement to a unit that is not a Character', () => {
     expect(codes([{ unit: 'host.agent', enhancement: 'host.guard.relic' }])).toEqual(['enhancement-keywords'])
