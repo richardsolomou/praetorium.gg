@@ -26,6 +26,45 @@ export function vsFactionOf(loaded: Pick<LoadedCatalogue, 'vsPoints'>, catalogue
 }
 
 /**
+ * The faction an agent names by the VS Data faction it plays, its keyword name or ID, as "Asuryani" or "Legiones Daemonica"
+ * for Aeldari and Chaos Daemons; a current rules version's book first, as several books can play one VS Data faction.
+ */
+export function factionByVsName<T extends { vsFaction?: { id: string; name: string } | null; isDefault?: boolean }>(
+  named: string,
+  factions: readonly T[],
+): T | undefined {
+  const key = routeSlug(named)
+  const playing = factions.filter(({ vsFaction }) => vsFaction && (vsFaction.id === key || routeSlug(vsFaction.name) === key))
+  return playing.find((faction) => faction.isDefault !== false) ?? playing[0]
+}
+
+type NamedFaction = { displayName: string; vsFaction?: { id: string; name: string } | null; isDefault?: boolean }
+
+/**
+ * The army slug a battle filter reads (its faction's display name as a slug) that an agent means by one, or by the VS Data
+ * faction keyword name or ID it plays, as "Asuryani" for `aeldari`; anything else as given.
+ */
+export function factionSlugOf(named: string, factions: readonly NamedFaction[]) {
+  if (factions.some((faction) => routeSlug(faction.displayName) === named)) return named
+  const playing = factionByVsName(named, factions)
+  return playing ? routeSlug(playing.displayName) : named
+}
+
+type Facet = { in: string[]; out: string[] }
+const facetSlugs = (facet: Facet, factions: readonly NamedFaction[]): Facet => ({
+  ...facet,
+  in: facet.in.map((named) => factionSlugOf(named, factions)),
+  out: facet.out.map((named) => factionSlugOf(named, factions)),
+})
+
+/** A battle filter whose faction facets name VS Data faction keyword names or IDs read as the army slugs they stand for. */
+export const withFactionSlugs = <T extends { faction?: Facet; against?: Facet }>(filter: T, factions: readonly NamedFaction[]): T => ({
+  ...filter,
+  ...(filter.faction ? { faction: facetSlugs(filter.faction, factions) } : {}),
+  ...(filter.against ? { against: facetSlugs(filter.against, factions) } : {}),
+})
+
+/**
  * The name the catalogues give a faction the rules call something else: a `Faction:`
  * keyword, a Game Datacards file and the Adeptus Astartes book all name the Space
  * Marines, and one table says so.

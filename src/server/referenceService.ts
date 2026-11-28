@@ -11,7 +11,7 @@ import { fuzzyNameScore } from '../core/datasheetSearch'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
 import { entryFactions, type LoadedCatalogue } from '../shared/catalogueIndex'
-import { factionDisplayName } from '../shared/factionNames'
+import { factionByVsName, factionDisplayName } from '../shared/factionNames'
 import { dispositionMatchups, gameReferencesFor, matchupMission } from '../shared/gameReferences'
 import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import { offeredDetachments } from '../shared/vsDataOffers'
@@ -176,21 +176,20 @@ function sameRulesVersion(factionId: string, currentCatalogueIds: ReadonlySet<st
 }
 
 /**
- * A faction by the id, URL slug, or display name an agent read from the reference. A plain name
- * takes current rules and ignores case, punctuation, and apostrophes, so "Tau Empire" finds T’au Empire.
+ * A faction by the id, URL slug, or display name an agent read from the reference, or by the VS Data faction it plays, as
+ * "Asuryani" for Aeldari. A plain name takes current rules and ignores case, punctuation, and apostrophes, so "Tau Empire"
+ * finds T’au Empire.
  */
 export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   const wanted = faction.trim().toLocaleLowerCase()
   const key = joinKey(faction)
   const factions = referenceFactions(corpus)
+  const current = (candidate: ReferenceFaction) => !candidate.name.includes(' · Preview') && !candidate.name.includes(' · Archived')
+  const playing = factionByVsName(faction, corpus.factions ?? [])
   return (
     factions.find((candidate) => [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted)) ??
-    factions.find(
-      (candidate) =>
-        !candidate.name.includes(' · Preview') &&
-        !candidate.name.includes(' · Archived') &&
-        joinKey(candidate.name.split(' · ')[0]!) === key,
-    )
+    factions.find((candidate) => current(candidate) && joinKey(candidate.name.split(' · ')[0]!) === key) ??
+    (playing ? factions.find((candidate) => candidate.id === playing.id) : undefined)
   )
 }
 
