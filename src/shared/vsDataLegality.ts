@@ -1,5 +1,5 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
-import { checkVsRoster, type VsProblem, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
+import { checkVsRoster, enhancementAdmits, keywordsOf, type VsProblem, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
@@ -182,6 +182,59 @@ export function vsDataDetachmentsOffering(
 export const vsDataPlaces = (data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) =>
   vsDataPlacement(data, list) !== null
 
+/** The allegiance a catalogue option names, as a Mark of Chaos, among those VS Data offers the unit by name. */
+const allegianceNamed = (allegiances: ReadonlyMap<string, string>, name: string) =>
+  [...allegiances].find(([allegiance]) => same(name) === allegiance || same(name).endsWith(allegiance))?.[1]
+
+/** A unit the catalogue fields as VS Data's checker reads it: its size and the allegiance its options name. */
+function fieldedByCatalogue(definitions: VsDataDefinitions, id: string, unit: Pick<CheckedUnit, 'size' | 'choices'>) {
+  // A unit whose size the player cannot change is fielded as the catalogue models it, which can count a model VS Data
+  // folds into another, so only a size the player chose is checked.
+  const size = unit.size.max > unit.size.min ? unit.size.models : (definitions.get('unit', id)?.data.sizes[0] ?? unit.size.models)
+  const read: VsRosterUnit = { unit: id, size }
+  const allegiances = new Map(
+    (definitions.get('unit', id)?.data.allegiances ?? []).flatMap((offer) =>
+      offer.choices.map((choice) => [same(definitions.get('allegiance', choice)?.name ?? choice), choice] as const),
+    ),
+  )
+  for (const choice of unit.choices)
+    for (const option of choice.options.filter((candidate) => candidate.count > 0)) {
+      const allegiance = allegianceNamed(allegiances, option.name)
+      if (allegiance) read.allegiance ??= allegiance
+    }
+  return { read, allegiances }
+}
+
+/**
+ * A catalogue unit's options that stand for an Enhancement of the list's Detachments VS Data's checker would refuse it,
+ * read as `vsDataErrors` reads it, so the unit is never offered one the list check then refuses. Empty where VS Data
+ * cannot place the list or doesn't read the unit, and for a VS pick, whose options are VS Data's own.
+ */
+export function vsDataEnhancementsRefused(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  unit: Pick<CheckedUnit, 'entryId' | 'name' | 'size' | 'choices' | 'vs'>,
+): Set<string> {
+  const placed = vsDataPlacement(data, list)
+  const id = placed && !unit.vs ? vsDataChecks(data, list.catalogueId, unit) : undefined
+  if (!data || !placed || !id) return new Set()
+  const { definitions, faction, detachments } = placed
+  const { read } = fieldedByCatalogue(definitions, id, unit)
+  const keywords = keywordsOf(definitions, { faction, detachments: detachments.flatMap((d) => d ?? []), units: [read] }, read)
+  return new Set(
+    unit.choices.flatMap((choice) =>
+      choice.options.flatMap((option) => {
+        const offered = detachments.flatMap((detachment) => data.enhancements[`${detachment}/${option.id}`] ?? [])
+        const admitted = offered.some((candidate) => {
+          const enhancement = definitions.get('enhancement', candidate)
+          return enhancement && enhancementAdmits(definitions, enhancement, read, keywords)
+        })
+        return offered.length && !admitted ? [option.id] : []
+      }),
+    ),
+  )
+}
+
 /**
  * What VS Data's checker finds wrong with a list beyond its units' wargear, which the catalogue still builds: allies,
  * exclusions, copies, unit limits, sizes, Enhancements, Warlord, allegiances and Detachment groups. Null where VS Data
@@ -207,22 +260,10 @@ export function vsDataCheck(
     }
     const id = vsDataChecks(data, list.catalogueId, unit)
     if (!id) return []
-    // A unit whose size the player cannot change is fielded as the catalogue models it, which can count a model VS Data
-    // folds into another, so only a size the player chose is checked.
-    const size = unit.size.max > unit.size.min ? unit.size.models : (definitions.get('unit', id)?.data.sizes[0] ?? unit.size.models)
-    const read: VsRosterUnit = { unit: id, size }
-    const allegiances = new Map(
-      (definitions.get('unit', id)?.data.allegiances ?? []).flatMap((offer) =>
-        offer.choices.map((choice) => [same(definitions.get('allegiance', choice)?.name ?? choice), choice] as const),
-      ),
-    )
+    const { read, allegiances } = fieldedByCatalogue(definitions, id, unit)
     for (const choice of unit.choices)
       for (const option of choice.options.filter((candidate) => candidate.count > 0)) {
-        const allegiance = [...allegiances].find(([name]) => same(option.name) === name || same(option.name).endsWith(name))?.[1]
-        if (allegiance) {
-          read.allegiance ??= allegiance
-          continue
-        }
+        if (allegianceNamed(allegiances, option.name)) continue
         // One catalogue option can stand for a same-named Enhancement of each of the list's Detachments; each copy taken
         // is a different Detachment's while one is left.
         const offered = detachments.flatMap((detachment) => data.enhancements[`${detachment}/${option.id}`] ?? [])
@@ -233,11 +274,7 @@ export function vsDataCheck(
         }
       }
     // The builder offers a unit only the catalogue's options, so an allegiance none of them names cannot be asked of it.
-    const offersAllegiance = unit.choices.some((choice) =>
-      choice.options.some((option) =>
-        [...allegiances.keys()].some((name) => same(option.name) === name || same(option.name).endsWith(name)),
-      ),
-    )
+    const offersAllegiance = unit.choices.some((choice) => choice.options.some((option) => allegianceNamed(allegiances, option.name)))
     if (hasWarlordToggle(unit.toggles)) {
       // The Warlord is the unit's Character model, as a Company Heroes' Ancient is, else its one model of a kind.
       const models = definitions.modelsOf(id)

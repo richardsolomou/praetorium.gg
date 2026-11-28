@@ -7,6 +7,9 @@ import { unitReadsRoster } from '../core/unitRosterDependence'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { mfmOptionAdjustment, mfmUnitFor, unitPointAdjustment, vsDataUnitPoints } from './unitPoints'
 import { vsDetachmentPriced } from './vsDataPoints'
+import { vsDefinitionsOf, vsPickPrices, vsUnitIdOf } from './vsDataBuild'
+import { vsFirstPickOf } from './vsDataPicks'
+import { vsBuiltUnit } from '../core/vsDataBuild'
 
 export const isMatchedPlayDatasheet = (index: CatalogueIndex, entry: Definition) => isOfferedDatasheet(index, entry, false)
 
@@ -74,11 +77,13 @@ function copyPrices(
   roster: readonly Selection[],
   copies: readonly number[],
 ) {
+  const detachmentIds = detachmentIdsIn(loaded, catalogueId, roster)
+  const native = vsFirstPrices(loaded, catalogueId, entryId, detachmentIds, copies)
+  if (native) return native
   const options = { primaryCatalogueId: catalogueId, mustering: true, roster }
   // A datasheet's listed price is the Munitorum's, for the unit at its floor; a default that costs more is charged once fielded.
   const built = buildUnit(entryId, loaded.index, undefined, undefined, { ...options, floor: true })
   if (!built) return null
-  const detachmentIds = detachmentIdsIn(loaded, catalogueId, roster)
   const vsData = copies.flatMap((copy) => vsDataUnitPoints(loaded, catalogueId, entryId, detachmentIds, [], built, copy) ?? [])
   if (vsData.length === copies.length) return vsData
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)
@@ -91,6 +96,29 @@ function copyPrices(
       wargearAdjustment
     )
   })
+}
+
+/**
+ * For a datasheet the builder adds as a VS pick, what that first pick costs as each copy, priced by VS Data alone; none
+ * for any other datasheet, or where VS Data leaves the pick unpriced.
+ */
+function vsFirstPrices(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  detachmentIds: readonly string[],
+  copies: readonly number[],
+) {
+  const pick = vsFirstPickOf(loaded, { catalogueId, detachmentIds }, entryId)
+  const definitions = pick && vsDefinitionsOf(loaded)
+  const unit = definitions && vsUnitIdOf(loaded, catalogueId, entryId)
+  if (!pick || !definitions || !unit) return null
+  const vs = vsBuiltUnit(definitions, unit, pick)
+  // Copies are counted across the list, so the nth copy's price is the nth of n alike.
+  const units = Array.from({ length: Math.max(...copies) }, () => ({ entryId, vs }))
+  const prices = vsPickPrices(loaded, { catalogueId, detachmentIds, limit: 0 }, units)
+  const found = copies.map((copy) => prices.get(copy - 1))
+  return found.every((price): price is number => price !== undefined) ? found : null
 }
 
 /** The Detachment options a list's roster selections hold. */
