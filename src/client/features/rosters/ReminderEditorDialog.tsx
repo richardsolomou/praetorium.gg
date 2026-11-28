@@ -102,7 +102,7 @@ export function ReminderEditorDialog({
           </DialogHeader>
 
           <DialogBody>
-            <div className="rounded-lg border border-edge bg-sunken p-3 empty:hidden *:mt-0 *:text-sm">{rule}</div>
+            <div className="rounded-lg border border-edge bg-sunken p-3 empty:hidden *:text-sm [&>:first-child]:mt-0">{rule}</div>
 
             <div className="space-y-3">
               {timings.map((timing, index) => {

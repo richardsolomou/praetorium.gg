@@ -32,31 +32,50 @@ export function Keyword({
   /** Whether an added rule uses the stronger derived-value colour. */
   highlightNote?: boolean
 }) {
-  const reference = condition ? name.replace(/\*$/, '') : name
   const shown = conditionalName(name, condition)
-  const rule = rules
-    .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
-    .toSorted((left, right) => right.name.length - left.name.length)[0]
+  const rule = matchingRule(referenceName(name, condition), rules)
   if (!rule && !note && !condition) return <span className={className}>{name}</span>
-  // A keyword VS Data's ability answers to, or one something else in the list grants, has no text, so its tooltip finds
-  // the summary by name.
-  const explained = rule ?? (note ? { name: reference, description: '' } : null)
-  const body = (
-    <>
-      {condition ? <p className="text-xs">* Only {condition}.</p> : null}
-      {explained ? <KeywordRuleSummary rule={explained} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
-    </>
-  )
 
   return (
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-parchment'} hover:text-bone`}
       title={rule?.name ?? shown}
-      body={condition || explained ? body : undefined}
+      body={<KeywordExplanation name={name} rules={rules} note={note} condition={condition} />}
       note={note}
     >
       {shown}
     </HoverTooltip>
+  )
+}
+
+const referenceName = (name: string, condition: string | undefined) => (condition ? name.replace(/\*$/, '') : name)
+
+const matchingRule = (reference: string, rules: KeywordRule[]) =>
+  rules
+    .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
+    .toSorted((left, right) => right.name.length - left.name.length)[0]
+
+/** What a keyword's tooltip explains: when a granted ability holds, then its rule. */
+export function KeywordExplanation({
+  name,
+  rules,
+  note,
+  condition,
+}: {
+  name: string
+  rules: KeywordRule[]
+  note?: string
+  condition?: string
+}) {
+  // A keyword VS Data's ability answers to, or one something else in the list grants, has no text, so its summary is found by name.
+  const reference = referenceName(name, condition)
+  const explained = matchingRule(reference, rules) ?? (note ? { name: reference, description: '' } : null)
+  if (!condition && !explained) return null
+  return (
+    <>
+      {condition ? <p className="text-xs">* Only {condition}.</p> : null}
+      {explained ? <KeywordRuleSummary rule={explained} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
+    </>
   )
 }
 
@@ -65,7 +84,7 @@ export function Keyword({
  * it or its faction, as a faction ability chip names one, or the summary of the text it prints, by
  * `useDatasheetAbilitySummary`; and else the core rule of that name.
  */
-export function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className?: string }) {
+function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
   // VS Data's weapon or core ability of the keyword's name comes first, as an owner can print the same rule in other words.
   const keyword = useKeywordSummary(rule.name)
   const asked = keyword === null
