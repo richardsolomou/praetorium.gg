@@ -67,8 +67,9 @@ import {
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { ARTICLE, SPELLINGS } from './wargearSpellings'
-import { type ImportVsMaps, withImportedVsPicks } from './importedVsPicks'
+import { type ImportVsMaps, vsFixedWargearNames, withImportedVsPicks } from './importedVsPicks'
 import { datacardOf } from './datasheetJoin'
+import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
@@ -1562,9 +1563,15 @@ function textRosterPick(
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
   // What the datasheet's card says every model starts with is carried where the catalogue names it nowhere, as a
   // Solitaire's flip belt; a piece the catalogue does name was placed or lost with its option.
-  for (const group of datacardOf(loaded, catalogueId, entryId)?.details.wargearGroups ?? [])
-    if (/^default wargear$/i.test(group.instruction))
-      for (const option of group.options) if (!respelled.has(spellingKey(normalized(option)))) carried.add(withoutArticle(option))
+  const vsUnit = vsUnitIdOf(loaded, catalogueId, entryId)
+  const definitions = vsDefinitionsOf(loaded)
+  const startsWith =
+    vsUnit && definitions
+      ? vsFixedWargearNames(definitions, vsUnit)
+      : (datacardOf(loaded, catalogueId, entryId)?.details.wargearGroups ?? []).flatMap((group) =>
+          /^default wargear$/i.test(group.instruction) ? group.options : [],
+        )
+  for (const option of startsWith) if (!respelled.has(spellingKey(normalized(option)))) carried.add(withoutArticle(option))
   const unplaced = [...stated.keys()]
     .filter(
       (name) =>

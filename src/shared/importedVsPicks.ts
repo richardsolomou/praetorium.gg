@@ -215,3 +215,24 @@ export function withImportedVsPicks<T extends RosterPick>(
   }
   return picks
 }
+
+/**
+ * The names of what VS Data's unit carries that none of its options takes away, parts of combined wargear included:
+ * the equipment its card prints every model starting with, as a Solitaire's flip belt.
+ */
+export function vsFixedWargearNames(definitions: VsDataDefinitions, unitId: string) {
+  const replaced = new Set(definitions.optionsOf(unitId).flatMap((option) => Object.keys(option.data.replaces ?? {})))
+  const held = [
+    ...definitions.modelsOf(unitId).flatMap((model) => Object.keys(model.data.wargear)),
+    ...Object.keys(definitions.get('unit', unitId)?.data.wargear ?? {}),
+  ]
+  const names: string[] = []
+  const named = (id: string) => {
+    const wargear = definitions.get('wargear', id)
+    if (!wargear) return
+    names.push(wargear.name)
+    for (const part of Object.keys(wargear.data.includes ?? {})) named(part)
+  }
+  for (const id of new Set(held)) if (!replaced.has(id)) named(id)
+  return names
+}
