@@ -146,7 +146,7 @@
     ]
   },
   {
-    "reason": "VS Data's checker says which Detachment a unit needs wherever it places the list, and every unit is still refused, worded two ways the base did not use: VS Data's own refusal, which read \"needs one of these Detachments: <Detachment>\", now reads \"needs the <Detachment> detachment\"; and a catalogue lock now names the Detachment as VS Data spells it, \"Brood Brothers Auxilia\" where the catalogue spelled it \"Brood Brother Auxilia\".",
+    "reason": "VS Data's checker says which Detachment a unit needs wherever it places the list, and every unit is still refused, worded two ways the base did not use: VS Data's own refusal, which read \"needs one of these Detachments: <Detachment>\", now reads \"needs the <Detachment> detachment\"; and a catalogue lock now names the Detachment as VS Data spells it, \"Brood Brothers Auxilia\", the app's spelling, where the catalogue spelled it \"Brood Brother Auxilia\".",
     "entries": [
       "chaos-daemons / Cultist Mob with Firearms [Legends] roster errors: needs one of these Detachments: Shadow Legion",
       "chaos-daemons / Gellerpox Infected [Legends] roster errors: needs one of these Detachments: Shadow Legion",
