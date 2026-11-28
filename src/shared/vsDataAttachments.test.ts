@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { vsDataDefinitions } from '../core/vsDataConstruction'
-import { vsLinksIndex } from './vsDataAttachments'
-import { vsRosterAttachments, vsRosterData } from './vsDataLegality'
+import { vsAttachmentsIndex, vsTransportsIndex } from './vsDataAttachments'
+import { vsRosterData } from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data })
 const unit = (name: string) => record(name, { faction: 'test', keywords: [], sizes: [1] })
+const linksOf = (...[definitions, ids, edition, nameOf]: Parameters<typeof vsAttachmentsIndex>) => ({
+  attachments: vsAttachmentsIndex(definitions, ids, edition, nameOf),
+  transports: vsTransportsIndex(definitions, ids.units, edition),
+})
 
-const links = vsLinksIndex(
+const links = linksOf(
   vsDataDefinitions({
     release: 'test',
     rulesVersion: { edition: '11th', update: 'MFM 1.6' },
@@ -80,7 +84,7 @@ describe('VS Data attachments joined to the catalogue', () => {
 
 describe("VS Data's attachment rules joined to the catalogue", () => {
   const keyed = (name: string, keywords: string[]) => record(name, { faction: 'test', keywords, sizes: [1] })
-  const rules = vsLinksIndex(
+  const rules = linksOf(
     vsDataDefinitions({
       release: 'test',
       rulesVersion: { edition: '11th', update: 'MFM 1.6' },
@@ -206,6 +210,6 @@ describe("an earlier rules version's attachments", () => {
   )
 
   it('reads them from the roster definitions it was built from', () => {
-    expect(vsRosterAttachments(roster, (id) => names[id]).captain?.targets).toEqual(['Intercessor Squad'])
+    expect(roster.attachments.captain?.targets).toEqual(['Intercessor Squad'])
   })
 })

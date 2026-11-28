@@ -3,6 +3,8 @@ import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsData
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
+import type { VsAttachment } from '../core/attach'
+import { vsAttachmentsIndex } from './vsDataAttachments'
 import { datasheetOf, idsIn, inBook, type VsDataIds } from './vsDataPoints'
 
 /**
@@ -16,6 +18,8 @@ export type VsRosterData = {
   detachments: Record<string, string>
   units: Record<string, string | null>
   enhancements: Record<string, string>
+  /** Who each datasheet may join in this rules version, from VS Data's attachment records, so every rules version's lists are judged by their own. */
+  attachments: Record<string, VsAttachment>
 }
 
 export function vsRosterData(
@@ -37,6 +41,7 @@ export function vsRosterData(
     detachments: Object.fromEntries(idsIn(ids.detachments, edition)),
     units,
     enhancements: Object.fromEntries(idsIn(ids.enhancements, edition)),
+    attachments: vsAttachmentsIndex(definitions, ids, edition, nameOf),
   }
 }
 

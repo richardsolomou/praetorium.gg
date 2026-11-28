@@ -164,7 +164,7 @@ export function* loadCatalogueSteps(
             }
           : undefined,
       ),
-      ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+      ...(vsRoster ? { attachments: vsRoster.attachments } : {}),
     },
     definitions: shown,
     factionContents: shownCards.factions,

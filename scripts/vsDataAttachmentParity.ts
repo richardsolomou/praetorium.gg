@@ -1,12 +1,12 @@
 /**
  * Report-only: who each datasheet may lead or support, and what each transport admits, as the catalogue alone reads it
  * against the reading with VS Data's `attachment` and `transport-profile` records laid over it, per book of the current
- * rules version. A pair is lost when no army allows it any more, added when the catalogue alone never allowed it, and
+ * rules version or the one named. A pair is lost when no army allows it any more, added when the catalogue alone never allowed it, and
  * conditional when only some armies allow it now. A transport's verdict on each datasheet of its book is whether one
- * model may embark and whether the datasheet's default size fits. Writes `data-dev/vs-data-attachment-parity.json` with
+ * model may embark and whether the datasheet's default size fits. Writes `data-dev/vs-data-attachment-parity[-<rules version>].json` with
  * datasheet names, and prints counts.
  *
- *   pnpm exec tsx scripts/vsDataAttachmentParity.ts [catalogue directory]
+ *   pnpm exec tsx scripts/vsDataAttachmentParity.ts [catalogue directory] [rules version]
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,13 +16,19 @@ import { defaultSelection } from '../src/core/expand'
 import { nonMatchedPlayKind } from '../src/core/name'
 import { type PrintedTransport, transportLoad, transportRule } from '../src/core/transport'
 import { modelCountOf } from '../src/core/unitSize'
+import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { datasheetIn, keywordsIn, woundsOf } from '../src/shared/catalogue'
 import { datasheetsOf } from '../src/shared/catalogueIndex'
 
 const directory = path.resolve(process.argv[2] ?? 'catalogue-data')
-const loaded = loadCatalogue(directory)
-if (!loaded?.vsProfiles?.attachments) throw new Error(`${directory} has no VS Data attachments for the current rules version`)
+const version = process.argv[3]
+const entry = version ? readCatalogueComposition(directory)?.editions.find((candidate) => candidate.edition.id === version) : undefined
+if (version && !entry) throw new Error(`${directory} has no rules version ${version}`)
+const loaded = entry
+  ? loadCatalogue(editionDirectory(directory, entry), entry.edition, { snapshotDirectory: directory })
+  : loadCatalogue(directory)
+if (!loaded?.index.attachments) throw new Error(`${directory} has no VS Data attachments for ${version ?? 'the current rules version'}`)
 const index = loaded.index
 const catalogueOnly: CatalogueIndex = { ...index, attachments: undefined }
 const printedOnly = { ...loaded, vsProfiles: { ...loaded.vsProfiles, transports: {} } }
@@ -130,7 +136,7 @@ for (const catalogue of index.catalogues.values()) {
     const now = transport.sheet?.transportCapacity ?? transport.sheet?.transport ?? undefined
     if ((!was && !now) || transports[key]) continue
     transportCounts.transports++
-    const fromVsData = loaded.vsProfiles.transports?.[transport.id] !== undefined
+    const fromVsData = loaded.vsProfiles?.transports?.[transport.id] !== undefined
     if (fromVsData) transportCounts.fromVsData++
     else printedTransports.add(transport.name)
     const changed: Verdicts = { admits: [], refuses: [], fits: [], overflows: [] }
@@ -161,7 +167,7 @@ for (const catalogue of index.catalogues.values()) {
 }
 fs.mkdirSync('data-dev', { recursive: true })
 fs.writeFileSync(
-  'data-dev/vs-data-attachment-parity.json',
+  `data-dev/vs-data-attachment-parity${version ? `-${version}` : ''}.json`,
   `${JSON.stringify({ pairCounts, transportCounts, printedTransports: [...printedTransports], joinsAnyLed, limits, attachments, transports }, null, 2)}\n`,
 )
 console.log(
