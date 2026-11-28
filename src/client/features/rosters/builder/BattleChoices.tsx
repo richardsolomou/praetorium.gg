@@ -8,6 +8,7 @@ import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { combatantDatasheetQuery, type Fielded } from '../../../queries'
 import { readableRules } from '../../simulator/readableRules'
+import { combatRuleLookup } from '../../simulator/CombatRuleLabel'
 import { HoverTooltip } from '../../../components/HoverTooltip'
 import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
@@ -144,7 +145,7 @@ function RuleName({ rule, rules, className }: { rule: BattleChoice['rule']; rule
       label={`${rule.name} rules`}
       title={rule.name}
       className={className}
-      body={<RuleText text={rule.description} rules={rules} className="mt-0 text-xs" />}
+      body={<RuleText text={rule.description} rules={rules} className="mt-0 text-xs" {...combatRuleLookup(rule)} />}
     >
       {rule.name}
     </HoverTooltip>
