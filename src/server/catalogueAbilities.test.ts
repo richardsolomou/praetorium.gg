@@ -4,6 +4,7 @@ import { abilityNamesIn, datasheetIn } from '../shared/catalogue'
 import { describeDatasheetAbilities, describeDatasheetAbilitiesWithContributions } from '../shared/datasheetDescriptions'
 import { ability, bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from '../shared/rules'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 describe('the abilities and wargear a datasheet lists', () => {
   it('resolves a faction ability linked to a rule declared at the catalogue root', () => {
@@ -790,4 +791,64 @@ describe('the abilities and wargear a datasheet lists', () => {
       { name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
     ])
   })
+})
+
+describe('the Enhancements a datasheet VS Data defines lists', () => {
+  const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+  const enhancement = (detachment: string) =>
+    record('Gift', { detachment: `host.${detachment}`, type: 'model', eligibility: { anyOf: [{ factionKeywords: ['HOST'] }] } })
+  const book = {
+    ...bookOf({ selectionEntries: [{ id: 'walker', name: 'Walker', type: 'unit' }] }),
+    vsRoster: vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update: 'test' },
+        unavailable: [],
+        points: [],
+        definitions: {
+          faction: { host: record('Host', {}) },
+          detachment: { 'host.lance': record('Lance', { faction: 'host' }), 'host.court': record('Court', { faction: 'host' }) },
+          unit: {
+            'host.walker': record('Walker', {
+              faction: 'host',
+              keywords: ['VEHICLE', 'HOST'],
+              sizes: [1],
+              conditionalKeywords: [{ keywords: ['CHARACTER'], when: { allegiance: 'host.lance.character' } }],
+              allegiances: [{ choices: ['host.lance.character'], detachment: 'host.lance' }],
+            }),
+          },
+          model: { 'host.walker.walker': record('Walker', { unit: 'host.walker', min: 1, max: 1, wargear: {} }) },
+          enhancement: { 'host.lance.gift': enhancement('lance'), 'host.court.gift': enhancement('court') },
+        },
+      },
+      { books: { cat: 'host' }, detachments: {}, units: { walker: 'host.walker' }, enhancements: {} },
+      null,
+      () => 'Walker',
+    ),
+  }
+  const detachment = (id: string) => ({
+    id,
+    name: id,
+    points: 1,
+    dispositions: [],
+    rules: [],
+    enhancements: [{ name: 'Gift', points: 10, description: null, eligibility: null, vsDataId: `host.${id}.gift` }],
+    upgrades: [],
+    stratagems: [],
+  })
+  const rules = {
+    abilityDescriptions: new Map(),
+    factionKeys: new Map(),
+    detachmentDetails: new Map([['test-catalogue', new Map(['lance', 'court'].map((id) => [id, detachment(id)]))]]),
+  } as Partial<LoadedRules> as LoadedRules
+
+  it('offers a Detachment Character upgrade only under its own Detachment', () =>
+    expect(
+      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'walker'), rules)?.detachments.map(
+        ({ id, enhancements }) => [id, enhancements.length],
+      ),
+    ).toEqual([
+      ['lance', 1],
+      ['court', 0],
+    ]))
 })
