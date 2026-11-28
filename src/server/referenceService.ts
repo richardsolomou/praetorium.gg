@@ -2,7 +2,6 @@ import type { CanonicalDatasheet, CanonicalDetachment, UnitSummary } from '../co
 import { datasheetWithSummaries, detachmentWithSummaries, missionCardWithSummaries, withSummary } from './referenceSummaries'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { DatasheetRelationship } from '../core/datasheet'
-import { routeSlug } from '../core/slug'
 import { publishedFacts } from '../core/sourceText'
 import { byId, countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
@@ -70,7 +69,6 @@ export type ReferenceUnitsQuery = { battleSize?: number; detachment?: string; no
 export function referenceUnits(
   corpus: ReferenceCorpus,
   loaded: LoadedCatalogue,
-  rules: LoadedRules | null,
   faction: string,
   { battleSize, detachment, nonMatchedPlay = false, query }: ReferenceUnitsQuery = {},
   currentCatalogueIds: ReadonlySet<string> = new Set(),
@@ -82,7 +80,7 @@ export function referenceUnits(
   if (detachment && !selectedDetachment) return null
   const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
   const wanted = query?.trim().toLocaleLowerCase()
-  const offered = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
+  const offered = factionUnits(loaded, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
   const offeredIds = new Set(offered.map((unit) => unit.id))
   const all = offered.map((unit) => unitReference(corpus, unit, sheets.get(unit.id), offeredIds))
   const units = wanted ? queriedUnits(all, wanted) : all
@@ -116,14 +114,10 @@ function queriedUnits<T extends { name: string; keywords: readonly string[] }>(u
 /** The units a faction's lists can take, as list_units offers them. */
 export function factionUnits(
   loaded: LoadedCatalogue,
-  rules: LoadedRules | null,
   faction: ReferenceFaction,
   options: { battleSize?: number; detachmentIds?: readonly string[]; nonMatchedPlay?: boolean } = {},
 ) {
-  const book = loaded.factions.find((entry) => entry.id === faction.id)
-  const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : faction.name
-  const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-  return unitsIn(loaded, faction.id, '', { restrictions, ...options })
+  return unitsIn(loaded, faction.id, '', options)
 }
 
 /** The names of the detachments a faction's lists can take, including any its codex holds. */

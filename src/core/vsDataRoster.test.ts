@@ -34,6 +34,7 @@ const construction: VsDataConstruction = {
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),
+      'host.pack': record('Pack', { faction: 'host', keywords: ['INFANTRY'], sizes: [6] }),
       'titan.engine': record('Engine', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
     },
     model: {
@@ -51,6 +52,8 @@ const construction: VsDataConstruction = {
       'host.envoy.envoy': record('Envoy', { unit: 'host.envoy', min: 1, max: 1, wargear: {} }),
       'host.squad.leader': record('Leader', { unit: 'host.squad', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
       'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: {} }),
+      'host.pack.hunter': record('Hunter', { unit: 'host.pack', min: 3, max: 6, wargear: {} }),
+      'host.pack.hound': record('Hound', { unit: 'host.pack', min: 0, max: 3, wargear: {} }),
       'titan.engine.engine': record('Engine', { unit: 'titan.engine', min: 1, max: 1, wargear: {} }),
     },
     'roster-option': {
@@ -159,6 +162,19 @@ const construction: VsDataConstruction = {
                 },
               ],
             },
+            {
+              id: 'host.pack',
+              name: 'Pack',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { composition: 'three and three', models: 6, points: 115, mix: { 'host.pack.hunter': 3, 'host.pack.hound': 3 } },
+                    { composition: 'six', models: 6, points: 170, mix: { 'host.pack.hunter': 6 } },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -197,6 +213,11 @@ describe('priceVsRoster', () => {
 
   it('prices a unit in another faction’s army at the row for other armies', () => {
     expect(priceVsRoster(definitions, roster([{ unit: 'host.agent' }], 'other', [])).points).toBe(50)
+  })
+
+  it('prices a unit at the row whose mix its model counts are', () => {
+    const pack = { unit: 'host.pack', models: { 'host.pack.hunter': 6, 'host.pack.hound': 0 } }
+    expect(priceVsRoster(definitions, roster([pack])).points).toBe(170)
   })
 })
 

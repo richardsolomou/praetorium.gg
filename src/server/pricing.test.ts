@@ -14,8 +14,9 @@ import {
 } from '../shared/pricing'
 import { heldWargear } from '../shared/heldWargear'
 import { deploymentRules } from '../shared/rosterDeployment'
-import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
+import { isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
 import { descriptionKey } from '../shared/datacards'
+import { vsRosterData } from '../shared/vsDataLegality'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { loadoutPicks } from '../core/rosterCopies'
 import { bookOf, categories, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
@@ -53,7 +54,6 @@ const rulesWithout = {
   factionKeys: new Map(),
   detachmentReferences: new Map(),
   detachmentDetails: new Map(),
-  factionRestrictions: new Map(),
 } as Partial<LoadedRules> as LoadedRules
 
 it('prices a saved fixed composition after resizing its equipped models', () => {
@@ -279,6 +279,40 @@ describe('the enhancements an army may hold', () => {
 
   it('is four in a Strike Force army', () => {
     expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
+  })
+
+  it('is the catalogue’s four at a battle size VS Data does not record, as King of the Colosseum', () => {
+    const size = (name: string, points: number, enhancements: number) => ({ name, data: { formatVersion: 2, points, enhancements } })
+    const vsRoster = vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update: 'test' },
+        unavailable: [],
+        points: [],
+        definitions: {
+          faction: { host: { name: 'Host', data: { formatVersion: 2 } } },
+          detachment: { 'host.guard': { name: 'Guard', data: { formatVersion: 2, faction: 'host' } } },
+          unit: { 'host.lord': { name: 'Lord one', data: { formatVersion: 2, faction: 'host', keywords: ['CHARACTER'], sizes: [1] } } },
+          'battle-size': { incursion: size('Incursion', 1000, 2), 'strike-force': size('Strike Force', 2000, 4) },
+        },
+      },
+      { books: { cat: 'host' }, detachments: {}, units: { 'lord-0': 'host.lord' }, enhancements: {} },
+      null,
+      (id) => (id === 'lord-0' ? 'Lord one' : undefined),
+    )
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 600,
+        units: Array.from({ length: 5 }, (_, at) => ({ entryId: `lord-${at}` })),
+      },
+      { ...loaded, vsRoster },
+      rulesWithout,
+    )
+    expect(priced?.errors.map((error) => error.message)).toContain('allow at most 4 in an army, has 5')
   })
 })
 
@@ -638,7 +672,6 @@ describe('force disposition', () => {
         ['death-guard', new Map([['flyblown-host', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
       ]),
       detachmentDetails: new Map(),
-      factionRestrictions: new Map(),
     } as Partial<LoadedRules> as LoadedRules
 
     expect(
@@ -708,7 +741,6 @@ describe('force disposition', () => {
           ]),
         ],
       ]),
-      factionRestrictions: new Map(),
     } as Partial<LoadedRules> as LoadedRules
 
     expect(
@@ -766,7 +798,6 @@ describe('enhancement descriptions', () => {
       })
       const rules = {
         factionKeys: new Map([['test-catalogue', 'test-catalogue']]),
-        factionRestrictions: new Map(),
         detachmentReferences: new Map(),
         detachmentDetails: new Map([
           [
@@ -860,7 +891,6 @@ describe('enhancement descriptions', () => {
     })
     const rules = {
       factionKeys: new Map([['test-catalogue', 'test-catalogue']]),
-      factionRestrictions: new Map(),
       detachmentReferences: new Map(),
       detachmentDetails: new Map([
         [
@@ -952,7 +982,6 @@ describe('catalogue-backed deployment rules', () => {
           ]),
         ],
       ]),
-      factionRestrictions: new Map(),
     }) as Partial<LoadedRules> as LoadedRules
 
   it('derives every supported pre-battle option from ability names', () => {
@@ -1247,28 +1276,6 @@ describe('catalogue-backed deployment rules', () => {
       assessment: calculateRosterAssessment(input, loaded, null)?.points,
       savedTotal: calculateRosterTotals(input, loaded, null)?.points,
     }).toEqual({ option: 15, unit: 90, roster: 90, assessment: 90, savedTotal: 90 })
-  })
-})
-
-describe('faction army restrictions', () => {
-  it('reports prohibited datasheets and keywords through roster legality', () => {
-    const restrictions = { excludedNames: new Map([['scout squad', null]]), excludedKeywords: new Set(['psyker']) }
-    const units = [
-      { entryId: 'scouts', name: 'Scout Squad', keywords: ['Infantry'], toughness: 4, warlord: false },
-      { entryId: 'librarian', name: 'Librarian', keywords: ['Character', 'Psyker'], toughness: 4, warlord: false },
-    ]
-    expect(factionRestrictionViolations(restrictions, units).map((error) => error.entryId)).toEqual(['scouts', 'librarian'])
-  })
-
-  it('lets a unit carrying the exempting keyword through a named exclusion', () => {
-    // The Black Templars may not take the Codex Impulsor, but their own — the one with
-    // their keyword — is theirs to take.
-    const restrictions = { excludedNames: new Map([['impulsor', 'black templars']]), excludedKeywords: new Set<string>() }
-    const units = [
-      { entryId: 'codex', name: 'Impulsor', keywords: ['Vehicle', 'Faction: Adeptus Astartes'], toughness: 10, warlord: false },
-      { entryId: 'own', name: 'Impulsor', keywords: ['Vehicle', 'Faction: Black Templars'], toughness: 10, warlord: false },
-    ]
-    expect(factionRestrictionViolations(restrictions, units).map((error) => error.entryId)).toEqual(['codex'])
   })
 })
 
