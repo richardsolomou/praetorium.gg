@@ -376,7 +376,11 @@ export function combatPlan(
   for (const [at, carrier] of carriers.entries()) {
     const equipment = carrier.weapons.flatMap((piece) => {
       // A weapon fires its first mode unless the player picks another, in the order its carrier holds them.
-      const held = (id: string) => piece.profileIds?.indexOf(id) ?? 0
+      // A profile the carrier does not list keeps its sheet order after those it does.
+      const held = (id: string) => {
+        const at = piece.profileIds?.indexOf(id) ?? -1
+        return at < 0 ? (piece.profileIds?.length ?? 0) : at
+      }
       const carried = profiles
         .filter(({ profile }) => combatEquipmentMatches(piece, profile))
         .toSorted((left, right) => held(left.profile.id) - held(right.profile.id))
