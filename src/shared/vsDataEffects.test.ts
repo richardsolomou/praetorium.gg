@@ -69,6 +69,20 @@ it('reads a rule whose models regain wounds as not calculated', () => {
   expect(facts.combat!.leaves[0]!.compiled).toBeNull()
 })
 
+it('calculates the rest of a rule whose models also regain wounds, as Feel No Pain beside it', () => {
+  const feelNoPain = { role: 'defender', attacks: ['ranged', 'melee'], feelNoPain: 6 }
+  const facts = textFactsOfVsData(
+    combat({
+      choices: [
+        { conditions: [], effects: [feelNoPain] },
+        { conditions: [{ kind: 'charged' }], effects: [feelNoPain, { role: 'defender', attacks: ['ranged', 'melee'], regainWounds: 1 }] },
+      ],
+      default: 1,
+    }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.feelNoPain).toBe(6)
+})
+
 it('reads an Order allowance that holds only while leading', () => {
   const facts = textFactsOfVsData({ options: { allowances: [{ options: 'Orders', limit: 2, whileLeading: true }] } })
   expect(facts.battleChoiceAllowances).toEqual([{ options: 'Orders', limit: 2, leading: true }])

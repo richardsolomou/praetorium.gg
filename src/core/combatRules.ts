@@ -117,6 +117,8 @@ export type CombatRuleEffect = {
   toughness?: number
   /** Added to the Wounds characteristic of the models the effect reaches. */
   wounds?: number
+  /** Wounds the models' printed characteristic already counts, added only where a set Wounds replaces that characteristic. */
+  printedWounds?: number
   targetToughness?: number
   targetSaveModifier?: number
   damageDivisor?: number
@@ -851,6 +853,7 @@ export function combatRuleDefences(
           initial,
         )
       const limited = effects.length > everywhere.flatMap((rule) => rule.effects).length
+      const woundsSet = effects.some((effect) => effect.unitStat?.kind === 'wounds' && effect.unitStat.set !== undefined)
       return {
         ...group,
         ...(limited ? unitDefences(own, { ...printed, ...definedOf(group) }) : {}),
@@ -872,7 +875,11 @@ export function combatRuleDefences(
             effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
             attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
         ),
-        wounds: Math.max(1, setStat(effects, 'wounds', group.wounds) + effects.reduce((total, effect) => total + (effect.wounds ?? 0), 0)),
+        wounds: Math.max(
+          1,
+          setStat(effects, 'wounds', group.wounds) +
+            effects.reduce((total, effect) => total + (effect.wounds ?? 0) + (woundsSet ? (effect.printedWounds ?? 0) : 0), 0),
+        ),
       }
     }),
     ...unit,

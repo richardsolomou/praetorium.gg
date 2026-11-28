@@ -141,6 +141,7 @@ const GROUP_DEFENCES = [
   'improveSave',
   'toughness',
   'wounds',
+  'printedWounds',
   'feelNoPain',
   'psychicFeelNoPain',
   'mortalFeelNoPain',
@@ -203,6 +204,7 @@ function limitedDefences(member: CombatMember) {
 /**
  * A member's rules without the Wounds changes the catalogue already counts in its models' Wounds characteristic: one it
  * credits to the rule, or one in a profile it prints for the rule's bearers, as "Assault Terminator w/ Storm Shield".
+ * Where another rule sets Wounds, which replaces that characteristic, an added Wounds stays as `printedWounds`.
  */
 function withoutProjectedWounds(member: CombatMember): readonly ActiveCombatRule[] {
   const lines = member.sheet.profiles.flatMap((profile) =>
@@ -215,14 +217,22 @@ function withoutProjectedWounds(member: CombatMember): readonly ActiveCombatRule
     [rule.name, ...(rule.appliedAs ?? [])].some((name) =>
       lines.some((profile) => combatTextKey(profile.name).includes(combatTextKey(name))),
     )
+  const counted = (rule: ActiveCombatRule) => combatRuleProjected(rule, modifiers) || printed(rule)
+  const resets = (member.rules ?? []).some(
+    (rule) => !counted(rule) && rule.effects.some((effect) => effect.unitStat?.kind === 'wounds' && effect.unitStat.set !== undefined),
+  )
   return (member.rules ?? []).map((rule) =>
-    combatRuleProjected(rule, modifiers) || printed(rule)
+    counted(rule)
       ? {
           ...rule,
           effects: rule.effects.flatMap((effect) => {
-            const { wounds: _wounds, unitStat, ...rest } = effect
-            if (effect.wounds === undefined && unitStat?.kind !== 'wounds') return [effect]
-            const kept = unitStat && unitStat.kind !== 'wounds' ? { ...rest, unitStat } : rest
+            const { wounds, unitStat, ...rest } = effect
+            if (wounds === undefined && unitStat?.kind !== 'wounds') return [effect]
+            const kept = {
+              ...rest,
+              ...(unitStat && unitStat.kind !== 'wounds' ? { unitStat } : {}),
+              ...(resets && wounds !== undefined ? { printedWounds: wounds } : {}),
+            }
             return Object.keys(kept).some((field) => field !== 'role' && field !== 'phases' && field !== 'bearerOnly') ? [kept] : []
           }),
         }

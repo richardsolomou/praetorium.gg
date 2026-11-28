@@ -343,23 +343,40 @@ export const EFFECT_BLOCKS = [
 const ROLLED = new Set(['attacks', 'damage'])
 
 /**
- * Whether an effect changes something the simulator cannot apply: Wounds a model regains, mortal wounds outside the
- * attacks, a save re-roll for some models alone (the engine re-rolls a whole unit's saves), dice or multiplying for a
- * characteristic other than Attacks and Damage, or Toughness or Wounds changed through a unit characteristic rather than
- * their own fields. Its reading is not calculated rather than calculated without that part.
+ * Whether an effect changes something the simulator cannot apply: a save re-roll for some models alone (the engine
+ * re-rolls a whole unit's saves), dice or multiplying for a characteristic other than Attacks and Damage, or Toughness or
+ * Wounds changed through a unit characteristic rather than their own fields. Its reading is not calculated rather than
+ * calculated without that part.
  */
-function unappliable({ characteristic, unitStat, regainWounds, mortalWounds, rolls, ...effect }: VsDataEffect) {
+function unappliable({ characteristic, unitStat, rolls, ...effect }: VsDataEffect) {
   return (
-    regainWounds !== undefined ||
     Boolean(rolls?.saveReroll && (effect.modelKeywords || effect.excludedModelKeywords || effect.bearerOnly)) ||
-    mortalWounds?.timing === 'outside-attacks' ||
     (characteristic !== undefined &&
       !ROLLED.has(characteristic.name) &&
       (characteristic.multiply !== undefined || typeof characteristic.add === 'object' || typeof characteristic.set === 'object')) ||
     (unitStat?.add !== undefined && (unitStat.kind === 'toughness' || unitStat.kind === 'wounds'))
   )
 }
-const appliable = (choices: readonly z.infer<typeof choiceSchema>[]) => !choices.some((choice) => choice.effects.some(unappliable))
+/** Wounds a model regains and mortal wounds outside the attacks, which `effectOf` leaves out as the simulator models neither. */
+const unmodelled = ({ regainWounds, mortalWounds }: VsDataEffect) =>
+  regainWounds !== undefined || mortalWounds?.timing === 'outside-attacks'
+/** The fields of an applied effect that say only where or when it applies. */
+const SELECTORS = new Set([
+  'role',
+  'phases',
+  'bearerOnly',
+  'weapon',
+  'targetKeywords',
+  'excludedTargetKeywords',
+  'modelKeywords',
+  'excludedModelKeywords',
+  'condition',
+])
+const changes = (effect: VsDataEffect) => Object.keys(effectOf(effect) ?? {}).some((field) => !SELECTORS.has(field))
+/** Whether the simulator calculates a reading: one that does nothing but what it leaves out is not calculated. */
+const appliable = (choices: readonly z.infer<typeof choiceSchema>[]) =>
+  !choices.some((choice) => choice.effects.some(unappliable)) &&
+  !(choices.some((choice) => choice.effects.some(unmodelled)) && !choices.some((choice) => choice.effects.some(changes)))
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
 const PROFILE = { ranged: 'Ranged Weapons', melee: 'Melee Weapons' } as const
@@ -474,10 +491,11 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
     lostWeaponAbility,
     rolls,
     characteristic,
-    mortalWounds,
+    mortalWounds: mortals,
     regainWounds: _regainWounds,
     ...applied
   } = effect
+  const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
   const { role, bearerOnly: _bearerOnly, ...given } = applied
   const { saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
   const ownRerolls = singleRerolls?.filter((kind) => (kind === 'save') === (role === 'defender'))
