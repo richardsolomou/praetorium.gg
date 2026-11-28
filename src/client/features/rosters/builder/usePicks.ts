@@ -97,6 +97,14 @@ function vsSize(sizes: readonly number[], current: number, wanted: number) {
 const editsVs = (pick: RosterPick, unit: Pick<SizedUnit, 'vs'> | undefined): pick is RosterPick & { vs: VsPick } =>
   Boolean(pick.vs && unit?.vs)
 
+/** How many models a pick fields as drafted: a VS pick by its `vs`, as its edits leave the catalogue `models` behind. */
+export function draftModels(pick: RosterPick, unit: Pick<SizedUnit, 'vs'> | undefined): number | undefined {
+  const records = unit?.vs
+  if (!pick.vs || !records) return pick.models
+  const definitions = remember(vsDefinitions, records, () => vsUnitDefinitions(records))
+  return vsUnitSize(definitions, { unit: records.unit.id, models: pick.vs.models, options: pick.vs.options })
+}
+
 /**
  * A pick after one edit. One still read from a translation it was served is edited as that translation where its unit
  * is priced by VS Data, else as its catalogue choices, and the edit saves the result as the pick's own; a pick the edit

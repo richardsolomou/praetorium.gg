@@ -84,7 +84,8 @@ export async function runRosterCombat({
       try {
         if (!data) throw new Error('This unit could not be loaded under the roster’s selected rules.')
         if ('error' in data) throw new Error(data.error)
-        if (pick.models !== undefined && data.models !== pick.models)
+        // A VS pick is sized by its `vs`, so the catalogue `models` saved beside it can lag behind.
+        if (!pick.vs && pick.models !== undefined && data.models !== pick.models)
           throw new Error(`This unit cannot field ${pick.models} models under its selected rules. Use a legal model count.`)
         return {
           rosterIndex,
