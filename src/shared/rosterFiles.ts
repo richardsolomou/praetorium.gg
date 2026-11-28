@@ -81,7 +81,7 @@ import { datacardOf } from './datasheetJoin'
 import { vsDefinitionsOf, vsUnitIdOf } from './vsDataBuild'
 import { vsDataEnhancementOptions } from './vsDataLegality'
 import { keywordsIn } from './catalogue'
-import { fieldManualDetachment, isUpgrade } from './mfm'
+import { fieldManualDetachment, isUpgrade, withoutUpgrade } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
 import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
@@ -2237,11 +2237,13 @@ function vsNamedUnit<T extends ExportPrice['units'][number]>(unit: T, loaded: Lo
   const enhancements = new Map(
     unit.choices
       .filter((choice) => choice.kind)
-      .flatMap((choice) => choice.options.filter((option) => option.count > 0 && option.vsDataId))
-      .flatMap((option) => {
-        const name = vsEnhancementName(loaded, option.vsDataId!)
-        return name ? [[option.name, name] as const] : []
-      }),
+      .flatMap((choice) =>
+        choice.options.flatMap((option) => {
+          const name = option.count > 0 && option.vsDataId ? vsEnhancementName(loaded, option.vsDataId) : undefined
+          // The list names an upgrade under its own heading, as the catalogue's upgrade names are written.
+          return name ? [[option.name, choice.kind === 'upgrade' ? withoutUpgrade(name) : name] as const] : []
+        }),
+      ),
   )
   const enhancement = (name: string) => enhancements.get(name) ?? name
   const wargear = vsWargearNames(loaded, catalogueId, unit.entryId)
