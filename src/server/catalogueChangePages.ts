@@ -1,6 +1,6 @@
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../core/catalogueHistory'
 import { app } from './app'
-import { factionSlugOf } from '../shared/factionNames'
+import { factionByVsName } from '../shared/factionNames'
 import { factionHistory, indexedUpdate, listedHistory } from './catalogueChangeLog'
 import { historyAnchor, updateId } from './catalogueHistory'
 
@@ -17,8 +17,9 @@ const CHANGE_LOG_PAGE = 20
  */
 export async function changeLogPage({ before, faction: named }: { before?: string; faction?: string }) {
   const cursor = before ? decodeHistoryCursor(before) : null
-  // An agent can name the faction by its VS Data faction's keyword name, as "Asuryani" for Aeldari.
-  const faction = named && factionSlugOf(named, (await app().factionsFor())?.factions ?? [])
+  // An agent can name the faction by its VS Data faction's keyword name or ID, as "Asuryani" for Aeldari.
+  const factions = named ? ((await app().factionsFor())?.factions ?? []) : []
+  const faction = named && (factions.some(({ slug }) => slug === named) ? named : (factionByVsName(named, factions)?.slug ?? named))
   const history = await installedHistory()
   const canonical = history.length ? await app().canonicalCatalogueFor(faction) : null
   const scoped = faction ? (canonical ? factionHistory(history, canonical, faction) : []) : history
