@@ -29,6 +29,24 @@ const printedWarptime = [{ id: 'ability:chaos-space-marines.sorcerer-in-terminat
 it('reads a datasheet ability as the record VS Data aliases its BSData profile to', () =>
   expect(datasheetAbilitySummary(units, 'onager-entry', 'walker-profile', [])).toBe(onager))
 
+it('reads a profile another unit’s record is aliased to as its own unit’s record of that rule', () =>
+  expect(
+    datasheetAbilitySummary(
+      {
+        ...units,
+        units: { 'titan-entry': { id: 'chaos-titan-legions.chaos-warbringer', sizes: [], models: [], options: [] } },
+        aliases: { 'fire-profile': 'titan-legions.warbringer.titanic-fire-support' },
+        abilities: {
+          'titan-legions.warbringer.titanic-fire-support': onager,
+          'chaos-titan-legions.chaos-warbringer.titanic-fire-support': grinder,
+        },
+      },
+      'titan-entry',
+      'fire-profile',
+      [],
+    ),
+  ).toBe(grinder))
+
 it('reads a profile several datasheets share as the record its own datasheet has', () =>
   expect(datasheetAbilitySummary(units, 'grinder-entry', 'walker-profile', [])).toBe(grinder))
 
