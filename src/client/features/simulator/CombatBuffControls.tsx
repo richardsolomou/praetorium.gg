@@ -107,12 +107,13 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
               <h4 className="eyebrow text-faint">{title}</h4>
               {group.map(({ rule, choices }) => {
                 const selected = combatant.ruleSelections[rule.id] ?? combatRuleDefault(rule)
+                const holder = holderOf(rule)
                 const labelContent = (
                   <CombatRuleLabel
                     side={side}
                     rule={rule}
-                    unit={unitOf(holderOf(rule))}
-                    owners={{ abilities: holderOf(rule)?.sheet?.abilities ?? [] }}
+                    unit={unitOf(holder)}
+                    owners={{ abilities: holder?.sheet?.abilities ?? [] }}
                     rules={combatant.sheets.data?.selected?.keywordRules}
                   />
                 )

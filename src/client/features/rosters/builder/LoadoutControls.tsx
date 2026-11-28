@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { RuleText, SummaryById, SummaryByName } from '../../../components/RuleText'
+import { ownAbility } from '../../simulator/CombatRuleLabel'
 import { DatasheetUnit, ownerCatalogueId } from '../../../components/UnitFromVsData'
 import { Blocks, blocksText } from '../../../components/RuleSummaryText'
 import type { RuleSummaryBlock } from '../../../../contracts/rules'
@@ -533,8 +534,8 @@ function OptionAbilities({
               text={ability.description}
               rules={rules}
               className={PROSE}
-              // The unit's own ability reads its record by id, as the datasheet's does; an upgrade or granted ability is its detachment's.
-              {...(ability.kind !== 'upgrade' && !ability.source ? { name: ability.name, abilityId: ability.id } : {})}
+              // The unit's own ability reads its record by id, as the datasheet's does; an upgrade is its detachment's.
+              {...(ownAbility(ability) ? { name: ability.name, abilityId: ability.id } : {})}
             />
           ) : null}
         </div>

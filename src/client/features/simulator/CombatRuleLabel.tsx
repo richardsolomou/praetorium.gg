@@ -7,9 +7,16 @@ import { DatasheetUnit } from '../../components/UnitFromVsData'
 
 /** Whose records a unit's combat rules read: the unit's own abilities, and each detachment's owner by detachment id. */
 export type CombatRuleOwners = {
-  abilities: readonly Pick<Datasheet['abilities'][number], 'id' | 'source'>[]
+  abilities: readonly Pick<Datasheet['abilities'][number], 'id' | 'kind' | 'source'>[]
   detachments?: Readonly<Record<string, string>>
 }
+
+/**
+ * Whether an ability is the unit's own record: its wargear and datasheet abilities, which the catalogue may name apart
+ * from their entry, and a faction or core ability it was not granted; an upgrade is its detachment's.
+ */
+export const ownAbility = ({ kind, source }: Pick<Datasheet['abilities'][number], 'kind' | 'source'>) =>
+  kind === 'wargear' || kind === 'datasheet' || (kind !== 'upgrade' && !source)
 
 /**
  * What finds a combat rule's summary as its datasheet finds it: the unit's own ability by its BSData id and name, an army
@@ -21,7 +28,8 @@ export function combatRuleLookup(
   owners: CombatRuleOwners,
 ): { name?: string; abilityId?: string; owner?: string } {
   const [kind, held] = id.split(':')
-  if (kind === 'unit') return owners.abilities.some((ability) => ability.id === held && !ability.source) ? { name, abilityId: held } : {}
+  if (kind === 'unit')
+    return owners.abilities.some((ability) => ability.id === held && ownAbility(ability)) ? { name, abilityId: held } : {}
   if (kind === 'army') return { name }
   const owner = kind === 'detachment' && held ? owners.detachments?.[held] : undefined
   return owner ? { name, owner } : {}
