@@ -284,7 +284,7 @@ export function importParsedRoster(
       : null
   const priced = price(result.units)
   const built = priced ? asBuilt(result.units, priced, price) : result.units
-  const units =
+  const units: ((typeof built)[number] & { vs?: VsPick })[] =
     priced && vsMaps && loaded && result.catalogueId
       ? withImportedVsPicks(built, { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds }, loaded, vsMaps, priced, price)
       : built

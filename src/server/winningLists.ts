@@ -13,6 +13,7 @@ import { fetchWithRetry } from './fetch'
 import { replaceFile } from './replaceFile'
 import { miniHeadquartersEvents } from './miniHeadquartersLists'
 import { importedRosterDraft, importRosterInput } from './rosterImport'
+import type { RosterPick } from '../core/roster'
 import { vsWarlordOf } from '../shared/importedVsPicks'
 import { assumeWarlord } from '../shared/rosterFiles'
 
@@ -125,7 +126,7 @@ async function importWinningList(text: string) {
   const disposition = 'disposition' in result ? (result.disposition ?? null) : null
   const roster = { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, disposition, limit, units: result.units }
   const price = () => calculateRosterPrice(roster, imported.loaded, imported.rules)
-  assumeWarlord(
+  assumeWarlord<RosterPick>(
     result.units,
     () => price()?.errors.length ?? Number.POSITIVE_INFINITY,
     (pick) => (imported.loaded ? vsWarlordOf(imported.loaded, roster.catalogueId, pick.entryId) : undefined),
