@@ -181,8 +181,8 @@ const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: strin
   cachedIn(walkCache, loaded, `${catalogueId}:${entryId}`, () => walk(loaded, catalogueId, entryId))
 
 /**
- * The names of the abilities a unit holds in its list: the rules its datasheet links, unless `ownRules` is false, and
- * those its selections' profiles and the units leading it give it.
+ * The names of the abilities a unit holds in its list: its datasheet's own, linked rules and ability profiles alike,
+ * unless `ownRules` is false, and those its other selections' profiles and the units leading it give it.
  */
 export function contextualAbilityNamesIn(
   loaded: LoadedCatalogue,
@@ -202,9 +202,11 @@ export function contextualAbilityNamesIn(
   return [
     ...new Set([
       ...(ownRules ? intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)) : []),
-      ...definitions.flatMap((definition) =>
-        definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index, root.absentAbilities)),
-      ),
+      ...definitions
+        .filter((definition) => ownRules || !intrinsic.some((own) => own.id === definition.id))
+        .flatMap((definition) =>
+          definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index, root.absentAbilities)),
+        ),
       ...grantedAbilitiesInAttachedUnit(
         context.selections,
         context.unitSelectionIndex,
