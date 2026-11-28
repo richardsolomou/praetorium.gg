@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.27 (2026-11-28)
+
+### Patch Changes
+
+- 8c4f9fa: [rosters] A Crucible Daemonic Charioteer, Hyperscientist or Martial Agent can join the units VS Data lists for it.
+
 ## 0.280.26 (2026-11-28)
 
 ### Patch Changes
