@@ -271,8 +271,8 @@ describe('a character that can join a unit', () => {
     expect(attachmentOf(index.definitions.get('captain')!, index)?.targets).toEqual(['TERMINATOR SQUAD', 'Deathwing Terminator Squad'])
   })
 
-  it('adds targets unlocked by a selected enhancement', () => {
-    const index = indexOf({
+  const murdermindIndex = () =>
+    indexOf({
       sharedSelectionEntries: [
         {
           id: 'chronomancer',
@@ -324,6 +324,9 @@ describe('a character that can join a unit', () => {
         { id: 'heavy-link', name: 'Lokhust Heavy Destroyers', type: 'selectionEntry', targetId: 'heavy-destroyers' },
       ],
     })
+
+  it('adds targets unlocked by a selected enhancement', () => {
+    const index = murdermindIndex()
     const chronomancer = index.definitions.get('chronomancer')!
 
     expect(attachmentOf(chronomancer, index, { id: 'chronomancer' })?.targets).toEqual(['IMMORTALS'])
@@ -331,6 +334,19 @@ describe('a character that can join a unit', () => {
       'IMMORTALS',
       'Lokhust Heavy Destroyers',
     ])
+  })
+
+  it("keeps a host its own selection unlocks where VS Data's record says nothing of that selection", () => {
+    const index = {
+      ...murdermindIndex(),
+      attachments: { chronomancer: { kind: 'support' as const, targets: ['Immortals'], named: ['Immortals'] } },
+      attachmentHosts: ['Immortals', 'Lokhust Heavy Destroyers'],
+    }
+    const chronomancer = index.definitions.get('chronomancer')!
+
+    expect(attachmentOf(chronomancer, index, { id: 'chronomancer', selections: [{ id: 'murdermind' }] })?.targets).toContain(
+      'Lokhust Heavy Destroyers',
+    )
   })
 
   it('shows a datasheet page its ability text rather than wider association targets', () => {
