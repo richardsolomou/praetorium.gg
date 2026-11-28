@@ -121,7 +121,9 @@ export function vsAttachmentsIndex(
     if (!record) continue
     if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
     const found = resolved.get(unit)
-    if (found) attachments[entryId] = CATALOGUE_HOSTS.has(unit) ? { ...found, catalogueHosts: true } : found
+    // A joiner VS Data has no roster definition of yet, as a copied Crucible datasheet, keeps the catalogue's hosts too.
+    const settled = !CATALOGUE_HOSTS.has(unit) && definitions.get('unit', unit)
+    if (found) attachments[entryId] = settled ? found : { ...found, catalogueHosts: true }
   }
   return attachments
 }
@@ -134,10 +136,11 @@ export function vsAttachmentHosts(
   nameOf: (entryId: string) => string | undefined,
 ): string[] {
   const stale = new Set(STALE_HOSTS[edition ?? ''] ?? [])
-  const names = [...datasheetUnits(units, edition)].flatMap(([entryId, unit]) =>
-    fielded(definitions, unit) && !stale.has(unit) ? (nameOf(entryId) ?? []) : [],
-  )
-  return [...new Set(names)].sort()
+  const entries = [...datasheetUnits(units, edition)]
+  // Hosts are named, so a stale host stays the catalogue's whichever datasheet of its name a list holds.
+  const staleNames = new Set(entries.flatMap(([entryId, unit]) => (stale.has(unit) ? (nameOf(entryId) ?? []) : [])))
+  const names = entries.flatMap(([entryId, unit]) => (fielded(definitions, unit) ? (nameOf(entryId) ?? []) : []))
+  return [...new Set(names)].filter((name) => !staleNames.has(name)).sort()
 }
 
 /** What each transport carries in one rules version, from VS Data's records; one whose capacity has no printed shape stays with its printed rule. */
