@@ -40,7 +40,13 @@ for (const saved of await savedLists(listFile)) {
   const key = createHash('sha256').update(`${saved.kind}:${saved.id}`).digest('hex').slice(0, 16)
   const loaded = editions.catalogueFor(saved.catalogueId)
   const priced = loaded && calculateRosterPrice(savedRosterPriceInput(saved), loaded, editions.rulesFor(saved.catalogueId))
-  const details = loaded ? unitBattleDetailsIn(loaded, saved.catalogueId, saved.picks.map((pick) => pick.entryId)) : []
+  const details = loaded
+    ? unitBattleDetailsIn(
+        loaded,
+        saved.catalogueId,
+        saved.picks.map((pick) => pick.entryId),
+      )
+    : []
   frozen[key] = priced
     ? frozenUnits(saved.picks, priced.units, details).map(({ entryId, models, modelLines, wargear, attachedTo, transportCapacity }) => ({
         entryId,
@@ -57,7 +63,13 @@ fs.writeFileSync(values.out, JSON.stringify(frozen), { mode: 0o600 })
 
 if (values.against) {
   const before = JSON.parse(fs.readFileSync(values.against, 'utf8')) as Frozen
-  const counts: Record<string, number> = { lists: 0, same: 0, built: 0, unbuilt: 0, ...Object.fromEntries(FIELDS.map((field) => [field, 0])) }
+  const counts: Record<string, number> = {
+    lists: 0,
+    same: 0,
+    built: 0,
+    unbuilt: 0,
+    ...Object.fromEntries(FIELDS.map((field) => [field, 0])),
+  }
   for (const [key, was] of Object.entries(before)) {
     const now = frozen[key]
     if (now === undefined) continue
