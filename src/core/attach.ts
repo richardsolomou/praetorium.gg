@@ -1,4 +1,4 @@
-import { uniqueBy, remember } from './collections'
+import { groupBy, remember, uniqueBy } from './collections'
 import {
   type Association,
   type CatalogueIndex,
@@ -331,16 +331,44 @@ export function referenceAttachmentOf(definition: Definition, index: CatalogueIn
   const attachment = textAttachmentOf(definition, index)
     ? attachmentOf(definition, index)
     : attachmentOf(definition, index, { id: definition.id })
-  if (!attachment?.conditional && !attachment?.joins) return attachment
-  return {
-    ...attachment,
-    targets: uniqueNormalizedNames([
-      ...attachment.targets,
-      ...(attachment.conditional ?? []).flatMap((condition) => condition.targets ?? []),
-      ...(attachment.joins ?? []).flatMap((join) => join.targets ?? []),
-    ]),
-  }
+  if (!attachment) return null
+  const names = datasheetNamesOf(index)
+  const targets = uniqueNormalizedNames([
+    ...attachment.targets,
+    ...(attachment.conditional ?? []).flatMap((condition) => condition.targets ?? []),
+    ...(attachment.joins ?? []).flatMap((join) => join.targets ?? []),
+  ])
+  // Ability text prints a host in capitals and without the Legends or Crucible mark its datasheet's name carries, so each
+  // is named as its datasheet is; a keyword no datasheet holds stays as printed.
+  const named = (target: string) =>
+    ['', ' [legends]', ' [crucible]'].map((mark) => names.exact.get(`${normalizedName(target)}${mark}`)).find(Boolean) ??
+    names.loose.get(looseName(target)) ??
+    target
+  return { ...attachment, targets: uniqueNormalizedNames(targets.map(named)) }
 }
+
+/** A name without spacing or plurals, as text prints "PLAGUE BEARERS" for Plaguebearers and "GUARDSMAN" for Guardsmen. */
+const looseName = (name: string) =>
+  normalizedName(name)
+    .split(' ')
+    .map((word) => word.replace(/men$/, 'man').replace(/ies$/, 'y').replace(/s$/, ''))
+    .join('')
+
+const datasheetNameCache = new WeakMap<CatalogueIndex, { exact: ReadonlyMap<string, string>; loose: ReadonlyMap<string, string> }>()
+const datasheetNamesOf = (index: CatalogueIndex) =>
+  remember(datasheetNameCache, index, () => {
+    const exact = new Map<string, string>()
+    for (const entries of index.datasheets.values())
+      for (const id of entries) {
+        const datasheet = index.definitions.get(id)
+        const name = datasheet && nameOf(datasheet, index.definitions)
+        if (name && !exact.has(normalizedName(name))) exact.set(normalizedName(name), name)
+      }
+    // A loose name two datasheets share names neither.
+    const byLoose = groupBy([...exact.values()], looseName)
+    const loose = new Map([...byLoose].flatMap(([key, names]) => (names.length === 1 ? [[key, names[0]!]] : [])))
+    return { exact, loose }
+  })
 
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
   const sources = definitionAndTarget(definition, index)
