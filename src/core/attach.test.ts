@@ -402,6 +402,45 @@ describe('a character that can join a unit', () => {
     expect(referenceAttachmentOf(index.definitions.get('lieutenant')!, index)?.targets).toEqual(['Crusader Squad'])
   })
 
+  it('reads a keyword host on a datasheet page as units of that keyword', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'inquisitor',
+          name: 'Inquisitor',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following unit:\n■ BATTLELINE IMPERIUM INFANTRY')],
+        },
+      ],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('inquisitor')!, index)?.targets).toEqual(['BATTLELINE IMPERIUM INFANTRY units'])
+  })
+
+  it('lists on a datasheet page every datasheet a host names the start of', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'leader',
+          name: 'Acolyte Iconward',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following unit:\n■ ACOLYTE HYBRIDS')],
+        },
+        { id: 'pistols', name: 'Acolyte Hybrids with Autopistols', type: 'unit' },
+        { id: 'flamers', name: 'Acolyte Hybrids with Hand Flamers', type: 'unit' },
+      ],
+      entryLinks: [
+        { id: 'pistols-link', name: 'Acolyte Hybrids with Autopistols', type: 'selectionEntry', targetId: 'pistols' },
+        { id: 'flamers-link', name: 'Acolyte Hybrids with Hand Flamers', type: 'selectionEntry', targetId: 'flamers' },
+      ],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('leader')!, index)?.targets).toEqual([
+      'Acolyte Hybrids with Autopistols',
+      'Acolyte Hybrids with Hand Flamers',
+    ])
+  })
+
   it('offers a unit association only datasheets that are units', () => {
     const index = indexOf({
       categoryEntries: [{ id: 'tacticus', name: 'Tacticus' }],
