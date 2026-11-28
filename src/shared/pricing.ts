@@ -217,7 +217,7 @@ function detachmentLockErrors(
 ) {
   return picked.flatMap((unit) => {
     if (data.units[unit.key]?.catalogueId) return []
-    const offeredBy = detachmentsUnlocking(loaded, data.catalogueId, unit.entryId, roster)
+    const offeredBy = detachmentsUnlocking(loaded, data.catalogueId, unit.entryId, { ids: data.detachmentIds, selections: roster })
     if (!offeredBy) return []
     const message = offeredBy.length ? `needs the ${offeredBy.join(' or ')} detachment` : 'is not available with the chosen detachments'
     return [{ entryId: unit.entryId, entryName: unit.name, message }]
@@ -866,6 +866,7 @@ function calculateRoster(
     return {
       kind: 'assessment' as const,
       points,
+      detachments: purchased,
       detachmentError,
       errors,
       units: picked.map((unit) => {

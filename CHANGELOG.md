@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.280.23 (2026-11-28)
+
+### Patch Changes
+
+- 7f35c57: [rosters] Army setup no longer offers two Detachments the rules don't allow together.
+- 2c65bc5: [rosters] An alert's timing dialog shows the rule text for core abilities, army rules and enhancements, which it used to leave blank.
+- 92df263: [rosters] An alert's timing dialog shows the rule's full text in a box with even spacing, instead of a cramped box that starts with a blank line.
+
 ## 0.280.22 (2026-11-28)
 
 ### Patch Changes

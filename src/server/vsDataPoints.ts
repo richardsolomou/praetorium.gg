@@ -10,7 +10,7 @@ import { type VsDataConstruction, vsDataConstructionSchema, vsDataDefinitions } 
 import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsDataPoints'
 import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
 import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
-import { vsLinksIndex } from '../shared/vsDataAttachments'
+import { vsTransportsIndex } from '../shared/vsDataAttachments'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 
 /** The frozen map from each BSData datasheet, or `<book>/<datasheet>`, to its VS Data unit (`catalogue/legacy-ids/units.json`). */
@@ -53,7 +53,10 @@ export function vsProfilesIn(
   const definitions = vsDataDefinitions(found.construction)
   const edition = found.entry.base ? null : found.entry.edition.id
   const name = (entryId: string) => nameIn(index, entryId)
-  return { ...vsProfilesIndex(definitions, ids.units, edition, glossary, name), ...vsLinksIndex(definitions, ids, edition, name) }
+  return {
+    ...vsProfilesIndex(definitions, ids.units, edition, glossary, name),
+    transports: vsTransportsIndex(definitions, ids.units, edition),
+  }
 }
 
 const nameIn = (index: CatalogueIndex, entryId: string) => {

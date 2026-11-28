@@ -4,28 +4,21 @@ import { vsTransport } from '../core/transport'
 import type { AttachmentData, ConditionalAttachment, VsDataDefinitions } from '../core/vsDataConstruction'
 import { idsIn, type VsDataIds } from './vsDataPoints'
 
-/** Who each datasheet may join and what each transport carries, from VS Data's records, by the BSData entry IDs saved lists hold. */
-export type VsLinksIndex = {
-  attachments: Record<string, VsAttachment>
-  transports: Record<string, PrintedTransport>
-}
-
 const ROLE = { leads: 'leader', supports: 'support' } as const
 
 /**
- * One rules version's attachment and transport records joined to the catalogue's datasheets. A host is named as every
- * catalogue datasheet of its VS Data unit is, and a unit none stands for is left out; a condition's Detachments and units
- * become the catalogue's IDs a list holds. A record VS Data could not type a target or capacity of keeps what it could,
- * and a transport whose capacity has no printed shape stays with the datasheet's printed rule.
+ * Who each datasheet may join in one rules version, from VS Data's attachment records, by the BSData entry IDs saved
+ * lists hold. A host is named as every catalogue datasheet of its VS Data unit is, and a unit none stands for is left
+ * out; a condition's Detachments and units become the catalogue's IDs a list holds. A record VS Data could not type a
+ * target or capacity of keeps what it could.
  */
-export function vsLinksIndex(
+export function vsAttachmentsIndex(
   definitions: VsDataDefinitions,
   ids: Pick<VsDataIds, 'units' | 'detachments'>,
   edition: string | null,
   nameOf: (entryId: string) => string | undefined,
-): VsLinksIndex {
-  // Its readers look a datasheet up without a book, so a book key (`<book>/<ID>`) has no place here.
-  const units = new Map([...idsIn(ids.units, edition)].filter(([key]) => !key.includes('/')))
+): Record<string, VsAttachment> {
+  const units = datasheetUnits(ids.units, edition)
   const entriesOf = reverse(units)
   const detachmentsOf = reverse(idsIn(ids.detachments, edition))
   // A unit no catalogue datasheet stands for, as the sodalities VS Data splits by spear, is no host a list can field yet.
@@ -101,22 +94,38 @@ export function vsLinksIndex(
       ...host,
     }
   }
-  const attachments: VsLinksIndex['attachments'] = {}
-  const transports: VsLinksIndex['transports'] = {}
+  const attachments: Record<string, VsAttachment> = {}
   for (const [entryId, unit] of units) {
-    if (definitions.unavailable.has(unit) || !definitions.get('unit', unit)) continue
-    const record = definitions.get('attachment', unit)
-    if (record) {
-      if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
-      const found = resolved.get(unit)
-      if (found) attachments[entryId] = found
-    }
-    const capacity = definitions.get('transport-profile', unit)?.data.capacity
+    const record = fielded(definitions, unit) && definitions.get('attachment', unit)
+    if (!record) continue
+    if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
+    const found = resolved.get(unit)
+    if (found) attachments[entryId] = found
+  }
+  return attachments
+}
+
+/** What each transport carries in one rules version, from VS Data's records; one whose capacity has no printed shape stays with its printed rule. */
+export function vsTransportsIndex(
+  definitions: VsDataDefinitions,
+  units: Readonly<Record<string, string>>,
+  edition: string | null,
+): Record<string, PrintedTransport> {
+  const transports: Record<string, PrintedTransport> = {}
+  for (const [entryId, unit] of datasheetUnits(units, edition)) {
+    const capacity = fielded(definitions, unit) && definitions.get('transport-profile', unit)?.data.capacity
     const transport = capacity && vsTransport(capacity)
     if (transport) transports[entryId] = transport
   }
-  return { attachments, transports }
+  return transports
 }
+
+/** Each datasheet's VS Data unit; its readers look a datasheet up without a book, so a book key (`<book>/<ID>`) has none. */
+const datasheetUnits = (units: Readonly<Record<string, string>>, edition: string | null) =>
+  new Map([...idsIn(units, edition)].filter(([key]) => !key.includes('/')))
+
+const fielded = (definitions: VsDataDefinitions, unit: string) =>
+  !definitions.unavailable.has(unit) && Boolean(definitions.get('unit', unit))
 
 function condition(
   { role, units, keywords, excludedKeywords, when = {}, shared }: ConditionalAttachment,
