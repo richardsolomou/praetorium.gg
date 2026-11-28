@@ -4220,7 +4220,8 @@ export const replaceRosterPointsMarks = spacetime.procedure({ revision: t.string
     const previous = []
     for (const mark of marks) {
       const roster = tx.db.rosters.id.find(mark.rosterId)
-      if (roster?.userId !== mark.userId) continue
+      // A list archived or edited since the run read it is left for the next run, which reads it as it is now.
+      if (roster?.userId !== mark.userId || roster.updatedAt !== BigInt(mark.updatedAt)) continue
       const current = tx.db.rosterPointsMarks.rosterId.find(mark.rosterId)
       const row = { ...mark, revision: input.revision, updatedAt: BigInt(mark.updatedAt) }
       if (current) {
