@@ -68,13 +68,14 @@ export function useRosterPrice({
   })
   const evaluatedPicks = useRef(new Map(picks.map((pick) => [pick.key, pick])))
   const evaluatedAt = useRef(0)
-  const evaluatedFor = useRef<readonly KeyedPick[] | null>(null)
+  const evaluatedFor = useRef<typeof priced>(undefined)
   useLayoutEffect(() => {
-    // A list the cache already priced, as one returned to by giving a VS pick's Warlord up, answers with its earlier time.
-    if (!priced || pricePending || (pricedAt <= evaluatedAt.current && evaluatedFor.current === picks)) return
+    // A list the cache already priced, as one returned to by giving a VS pick's Warlord up, answers at its earlier time with
+    // its own answer, so it is settled; a settling that changes nothing keeps the same answer, so it is not settled again.
+    if (!priced || pricePending || (pricedAt <= evaluatedAt.current && evaluatedFor.current === priced)) return
     const regrouped = picks.length !== evaluatedPicks.current.size || picks.some((pick) => !evaluatedPicks.current.has(pick.key))
     evaluatedAt.current = Math.max(evaluatedAt.current, pricedAt)
-    evaluatedFor.current = picks
+    evaluatedFor.current = priced
     evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
     const warlord = editable ? settledWarlord(picks, priced.units, regrouped) : null
     if (warlord)
