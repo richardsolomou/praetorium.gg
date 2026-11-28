@@ -3685,6 +3685,55 @@
       "unit": "genestealer-cults.acolyte-hybrids-with-autopistols",
       "unmatched": ["bb7b-ebb5-a64c-3f34|20b2-d42e-cd67-2e1b", "bb7b-ebb5-a64c-3f34|5da6-62a3-7b2c-6b8d"]
     },
+    "1afd-1eb5-9b4f-4f80": {
+      "base": "unmatched",
+      "choices": {
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|4966-94e3-8392-dccc": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.grenade-launcher": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7342-c076-0373-7f69": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.sniper-rifle": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7e92-002a-1265-b04f": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.meltagun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|8ae3-a772-c0c7-53a3": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.plasma-gun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|91c8-e43c-8cd9-1694": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.heavy-stubber": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|c066-88c7-f985-c341": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.flamer": 1
+            }
+          }
+        }
+      },
+      "unit": "astra-militarum.death-korps-grenadier-squad",
+      "unmatched": ["baed-7c31-5898-eb0b|7f88-f3e8-592b-2de0"]
+    },
     "1b28-6192-7cfa-3019": {
       "choices": {},
       "unit": "death-guard.rotigus",
@@ -8858,6 +8907,25 @@
       "unit": "orks.warphead",
       "unmatched": ["0011-beaa-0235-d7d7/ac6c-4cbf-0928-62c9|3d1d-54d6-45fb-669f"]
     },
+    "306-db45-d47c-f0e9": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
+    },
     "3066-9274-c887-86b": {
       "choices": {
         "9831-cfb8-7855-b2c0/2bd0-3b67-972f-a8f6|17f8-9cc9-b055-1d28": {
@@ -8906,6 +8974,25 @@
         "9831-cfb8-7855-b2c0/5a6-d46b-4cbb-bb52|8ae4-abdf-2dbc-856f",
         "9831-cfb8-7855-b2c0/5a6-d46b-4cbb-bb52|d0bc-2a1d-cdbc-559d"
       ]
+    },
+    "3082-c9fe-b2b6-2594": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
     },
     "3084-9a99-bf3a-b663": {
       "choices": {},
@@ -15430,6 +15517,25 @@
       "unit": "astra-militarum.marauder-bomber",
       "unmatched": []
     },
+    "506c-80e8-14a1-616f": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
+    },
     "509d-294b-4915-2e91": {
       "choices": {
         "55a3-9a75-c917-e922|0707-563e-2d7d-09b2": {
@@ -18557,6 +18663,25 @@
         "8512-e0a3-8a59-e899/eeff-86fd-25b2-9554|24d9-750b-64f5-1771",
         "8512-e0a3-8a59-e899/eeff-86fd-25b2-9554|e3e1-31fd-e2d6-64f"
       ]
+    },
+    "5a24-5d3b-949f-984c": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": ["117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277"]
     },
     "5a25-df80-8da1-cad9": {
       "base": "unmatched",
@@ -36153,6 +36278,147 @@
         "931f-a3e4-0662-8b0e/a519-7e4a-4293-fb7f|eaeb-d250-5cbe-f88d"
       ]
     },
+    "b6b0-9449-1f70-6cfe": {
+      "choices": {
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|1496-58ed-58de-e85f": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.grav-gun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|855d-58f5-1ed1-76ff": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.plasma-gun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|b616-79e4-5c40-6dc7": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.plasma-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|bf76-42b6-7d-76be": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.flamer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/37e7-aeb-4798-51cc/c74e-c06c-e18-7753|f535-2a9e-4697-333e": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.meltagun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|139e-30a2-a2cf-8a57": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.power-fist": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|1a46-2a5a-7c6-3dc3": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.boltgun": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|369-d3aa-cca1-1f82": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.plasma-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|4110-17a3-a219-4546": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.inferno-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|4ba2-32e0-91f-30a4": {
+          "options": {}
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|68f3-6a2e-e0e7-d3a5": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.thunder-hammer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|6bc8-3cc-9e83-1d6f": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.storm-bolter": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|9e7f-d013-2a42-5be2": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.astartes-chainsword": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|aa60-1aeb-4674-1e41": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.grav-pistol": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|cb6-8aa1-6349-9fe": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.combi-weapon": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|e8c6-723-924b-c43": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.hand-flamer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73/bee8-ef2e-b14e-cacc/ceba-a9b-c14a-a4c4|f20a-2058-6033-3f5a": {
+          "options": {
+            "space-marines.bike-squad.biker-sergeant-bolt-pistol": {
+              "space-marines.bike-squad.power-weapon": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73|37e7-aeb-4798-51cc": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol-2": {
+              "space-marines.bike-squad.flamer": 1
+            }
+          }
+        },
+        "89e4-6018-5660-fe73|48aa-6991-b817-11ac": {
+          "options": {}
+        },
+        "89e4-6018-5660-fe73|5ac-f2fb-e9e6-d759": {
+          "options": {
+            "space-marines.bike-squad.space-marine-bikers-bolt-pistol": {
+              "space-marines.bike-squad.astartes-chainsword": 1
+            }
+          }
+        }
+      },
+      "unit": "space-marines.bike-squad",
+      "unmatched": [
+        "a266-8dbe-3546-e001/19fd-15ca-1adf-d3c4|98ad-6645-aac5-7765",
+        "a266-8dbe-3546-e001/19fd-15ca-1adf-d3c4|b130-ae7f-b7ff-42ce"
+      ]
+    },
     "b6b2-af4a-8770-8626": {
       "choices": {
         "712c-4f8e-e5da-a60a/3164-29f6-53db-22a|41f4-7e6a-9b7c-6577": {
@@ -48556,6 +48822,32 @@
       "unit": "imperial-knights.cerastus-knight-castigator",
       "unmatched": []
     },
+    "f575-6924-86cd-8634": {
+      "choices": {
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|e4c4-2df9-a4e6-c92": {
+          "options": {
+            "space-marines.fire-raptor-gunship.fire-raptor-gunship-twin-autocannon": {
+              "space-marines.fire-raptor-gunship.2-quad-heavy-bolter": 1
+            }
+          }
+        },
+        "117b-dee5-f271-2507/5375-8b44-9188-ec17|eb13-ff43-e33a-1d92": {
+          "options": {}
+        },
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|831-7d99-a4e8-60df": {
+          "options": {}
+        }
+      },
+      "unit": "space-marines.fire-raptor-gunship",
+      "unmatched": [
+        "117b-dee5-f271-2507/acac-e978-cd95-4640|e2ba-d167-3412-3277",
+        "ad87-d484-543f-8cab|3bb3-78e-db85-353b",
+        "ad87-d484-543f-8cab|a689-a7b8-9b47-1362",
+        "ad87-d484-543f-8cab|cb13-6792-cb2e-4702",
+        "ad87-d484-543f-8cab|e9bb-ae3a-eba6-cbd8",
+        "ad87-d484-543f-8cab|f764-31bd-419d-576c"
+      ]
+    },
     "f5ac-46c9-972f-c0c3": {
       "choices": {},
       "unit": "orks.biged-bossbunka",
@@ -49066,6 +49358,55 @@
       },
       "unit": "tau-empire.riptide-battlesuit",
       "unmatched": ["b9b3-9409-ad48-4c64/6a04-101c-70b6-3e01|345a-f548-79e7-b25d"]
+    },
+    "f798-9d17-25ab-65af": {
+      "base": "unmatched",
+      "choices": {
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|4966-94e3-8392-dccc": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.grenade-launcher": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7342-c076-0373-7f69": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.sniper-rifle": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|7e92-002a-1265-b04f": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.meltagun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|8ae3-a772-c0c7-53a3": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.plasma-gun": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|91c8-e43c-8cd9-1694": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.heavy-stubber": 1
+            }
+          }
+        },
+        "baed-7c31-5898-eb0b/8be7-1403-d963-7812|c066-88c7-f985-c341": {
+          "options": {
+            "astra-militarum.death-korps-grenadier-squad.grenadiers-hot-shot-lasgun": {
+              "astra-militarum.death-korps-grenadier-squad.flamer": 1
+            }
+          }
+        }
+      },
+      "unit": "astra-militarum.death-korps-grenadier-squad",
+      "unmatched": ["baed-7c31-5898-eb0b|7f88-f3e8-592b-2de0"]
     },
     "f7d0-f6ee-1fd5-b4da": {
       "choices": {
