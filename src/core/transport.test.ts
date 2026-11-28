@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Passenger, transportLoad, transportRule, vsTransport } from './transport'
+import { type Passenger, printedTransport, transportLoad, transportRule, vsTransport, withPrintedWargear } from './transport'
 
 const RHINO =
   'This model has a **transport capacity** of 12 **Adeptus Astartes Infantry** models. It cannot transport **Gravis/Jump Pack/Terminator** models.'
@@ -270,6 +270,36 @@ describe("VS Data's typed transport capacity", () => {
 
   it('carries a unit in its other load', () => {
     expect(load(tyrannocyte, { name: 'Carnifex', alive: 1, wounds: 9, keywords: ['Tyranids', 'Monster'] })).toMatchObject([{ used: 1 }])
+  })
+
+  it('carries units in an other load of several allowances', () => {
+    const orion = vsTransport({
+      loads: [
+        [{ limit: 12, count: 'models', selectors: ['ADEPTUS CUSTODES INFANTRY'] }],
+        [
+          { limit: 1, count: 'models', selectors: ['DREADNOUGHT'] },
+          { limit: 6, count: 'models', selectors: ['ADEPTUS CUSTODES INFANTRY'] },
+        ],
+      ],
+    })
+    expect(
+      transportLoad(transportRule(orion ?? undefined)!, [
+        { name: 'Contemptor-Achillus Dreadnought', alive: 1, keywords: ['Adeptus Custodes', 'Vehicle', 'Walker', 'Dreadnought'] },
+        { name: 'Custodian Guard', alive: 5, keywords: ['Adeptus Custodes', 'Infantry'] },
+      ]),
+    ).toMatchObject([{ used: 1 }, { used: 5 }])
+  })
+
+  it('keeps the load wargear gives a transport where VS Data records none', () => {
+    const printed = printedTransport(
+      'This model has a transport capacity of 11 TAU INFANTRY models. If this model is equipped with a Tidewall defence platform, it has a transport capacity of 22 TAU INFANTRY models instead.',
+    )
+    const shieldline = withPrintedWargear(vsTransport({ loads: [[{ limit: 11, count: 'models', selectors: ['TAU INFANTRY'] }]] })!, printed)
+    expect(
+      transportLoad(transportRule(shieldline, [{ name: 'Tidewall defence platform', count: 1 }])!, [
+        { name: 'Strike Team', alive: 20, keywords: ['Tau', 'Infantry'] },
+      ]),
+    ).toMatchObject([{ used: 20 }])
   })
 
   it('leaves a capacity wargear changes to the printed rule', () => {
