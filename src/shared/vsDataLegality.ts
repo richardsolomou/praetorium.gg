@@ -237,7 +237,9 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
     'not-current': 'is not in this rules version',
     'detachment-faction': named(problem.message.replace(/ is not a .* detachment$/, ' cannot be taken by this army')),
     'detachment-count': problem.message.includes('no detachments') ? 'takes no Detachment' : 'needs one to three Detachments',
-    'detachment-group': named(problem.message.replace(/^(.*) shares (\S+) with (.*)$/, '$1 cannot be taken with $3, as both are $2')),
+    'detachment-group': named(
+      problem.message.replace(/^(.*) shares (.+) with (detachment:[\w.-]+)$/, '$1 cannot be taken with $3, as both are $2'),
+    ),
     'unit-faction': 'cannot be taken by this army',
     'unit-excluded': 'cannot be taken with this army or its Detachments',
     // As the catalogue words a Detachment lock: needs the Deathwatch Support detachment.
