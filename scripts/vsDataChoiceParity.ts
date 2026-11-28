@@ -25,7 +25,7 @@ import {
   vsUnitChoices,
   vsUnitToggles,
 } from '../src/core/unitChoices'
-import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
+import { type Per, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { carried, modelCounts, type VsRosterUnit } from '../src/core/vsDataRoster'
 import { vsFirstFielding, vsResized, vsUnitOptions, vsWithChoice } from '../src/core/vsDataUnit'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
@@ -374,19 +374,30 @@ function vsLeast(picked: VsRosterUnit) {
     for (const [key, k] of keysOf(id)) least.set(key, (least.get(key) ?? 0) + n * k)
   }
   const options = definitions.optionsOf(picked.unit)
+  const unit = definitions.get('unit', picked.unit)!
   const counts = modelCounts(definitions, picked)
   const models = [...counts.values()].reduce((total, n) => total + n, 0)
-  // How many carriers an option can take its choices on, where caps bound every one of them.
+  const bounded = (bound: { max: number; per?: Per; bySize?: { size: number; max: number }[] }, carriers: number) => {
+    const max = bound.bySize?.find((entry) => entry.size === models)?.max ?? bound.max
+    if (bound.per === 'carrier') return max * carriers
+    return max * (bound.per ? Math.floor(models / bound.per.models) : 1)
+  }
+  // How many carriers an option can take its choices on: no more than caps bounding every one of its choices allow, nor
+  // than a unit's option group holding them all, as the Black Knights' one grenade launcher in three across both swaps.
   const reach = (option: (typeof options)[number], carriers: number) => {
     const caps = option.data.caps ?? []
-    if (!option.data.choices.every((choice) => caps.some((cap) => cap.choices.includes(choice)))) return carriers
-    const capped = (cap: (typeof caps)[number]) => {
-      const max = cap.bySize?.find((entry) => entry.size === models)?.max ?? cap.max
-      if (cap.per === 'carrier') return max * carriers
-      return max * (cap.per ? Math.floor(models / cap.per.models) : 1)
-    }
-    const taken = caps.reduce((total, cap) => total + capped(cap), 0)
-    return Math.min(carriers, taken)
+    const capped = option.data.choices.every((choice) => caps.some((cap) => cap.choices.includes(choice)))
+      ? caps.reduce((total, cap) => total + bounded(cap, carriers), 0)
+      : carriers
+    const grouped = (unit.data.optionGroups ?? []).flatMap((group) =>
+      group.options.some(
+        (member) =>
+          member.option === option.id && option.data.choices.every((choice) => !member.choices || member.choices.includes(choice)),
+      )
+        ? [bounded(group, carriers)]
+        : [],
+    )
+    return Math.min(carriers, capped, ...grouped)
   }
   for (const model of definitions.modelsOf(picked.unit)) {
     const n = counts.get(model.id) ?? 0
