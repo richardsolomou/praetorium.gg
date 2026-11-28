@@ -85,7 +85,8 @@ export type CanonicalDetachment = {
   points: number | null
   dispositions: string[]
   /** A card's `vsDataId` is the VS Data ability whose summary it shows, as a published Stratagem's `id` is. */
-  rules: { name: string; description: string | null; vsDataId?: string }[]
+  /** A rule only the catalogue prints carries its `bsdataId`, by which VS Data's alias names its record. */
+  rules: { name: string; description: string | null; vsDataId?: string; bsdataId?: string }[]
   enhancements: { name: string; points: number | null; description: string | null; vsDataId?: string }[]
   upgrades: { name: string; points: number | null; description: string | null; vsDataId?: string }[]
   stratagems: {
@@ -172,6 +173,7 @@ export type CanonicalCatalogue = {
     | 45
     | 46
     | 47
+    | 48
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

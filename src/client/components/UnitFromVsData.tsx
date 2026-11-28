@@ -58,7 +58,8 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
 
 /**
  * The summary of a rule a datasheet or detachment around it prints, by `datasheetAbilitySummary`: the record its BSData
- * id is, then the record its printed text names. Undefined while asked for, null where there is none.
+ * id is, then one its printed text names, then its owner's own record of its name. Undefined while asked for, null where
+ * there is none.
  */
 export function useDatasheetAbilitySummary(text: string, name: string | undefined, id?: string): RuleSummary | null | undefined {
   const { pending, recordsOf } = useRuleSummaries([text])
