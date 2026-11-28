@@ -45,6 +45,7 @@ test('the home page paints before downloading the offline application and keeps 
       construction.catalogue,
       construction.rules,
       ...(construction.vs ? [construction.vs] : []),
+      ...(construction.importNames ? [construction.importNames] : []),
     ]),
   })
   const part = await request.get(reference.core)
