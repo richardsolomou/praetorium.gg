@@ -71,7 +71,7 @@ export const factionDisposition = (
 
 type OfferedDetachment = { id: string; name: string; exclusiveWith?: readonly { id: string; limit: string }[] }
 
-/** Why the catalogue refuses this detachment beside the ones already taken, if it does. */
+/** Why this detachment cannot join the ones already taken, if it shares a group with one of them. */
 export function detachmentConflict(detachment: OfferedDetachment, selected: readonly OfferedDetachment[]) {
   for (const other of selected) {
     const shared = detachment.exclusiveWith?.find((entry) => entry.id === other.id)
