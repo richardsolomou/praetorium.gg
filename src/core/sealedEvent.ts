@@ -24,6 +24,7 @@ import {
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
 import type { RosterPick } from './roster'
+import type { BattleSize } from './battleFormat'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { teamWarlord, teamWarlordChoices } from './teamWarlord'
 import { formatList } from './text'
@@ -569,9 +570,14 @@ export const isNonMatchedPlayAllowance = (id: SealedEventAllowance): id is NonMa
  * The allowances an organizer can choose for this rule, in reading order, described at the event's battle size, which
  * every list is built at or below. Allies choose whose Warlord leads, so a team event always needs one.
  */
-export function sealedEventAllowanceOptions(format: TableShape, rosterLimit: number): SealedEventAllowanceOption[] {
+export function sealedEventAllowanceOptions(
+  format: TableShape,
+  rosterLimit: number,
+  /** The battle sizes the rules version records, which a restriction's description reads its allowance from. */
+  sizes?: readonly BattleSize[],
+): SealedEventAllowanceOption[] {
   return [
-    ...formatRules(rosterLimit).filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
+    ...formatRules(rosterLimit, undefined, sizes).filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
     ...NON_MATCHED_PLAY_KINDS.map((id) => ({ id, label: NON_MATCHED_PLAY_LABELS[id], hint: 'Datasheets matched play leaves out' })),
   ]
 }

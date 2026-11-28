@@ -306,7 +306,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                           fallback={<p>No description is available.</p>}
                         />
                       ) : rule.description ? (
-                        <RuleText text={rule.description} name={rule.name} className={PRINTED_RULE} />
+                        <RuleText text={rule.description} name={rule.name} abilityId={rule.bsdataId} className={PRINTED_RULE} />
                       ) : (
                         <p>No description is available.</p>
                       )}

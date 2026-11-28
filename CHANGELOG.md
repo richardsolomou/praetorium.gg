@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.280.9 (2026-11-28)
+
+### Patch Changes
+
+- 45f715c: [reference] Missions, deployments, terrain layouts and force dispositions now credit the source their rules data comes from.
+
+## 0.280.8 (2026-11-28)
+
+### Patch Changes
+
+- 4e38831: [rosters] After an update, the Tournament lists tab keeps showing every list it had while the new data is checked, instead of filling back in over an hour.
+
+## 0.280.7 (2026-11-27)
+
+### Patch Changes
+
+- 75c7a60: [rosters] A Titan Legions or Chaos Titan Legions army can no longer borrow another Detachment's Force disposition at King of the Colosseum, as it takes no Detachment.
+
 ## 0.280.6 (2026-11-27)
 
 ### Patch Changes
@@ -1354,183 +1372,3 @@
 ### Patch Changes
 
 - c612eb6: [events] Tournament, hidden-list game and league organizers can set one chess clock limit for every battle, which players can't change in setup.
-
-## 0.247.7 (2026-11-14)
-
-### Patch Changes
-
-- 4389f0e: [rosters] A unit's loadout lists every ranged weapon before its melee weapons, instead of putting default melee weapons ahead of chosen guns.
-
-## 0.247.6 (2026-11-14)
-
-### Patch Changes
-
-- 15ab06a: [app] Live updates no longer drop out for a few seconds shortly after returning to Praetorium on a phone.
-
-## 0.247.5 (2026-11-14)
-
-### Patch Changes
-
-- 652c1fc: [rosters] The roster editor no longer shows a Start a battle button; start one from the roster's menu in your library or from Battles.
-
-## 0.247.4 (2026-11-14)
-
-### Patch Changes
-
-- 19326f7: [rosters] A list name typed straight after reopening a roster no longer reverts to the old name.
-
-## 0.247.3 (2026-11-14)
-
-### Patch Changes
-
-- 8f7adae: [battles] Battles now says when it shows an older copy of your games because it could not refresh, and tries again, so a finished game no longer looks like it is still in progress.
-
-## 0.247.2 (2026-11-14)
-
-### Patch Changes
-
-- c14456b: [rosters] Reloading right after editing a roster no longer shows its old points on the rosters page.
-- 5c392be: [battles] Choosing a roster after you leave battle setup and come back now works the first time, instead of asking you to choose it again.
-
-## 0.247.1 (2026-11-14)
-
-### Patch Changes
-
-- ad5a208: [app] Page tab bars on narrow screens scroll sideways instead of wrapping onto a second line.
-
-  Opening a page on a tab that doesn't fit on screen scrolls its tab bar to show it.
-
-## 0.247.0 (2026-11-14)
-
-### Minor Changes
-
-- 3be527d: [app] You can now get notifications in your browser for new battles, friend requests, and group and tournament updates.
-
-## 0.246.3 (2026-11-14)
-
-### Patch Changes
-
-- 27a6d66: [battles] A mission card asks to turn on rules text once instead of in place of every condition and action.
-- 27a6d66: [battles] The scoring prompt names each payout by its points, such as the lower or higher payout, until rules text is turned on, and asks to turn it on once instead of on every row.
-
-## 0.246.2 (2026-11-14)
-
-### Patch Changes
-
-- c70f81d: [app] The Status page names the army data snapshot Praetorium serves instead of saying it was not recorded.
-
-## 0.246.1 (2026-11-14)
-
-### Patch Changes
-
-- b62191c: [rosters] A Stormtalon Gunship starts with its skyhammer missile launcher and a Scout Bike Squad sergeant with a bolt pistol again.
-- b62191c: [rosters] Saved lists keep the Space Marines Legends datasheets that left the Munitorum Field Manual, marked as no longer legal, instead of losing them.
-- b62191c: [rosters] Scout Squads count one combat knife per model and the Astraeus both of its storm bolters again.
-- b62191c: [rosters] Saved lists keep options the datasheets now offer under new entries, such as the Acothyst's weapons, the Kill Tank's rokkit launchas and the Vanguard Veterans' storm shields.
-- b62191c: [rosters] Tarantula Sentry Battery lists keep their number of turrets.
-
-## 0.246.0 (2026-11-14)
-
-### Minor Changes
-
-- 3cbfc22: [reference] With notifications on, the app now tells you when an army data update changes the points of a list you saved, and by how much.
-
-### Patch Changes
-
-- 1762c44: [app] The links at the foot of each page are easier to tap.
-- 1762c44: [battles] A finished battle's losing side keeps its names and armies readable, with only its pictures and score faded.
-- 1762c44: [battles] A battle setup step that isn't open yet keeps its explanation readable.
-- 1762c44: [app] Voice control and screen readers now name battle cards, unit attach and embark menus, terrain layouts, the event invite link and the datasheet list by the words they show.
-- 1762c44: [app] The sponsor link on the home page is underlined, so it stands out without relying on colour.
-
-## 0.245.0 (2026-11-14)
-
-### Minor Changes
-
-- 2dcabf1: [battles] Until you have played your first battle, the places you start one now say what tracking it here does for you.
-
-### Patch Changes
-
-- 6abaaa9: [reference] Corrected keywords on 50 datasheets, such as Explosives in place of Grenades on many Space Marine units and Frame on large models.
-- 6abaaa9: [reference] Corrected stat lines on 10 datasheets, such as the Apothecary Biologis's Objective Control and the Avenger Strike Fighter's Move.
-- 6abaaa9: [reference] Corrected weapon profiles on 66 datasheets, such as kill team plasma incinerators, the Lieutenant's plasma pistol and the Land Raider Crusader's multi-melta.
-- a2d42d0: [rosters] Legionaries with two different heavy or special weapons, such as a Havoc autocannon and a missile launcher, keep both when a list is imported or built.
-- a2d42d0: [reference] Belial's datasheet now lists Terminator Assault Squad, and the Captain in Terminator Armour's lists Wolf Guard Terminators, among the units they can lead.
-
-## 0.244.0 (2026-11-14)
-
-### Minor Changes
-
-- 25805bd: [reference] Faction and datasheet pages show a few recent finished games that field that faction.
-- f708ffa: [rosters] Rosters has a Winning tab of recent top-four tournament lists that you can read in full and import as your own.
-
-### Patch Changes
-
-- f708ffa: [rosters] A list link opened on a roster tab other than Mine now opens its import review instead of closing it.
-
-## 0.243.0 (2026-11-14)
-
-### Minor Changes
-
-- 76e198f: [battles] A battle can now run a chess clock: choose each side's time under **Chess clock** in setup, see the time each side has left on the scoreboard, and hand the clock to the other side for a reaction in your turn.
-- 2a0c26c: [battles] In a running battle, **Threats** under an opponent's name lists their surviving units by Move plus longest ranged weapon, so you can see what reaches you without opening each datasheet.
-- 3a4d05e: [events] League players with a game still to finish get a notification about a day before the round’s deadline.
-- 8620afd: [app] A new Status page, linked from Support, shows whether Praetorium is working and which release, army data and rules versions it serves.
-- d149cae: [reference] Choose **Something wrong?** on a datasheet, or in a roster unit's menu, to report a wrong points value or profile with the datasheet, faction and rules version already filled in.
-- 8f1654b: [battles] Streamers can add a live score overlay for a battle to their stream: choose **Copy stream overlay link** in the battle options.
-
-### Patch Changes
-
-- b204c34: [rosters] Changing a roster to an archived rules version no longer fails with “That took too long” while the site is busy.
-- 7d3ebe3: [rosters] The battle size list in roster setup is wide enough to show each size on one line.
-- c89cbce: [app] When the connection drops during a load or a save, Praetorium now says so and asks you to try again when you are back online, instead of showing the browser's own message.
-- b204c34: [rosters] Your rosters page shows a list’s current points straight after you edit it, instead of its total from before the edit.
-- 5351f0b: [app] The results bar on a player's profile now shows draws as a thin line and losses as stripes, so players with red-green colour blindness can tell wins from losses.
-- be31474: [reference] Rules text that couldn't load now loads again when you come back to its page, without pressing Try again.
-
-## 0.242.0 (2026-11-14)
-
-### Minor Changes
-
-- 5921eb6: [events] You can now see your league round deadlines and tournament dates in your own calendar app: get a calendar link under Account settings.
-
-### Patch Changes
-
-- f14d6af: [rosters] **Build an army** on the home page now opens the roster setup straight away.
-- f14d6af: [rosters] An empty Rosters page now offers to build a roster or import a list, and only mentions the one-roster limit without an account once you have one.
-- f14d6af: [rosters] Without an account, the roster setup no longer shows an Access choice that read "Public" for a list only your device keeps.
-- f14d6af: [rosters] Creating a roster no longer asks for a name: it is named from your army, and you can rename it in the builder.
-
-## 0.241.6 (2026-11-14)
-
-### Patch Changes
-
-- 27dcb0f: [battles] The First turn step in battle setup now says which earlier step it waits on.
-
-## 0.241.5 (2026-11-14)
-
-### Patch Changes
-
-- 3e61d7a: [battles] A battle card's score blends the colours of everyone on each side.
-
-## 0.241.4 (2026-11-14)
-
-### Patch Changes
-
-- a95c0b0: [battles] Your draft on Battles can be deleted from its menu or with a right-click.
-- a95c0b0: [battles] Until a battle starts, a place you play can go back to the invite link even after you chose its army.
-
-## 0.241.3 (2026-11-14)
-
-### Patch Changes
-
-- 3988c2b: [battles] A new battle starts with Guided tracking already selected.
-- bfa064a: [reference] Secondary mission pages have readable addresses named after the card, and older links still open them.
-- 9b8b248: [battles] Battle setup no longer scrolls past the bottom of the page.
-- ec19912: [battles] In a battle with more than one player on a side, each player keeps their own colour, and the side's score blends them.
-
-## 0.241.2 (2026-11-14)
-
-### Patch Changes
-
-- 1e72e53: [events] A group page no longer shows an empty "Nothing waiting on you" card when there's nothing for you to do.

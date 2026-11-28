@@ -11,6 +11,7 @@ import { FactionLabel, FactionMark } from '../../components/FactionMark'
 import { factionFor } from '../../factions'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, factionQuery, loadoutDatasheetsQuery } from '../../queries'
+import { useBattleSizes } from '../../components/battleSizes'
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
@@ -77,6 +78,7 @@ export function CombatantCard({
     enabled: combatant.roster && factions.isSuccess && !indexedFaction,
   })
   const selectedFaction = indexedFaction ?? (combatant.roster ? rosterFaction.data : undefined)
+  const battleSizes = useBattleSizes(combatant.faction)
   const factionIcon = (catalogueId: string | undefined) => {
     const faction =
       (catalogueId ? factionFor(factions.data, catalogueId) : undefined) ??
@@ -363,6 +365,7 @@ export function CombatantCard({
                     options={combatant.detachmentOptions ?? []}
                     value={combatant.detachmentIds}
                     limit={combatant.limit}
+                    battleSizes={battleSizes}
                     unavailable={
                       busy ??
                       (!combatant.detachmentOptions

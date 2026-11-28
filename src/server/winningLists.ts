@@ -85,6 +85,7 @@ const writeWhole = (file: string, text: string) => replaceFile(file, (temporary)
 const listFile = (directory: string, id: string) => path.join(directory, 'lists', `${id}.txt`)
 const eventsFile = (directory: string) => path.join(directory, 'events.json')
 const verdictsFile = (directory: string) => path.join(directory, 'verdicts.json')
+const checkingFile = (directory: string) => path.join(directory, 'verdicts-checking.json')
 const importedFile = (directory: string, id: string) => path.join(directory, 'imported', `${id}.json`)
 
 /**
@@ -190,12 +191,33 @@ const readJson = async <T>(file: string, schema: z.ZodType<T>) => {
   }
 }
 
+/** Each cached placing with a clean verdict, newest first; a list taken to several events is shown once, at its newest placing, as its own page does. */
+function placedLists(cached: Events, known: Record<string, Verdict>) {
+  const found: WinningList[] = []
+  const shown = new Set<string>()
+  for (const event of cached)
+    for (const player of event.players) {
+      const list = known[player.list]
+      if (!list || shown.has(player.list)) continue
+      shown.add(player.list)
+      found.push(placed(list, player.list, event, player))
+    }
+  return found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
+}
+
+/** The lists the last finished import found and the revision it ran under, read without importing anything. */
+export async function finishedLists(directory: string) {
+  const cached = await readJson(eventsFile(directory), events)
+  const finished = await readJson(verdictsFile(directory), verdicts)
+  return cached && finished ? { revision: finished.revision, lists: placedLists(cached, finished.lists) } : null
+}
+
 /**
  * Every cached placing whose list imports with nothing to review under this catalogue revision, which is what keeps a
  * list built for datasheets or options since removed out, whatever its age; one that is no longer legal, such as after
- * a points rise, is kept with its problem. Verdicts are kept on disk per revision,
- * so a restart repeats no import and a day adds only new lists. `progress` gets those found so far as it goes, newest
- * events first, since the cache lists events that way.
+ * a points rise, is kept with its problem. Verdicts are kept on disk per revision, the last finished import's apart
+ * from the one in progress, so a restart repeats no import, a day adds only new lists, and the finished lists stay
+ * readable until a new revision's import finishes. `progress` gets those found so far as it goes.
  */
 export async function importableLists(
   directory: string,
@@ -204,37 +226,29 @@ export async function importableLists(
 ): Promise<WinningList[] | null> {
   const cached = await readJson(eventsFile(directory), events)
   if (!cached) return null
-  const kept = await readJson(verdictsFile(directory), verdicts)
   // A cache written in an older shape fails the schema and is read as empty, so every list is imported again.
-  const known: Record<string, Verdict> = kept?.revision === revision ? kept.lists : {}
-  const save = () => writeWhole(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
-  const found: WinningList[] = []
-  const shown = new Set<string>()
-  const sorted = () => found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
+  const finished = await readJson(verdictsFile(directory), verdicts)
+  const checking = await readJson(checkingFile(directory), verdicts)
+  const known: Record<string, Verdict> =
+    finished?.revision === revision ? finished.lists : checking?.revision === revision ? checking.lists : {}
   let imported = 0
-  for (const event of cached)
-    for (const player of event.players) {
-      if (!(player.list in known)) {
-        const text = await fs.readFile(listFile(directory, player.list), 'utf8').catch(() => null)
-        if (text === null) continue
-        const started = performance.now()
-        known[player.list] = (await importAndKeep(directory, player.list, text, revision)).verdict
-        const took = performance.now() - started
-        // Saved as it goes, so a restart part way through carries on rather than starting again.
-        if (++imported % 25 === 0) {
-          await save()
-          progress(sorted())
-        }
-        await sleep(PAUSE_PER_IMPORT * took)
-      }
-      const list = known[player.list]
-      // A player can take one list to several events; it is shown once, at its newest placing, as its own page does.
-      if (!list || shown.has(player.list)) continue
-      shown.add(player.list)
-      found.push(placed(list, player.list, event, player))
+  for (const { list } of cached.flatMap((event) => event.players)) {
+    if (list in known) continue
+    const text = await fs.readFile(listFile(directory, list), 'utf8').catch(() => null)
+    if (text === null) continue
+    const started = performance.now()
+    known[list] = (await importAndKeep(directory, list, text, revision)).verdict
+    const took = performance.now() - started
+    // Saved as it goes, so a restart part way through carries on rather than starting again.
+    if (++imported % 25 === 0) {
+      await writeWhole(checkingFile(directory), JSON.stringify({ revision, lists: known }))
+      progress(placedLists(cached, known))
     }
-  await save()
-  return sorted()
+    await sleep(PAUSE_PER_IMPORT * took)
+  }
+  await writeWhole(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
+  await fs.rm(checkingFile(directory), { force: true })
+  return placedLists(cached, known)
 }
 
 /**
@@ -300,7 +314,7 @@ export function unitLists(lists: readonly WinningList[], catalogueId: string, en
 
 /**
  * The importable lists, read again in the background whenever the cache or the catalogue changes. A reader gets the
- * last finished answer straight away, or null before the first one, rather than waiting on any import.
+ * last finished answer, even one from an earlier revision, or the lists found so far before any import has finished.
  */
 export function winningListsStore(directory: string, catalogue: () => LoadedCatalogue | null, onError: (error: unknown) => void) {
   let shown: { lists: WinningList[]; revision: string; version: number; complete: boolean } | null = null
@@ -321,10 +335,13 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
     const partial = (lists: WinningList[]) => {
       if (!shown?.complete) shown = { lists, revision, version: reading, complete: false }
     }
-    running = importableLists(directory, revision, partial)
-      .then((lists) => {
-        if (lists) shown = { lists, revision, version: reading, complete: true }
-      })
+    running = (async () => {
+      // After a restart, the last finished lists stand in while a new revision is checked, rather than a partial set.
+      const finished = shown ? null : await finishedLists(directory)
+      if (finished) shown = { ...finished, version: reading, complete: true }
+      const lists = await importableLists(directory, revision, partial)
+      if (lists) shown = { lists, revision, version: reading, complete: true }
+    })()
       .catch(onError)
       .finally(() => {
         running = null
