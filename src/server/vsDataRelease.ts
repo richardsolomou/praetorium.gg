@@ -711,13 +711,10 @@ export function writeVsDataConstruction(directory: string, file: string) {
   // A unit ability names the wargear it is the rule of on its record where the release states it, else only by its
   // identity entry referencing that wargear, as releases before VS Data's wargear `rules` do.
   const abilityWargear = new Map<string, string[]>()
-  const detachmentRules = new Set<string>()
   // An Enhancement is a rule summary whose typed `enhancement` facts say who may take it.
   for (const entry of manifest.categories.find((category) => category.name === 'rules-reference')?.records ?? []) {
     if (entry.kind !== 'ability') continue
     const raw = read(entry.path)
-    const ruled = ruleTypeSchema.safeParse(raw)
-    if (ruled.success && ruled.data.data.ruleType === 'detachment-rule') detachmentRules.add(ruled.data.id)
     const stated = abilityWargearSchema.safeParse(raw)
     if (stated.success && stated.data.rulesVersion.update === manifest.rulesVersion.update && stated.data.data.wargear)
       abilityWargear.set(
@@ -745,14 +742,6 @@ export function writeVsDataConstruction(directory: string, file: string) {
       definition.data = { ...definition.data, rules: [...new Set([...rules, entry.id])].toSorted() }
     }
   }
-  // A Detachment's rules are the detachment-rule summaries its identity entry references.
-  for (const entry of identity.entries) {
-    const definition = entry.kind === 'detachment' ? definitions.detachment?.[entry.id] : undefined
-    const rules = (entry.references ?? []).flatMap((reference) =>
-      reference.kind === 'ability' && detachmentRules.has(reference.id) ? [reference.id] : [],
-    )
-    if (definition && rules.length) definition.data = { ...definition.data, rules: rules.toSorted() }
-  }
   const construction: VsDataConstruction = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
@@ -777,7 +766,6 @@ const constructionRecordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   data: z.record(z.string(), z.unknown()),
 })
-const ruleTypeSchema = refSchema.extend({ data: z.object({ ruleType: z.string().optional() }) })
 const abilityWargearSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   data: z.object({ wargear: z.array(refSchema).optional() }),

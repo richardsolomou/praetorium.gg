@@ -52,8 +52,6 @@ export type FactionData = {
 export type BattleSizeData = { points: number; detachmentPoints?: number; enhancements?: number; duplicates?: number }
 export type DetachmentData = {
   faction: string
-  /** Its detachment-rule summaries, by VS Data id. */
-  rules?: string[]
   enhancements?: string[]
   dispositions?: string[]
   excludedUnits?: string[]
