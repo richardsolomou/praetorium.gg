@@ -283,7 +283,9 @@ export function rosterCombatant(
     : {}
   return {
     selected: sheet,
-    models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,
+    models: selectedUnit!.models,
+    /** The size the pick asked for that its rules do not field, when they moved it. */
+    refusedModels: selectedUnit!.refusedModels,
     carriers: fielded.carriers ?? catalogueCarriers(context.unitSelectionIndex),
     rules: rosterCombatRules(loaded, rules, data, context, sheet),
     companions,

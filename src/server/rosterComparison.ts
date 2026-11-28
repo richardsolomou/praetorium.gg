@@ -92,8 +92,8 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
       entries: [pickIndex + 1, ...projection.companions.map((member) => member.pickIndex + 1)],
       models: members.reduce((total, member) => total + member.models, 0),
     }
-    if (pick.models !== undefined && projection.models !== pick.models)
-      return { ...unit, snapshot: null, error: `This unit cannot field ${pick.models} models; use a legal unit size.` }
+    if (projection.refusedModels !== undefined)
+      return { ...unit, snapshot: null, error: `This unit cannot field ${projection.refusedModels} models; use a legal unit size.` }
     const snapshot = { ...defaultSnapshot(projection), allocationRequired: projection.attachmentErrors.length > 0 }
     const error = projection.attachmentErrors.map((problem) => `${problem.entryName} ${problem.message}.`).join(' ')
     return { ...unit, snapshot, ...(error ? { error } : {}) }
