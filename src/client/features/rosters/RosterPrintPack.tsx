@@ -11,7 +11,7 @@ import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
 import { ruleAbilitySummariesQuery, ruleUnitsQuery } from '../../queries/references'
-import { DatasheetUnit, datasheetUnit } from '../../components/UnitFromVsData'
+import { DatasheetUnit, datasheetUnit, detachmentRulesOwner } from '../../components/UnitFromVsData'
 import type { priceRoster } from '../../functions'
 import { RuleText, SummaryById } from '../../components/RuleText'
 import { useVsDataSummaries } from '../../components/UnitFromVsData'
@@ -62,7 +62,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         signal.throwIfAborted()
         const detail = await client.query({ ...detachmentDetailQuery(input.catalogueId, detachment!.slug), staleTime: 0 })
         if (!detail) throw new Error('A selected detachment reference is unavailable.')
-        detachments.push(detail)
+        detachments.push({ ...detail, owner: detachmentRulesOwner(input.catalogueId, faction.slug, detachment!.slug) })
       }
       const cards = await client.query({
         ...detachmentRulesQuery(
@@ -292,30 +292,32 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               <p>No army rule description is available.</p>
             )}
             {data.detachments.map((detachment) => (
-              <section key={detachment.name}>
-                <h3 className="pack-subhead">{detachment.name}</h3>
-                {detachment.rules.length ? (
-                  detachment.rules.map((rule) => (
-                    <section className="pack-rule" key={rule.name}>
-                      <h3>{rule.name}</h3>
-                      {rule.vsDataId ? (
-                        <SummaryById
-                          catalogueId={input.catalogueId}
-                          id={rule.vsDataId}
-                          className={PRINTED_RULE}
-                          fallback={<p>No description is available.</p>}
-                        />
-                      ) : rule.description ? (
-                        <RuleText text={rule.description} name={rule.name} className={PRINTED_RULE} />
-                      ) : (
-                        <p>No description is available.</p>
-                      )}
-                    </section>
-                  ))
-                ) : (
-                  <p>No detachment rule description is available.</p>
-                )}
-              </section>
+              <DatasheetUnit.Provider key={detachment.name} value={detachment.owner}>
+                <section>
+                  <h3 className="pack-subhead">{detachment.name}</h3>
+                  {detachment.rules.length ? (
+                    detachment.rules.map((rule) => (
+                      <section className="pack-rule" key={rule.name}>
+                        <h3>{rule.name}</h3>
+                        {rule.vsDataId ? (
+                          <SummaryById
+                            catalogueId={input.catalogueId}
+                            id={rule.vsDataId}
+                            className={PRINTED_RULE}
+                            fallback={<p>No description is available.</p>}
+                          />
+                        ) : rule.description ? (
+                          <RuleText text={rule.description} name={rule.name} abilityId={rule.bsdataId} className={PRINTED_RULE} />
+                        ) : (
+                          <p>No description is available.</p>
+                        )}
+                      </section>
+                    ))
+                  ) : (
+                    <p>No detachment rule description is available.</p>
+                  )}
+                </section>
+              </DatasheetUnit.Provider>
             ))}
           </section>
           <section className="pack-section">

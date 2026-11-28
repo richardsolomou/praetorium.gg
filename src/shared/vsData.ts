@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { RuleSummary } from '../contracts/rules'
-import { english, gdcAliasName as named, gdcAliasId as dotted, gdcDetachmentRuleAlias, gdcEnhancementAlias } from './datacards'
+import { english, gdcAliasName as named, gdcAliasId as dotted, gdcDetachmentRuleAliasIn, gdcEnhancementAlias } from './datacards'
 import { idsIn } from './vsDataPoints'
 
 /** The credit a record Praetorium serves from VS Data alone carries. */
@@ -421,7 +421,7 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
   for (const rule of list(rules?.army)) add('army rule', `gdc.army.rule.army.${named(rule.name)}`, blockTexts(rule.rules))
   for (const detachment of list(rules?.detachment))
     for (const rule of list(detachment.rules))
-      add('detachment rule', gdcDetachmentRuleAlias(detachment.detachment_id, rule.name), blockTexts(rule.rules))
+      add('detachment rule', gdcDetachmentRuleAliasIn(file, detachment, rule.name), blockTexts(rule.rules))
   for (const datasheet of list(root.datasheets)) {
     const abilities = fieldsOf(datasheet.abilities)
     const faction = datasheet.faction_id ? `.faction.${dotted(datasheet.faction_id)}` : ''
