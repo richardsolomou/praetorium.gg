@@ -199,9 +199,17 @@ export function vsTransport(capacity: TransportCapacity): PrintedTransport | nul
   }
 }
 
-/** VS Data's capacity with the loads wargear gives in the printed rule, where VS Data records none, as a Tidewall Shieldline's defence platform. */
+/**
+ * VS Data's capacity with the loads wargear gives in the printed rule, where VS Data records none, as a Tidewall
+ * Shieldline's defence platform. The wargear changes only how many ride: what may ride stays VS Data's, as the printed
+ * platform sentence misnames T'AU EMPIRE INFANTRY.
+ */
 export function withPrintedWargear(capacity: PrintedTransport, printed: PrintedTransport | null | undefined): PrintedTransport {
-  return printed?.conditions.length && !capacity.conditions.length ? { ...capacity, conditions: printed.conditions } : capacity
+  if (!printed?.conditions.length || capacity.conditions.length) return capacity
+  return {
+    ...capacity,
+    conditions: printed.conditions.map(({ wargear, capacity: models }) => ({ ...capacity.main, wargear, capacity: models })),
+  }
 }
 
 /**
