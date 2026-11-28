@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.17 (2026-11-28)
+
+### Patch Changes
+
+- 1b8f410: [battles] Rad-Bombardment, Ride the Wind, Strands of Fate, Artillery Support, Miasmic Bombardment, Numberless Horde, Pledges to the Dark Prince and Gate of Infinity now remind you when they apply during a battle, and Masters of Misdirection offers its Infiltrators in battle setup.
+
 ## 0.280.16 (2026-11-28)
 
 ### Patch Changes
