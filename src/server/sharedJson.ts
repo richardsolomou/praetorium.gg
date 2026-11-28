@@ -3,6 +3,8 @@ import { hash } from 'node:crypto'
 
 /** Values parsed from each file content that something still holds, keyed by that content's hash. */
 const parsedFiles = new Map<string, WeakRef<object>>()
+/** Records read from any file that something still holds, keyed by their content's hash. */
+const sharedRecords = new Map<string, WeakRef<object>>()
 
 /**
  * Reads a JSON file keeping one copy of each repeated string value.
@@ -53,4 +55,19 @@ function shareStrings(value: unknown, strings: Map<string, string>): unknown {
     }
   }
   return value
+}
+
+/**
+ * Replaces each record of `records`, in place, with an identical one already read from another file while anything
+ * still holds it: every rules version's VS Data release repeats most records of the others unchanged. Treat the records
+ * as read-only.
+ */
+export function shareRecords<T extends object>(records: Record<string, T>) {
+  for (const [key, record] of Object.entries(records)) {
+    const content = hash('sha256', JSON.stringify(record), 'base64')
+    const kept = sharedRecords.get(content)?.deref() as T | undefined
+    if (kept) records[key] = kept
+    else sharedRecords.set(content, new WeakRef(record))
+  }
+  return records
 }
