@@ -9,8 +9,10 @@ const forceDisposition = /^Force Disposition:\s*(.+)$/i
 const unitHeader = /^(.+?)\s+\((\d[\d,]*) pts\)$/i
 const bullet = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
 
-export const listForgeShareCode = (input: string) =>
-  input.trim().match(/^(?:https:\/\/)?share\.listforge\.club\/([\w-]{20})\/?(?:[?#][^\s]*)?$/i)?.[1] ?? null
+export function listForgeShareCode(input: string) {
+  const [, host, code] = input.trim().match(/^(?:https:\/\/)?([^/]+)\/([\w-]{20})\/?(?:[?#]\S*)?$/i) ?? []
+  return host?.toLowerCase() === 'share.listforge.club' ? (code ?? null) : null
+}
 
 /** Simple Text lists totals and noteworthy choices, leaving out the full equipment of each model. */
 export function isListForgeSimpleText(input: string) {
