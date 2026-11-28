@@ -342,6 +342,7 @@ it('keeps every spelling the localisation gives a unit, its pieces, a Detachment
         pieces: [['Particle Beamer', 'Haz de partículas']],
       },
     },
+    abilities: { 'necrons.test.phase-shift': 'Move' },
   })
 })
 
@@ -615,6 +616,38 @@ it('keeps each Enhancement’s eligibility from its rule facts, under its Detach
   expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.enhancement).toEqual({
     'necrons.test.relic': { name: 'Relic', data: { type: 'model', points: 10, eligibility, detachment: 'necrons.test' } },
   })
+})
+
+it('gives a piece of wargear each unit ability whose identity entry references it', () => {
+  fs.rmSync(directory, { recursive: true })
+  const shield = {
+    kind: 'wargear',
+    id: 'necrons.test.shield',
+    name: 'Shield',
+    aliases: [],
+    category: 'rosters',
+    data: { formatVersion: 2 },
+  }
+  const ward = { kind: 'ability', id: 'necrons.test.ward', name: 'Ward', references: [{ kind: 'wargear', id: 'necrons.test.shield' }] }
+  writeFiles(directory, vsDataReleaseFiles([shield], 'MFM 1.6', [ward]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.wargear?.['necrons.test.shield']?.data.rules,
+  ).toEqual(['necrons.test.ward'])
+})
+
+it('keeps the rules a piece of wargear’s own record names beside the abilities that name it', () => {
+  fs.rmSync(directory, { recursive: true })
+  const data = { formatVersion: 2, rules: ['necrons.test.gift'] }
+  const shield = { kind: 'wargear', id: 'necrons.test.shield', name: 'Shield', aliases: [], category: 'rosters', data }
+  const ward = { kind: 'ability', id: 'necrons.test.ward', name: 'Ward', references: [{ kind: 'wargear', id: 'necrons.test.shield' }] }
+  writeFiles(directory, vsDataReleaseFiles([shield], 'MFM 1.6', [ward]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.wargear?.['necrons.test.shield']?.data.rules,
+  ).toEqual(['necrons.test.gift', 'necrons.test.ward'])
 })
 
 it('names the units the identity marks absent from the rules version as unavailable', () => {
