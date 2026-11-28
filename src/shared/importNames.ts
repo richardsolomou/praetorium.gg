@@ -44,7 +44,7 @@ export const frozenNames = (
 ) => (frozen.size ? (storedNames(frozen, loaded, id) ?? []) : own())
 
 /**
- * The names BSData gave a book, as frozen, by its catalogue ID, which a rules version's book carries prefixed. Rules
+ * The names BSData gave a book, as frozen, newest last, by its catalogue ID, which a rules version's book carries prefixed. Rules
  * carrying none, as a download from an earlier release or a list read without rules, read the catalogue's own names.
  */
 export const frozenBookNames = (frozen: ReadonlyMap<string, readonly string[]>, catalogueId: string, own: () => readonly string[]) =>

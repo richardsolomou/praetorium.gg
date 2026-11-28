@@ -467,7 +467,7 @@ function importTextRoster(
   // Builders allow longer titles than a saved roster keeps.
   const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
   const bookNames = (book: LoadedCatalogue['factions'][number]) => frozenBookNames(appNames.bookNames, book.id, () => [book.name])
-  const factionNames = offeredNames ?? loaded?.factions.flatMap((book) => bookNames(book).slice(0, 1)) ?? []
+  const factionNames = offeredNames ?? loaded?.factions.flatMap((book) => bookNames(book).slice(-1)) ?? []
   const stated = loaded?.factions.find((candidate) =>
     matchesImportFaction(parsed.faction, { bookNames: bookNames(candidate), vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
   )
@@ -672,7 +672,7 @@ function importTextRoster(
   return {
     name: title,
     catalogueId: faction.id,
-    catalogueName: bookNames(faction)[0] ?? null,
+    catalogueName: bookNames(faction).at(-1) ?? null,
     detachmentIds,
     disposition,
     limit,

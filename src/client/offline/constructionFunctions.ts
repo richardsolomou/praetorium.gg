@@ -96,7 +96,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
     const faction = await savedFaction(exchange.catalogueId, factions)
     return constructionRead(
       'importExchange',
-      { exchange, factionName: faction ? (savedBookNames(faction)[0] ?? null) : null },
+      { exchange, factionName: faction ? (savedBookNames(faction).at(-1) ?? null) : null },
       (signal) => server.importRoster({ ...args, signal }),
       faction?.id,
       args.signal,
@@ -120,7 +120,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
       file: args.data,
       matched: Boolean(faction),
       statedMissing: Boolean(statedId && !faction),
-      factionNames: factions.flatMap((candidate) => savedBookNames(candidate).slice(0, 1)),
+      factionNames: factions.flatMap((candidate) => savedBookNames(candidate).slice(-1)),
       translations,
     },
     (signal) => server.importRoster({ ...args, signal }),
