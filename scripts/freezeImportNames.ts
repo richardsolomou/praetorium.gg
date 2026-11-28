@@ -11,9 +11,9 @@ import { readsAsRulesSentence } from './lib/rulesSentence'
  * Adds to `catalogue/legacy-ids/` the names every rules version of a catalogue snapshot gives each book, datasheet,
  * Detachment and other entry (model, wargear, upgrade, Enhancement), by the ID a saved roster or a New Recruit list holds,
  * and which entries are models: New Recruit prints these spellings, which imports read once the catalogue no longer
- * carries them. The files are append-only: a name or model they hold is never removed, except an entry name the snapshot
- * shows is a rules sentence (`readsAsRulesSentence`) and no profile of the entry carries, which is an instruction or a
- * notice, not a name a list prints.
+ * carries them. The files are append-only: a key, name or model they hold is never removed, except an entry name the
+ * snapshot shows is a rules sentence (`readsAsRulesSentence`) and no profile of the entry carries, which is an instruction
+ * or a notice, not a name a list prints; its key stays.
  *
  *   pnpm exec tsx scripts/freezeImportNames.ts <catalogue directory>
  */
@@ -89,13 +89,9 @@ const file = path.join(folder, 'entry-names.json')
 const frozen = legacyEntryNamesSchema.parse(
   fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { format: 'praetorium.legacy-entry-names.v1', names: {}, models: [] },
 )
+// An ID keeps its key with no names, as the maps never lose a key.
 const names = withAdded(
-  Object.fromEntries(
-    Object.entries(frozen.names).flatMap(([id, spelled]) => {
-      const kept = spelled.filter((name) => !sentences.has(name))
-      return kept.length ? [[id, kept]] : []
-    }),
-  ),
+  Object.fromEntries(Object.entries(frozen.names).map(([id, spelled]) => [id, spelled.filter((name) => !sentences.has(name))])),
   found.entries,
 )
 write(file, { ...frozen, names, models: [...new Set([...frozen.models, ...models])].toSorted() }, Object.keys(names).length, 'entries')
