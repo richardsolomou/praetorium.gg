@@ -240,6 +240,8 @@ export const vsDataNamesSchema = z.object({
   dispositions: spellingsSchema.default([]),
   /** Every unit's spellings, and those of each model and piece of wargear it holds, by VS Data id. */
   units: z.record(z.string(), z.object({ name: z.array(z.string()), pieces: spellingsSchema })),
+  /** Every current ability's English name by VS Data id, which a rule read by its record is shown by. */
+  abilities: z.record(z.string(), z.string()).optional(),
 })
 export type VsDataNames = z.infer<typeof vsDataNamesSchema>
 

@@ -342,6 +342,7 @@ it('keeps every spelling the localisation gives a unit, its pieces, a Detachment
         pieces: [['Particle Beamer', 'Haz de partículas']],
       },
     },
+    abilities: { 'necrons.test.phase-shift': 'Move' },
   })
 })
 
@@ -647,6 +648,31 @@ it('keeps the rules a piece of wargear’s own record names beside the abilities
   expect(
     vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.wargear?.['necrons.test.shield']?.data.rules,
   ).toEqual(['necrons.test.gift', 'necrons.test.ward'])
+})
+
+it('gives a Detachment the detachment-rule summaries its identity entry references', () => {
+  fs.rmSync(directory, { recursive: true })
+  const pantheon = {
+    kind: 'detachment',
+    id: 'necrons.pantheon',
+    name: 'Pantheon',
+    aliases: [],
+    category: 'rosters',
+    data: { faction: 'necrons' },
+  }
+  const rule = { kind: 'ability', id: 'necrons.pantheon.woe', name: 'Woe', aliases: [], data: { ruleType: 'detachment-rule' } }
+  const referenced = {
+    kind: 'detachment',
+    id: 'necrons.pantheon',
+    name: 'Pantheon',
+    references: [{ kind: 'ability', id: 'necrons.pantheon.woe' }],
+  }
+  writeFiles(directory, vsDataReleaseFiles([pantheon, rule], 'MFM 1.6', [referenced]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(
+    vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.detachment?.['necrons.pantheon']?.data.rules,
+  ).toEqual(['necrons.pantheon.woe'])
 })
 
 it('names the units the identity marks absent from the rules version as unavailable', () => {
