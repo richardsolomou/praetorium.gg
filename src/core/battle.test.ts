@@ -745,6 +745,7 @@ describe('setup', () => {
       'detachments',
       'kotc-infantry',
       'kotc-warlord',
+      'kotc-enhancements',
       'kotc-epic-heroes',
       'kotc-toughness',
       'kotc-datasheet-copies',

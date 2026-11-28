@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { RuleText, SummaryById, SummaryByName } from '../../../components/RuleText'
+import { ownAbility } from '../../simulator/CombatRuleLabel'
 import { DatasheetUnit, ownerCatalogueId } from '../../../components/UnitFromVsData'
 import { Blocks, blocksText } from '../../../components/RuleSummaryText'
 import type { RuleSummaryBlock } from '../../../../contracts/rules'
@@ -365,6 +366,8 @@ export function SpecialChoice({
             ) : owner ? (
               <SummaryByName name={option.name} className={PROSE} />
             ) : null
+          const reminder =
+            reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} rule={text} /> : null
           return (
             <ChoiceOption
               key={option.id}
@@ -374,7 +377,7 @@ export function SpecialChoice({
               disabled={controlsDisabled}
               onSelect={editable ? () => choose(option.id) : undefined}
               action={
-                reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} /> : undefined
+                reminder && owner ? <DatasheetUnit.Provider value={owner}>{reminder}</DatasheetUnit.Provider> : (reminder ?? undefined)
               }
             >
               {text ? (
@@ -528,7 +531,15 @@ function OptionAbilities({
       {matching.map((ability) => (
         <div key={ability.id}>
           {ability.name.toLocaleLowerCase() === option.name.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
-          {ability.description ? <RuleText text={ability.description} rules={rules} className={PROSE} /> : null}
+          {ability.description ? (
+            <RuleText
+              text={ability.description}
+              rules={rules}
+              className={PROSE}
+              // The unit's own ability reads its record by id, as the datasheet's does; an upgrade is its detachment's.
+              {...(ownAbility(ability) ? { name: ability.name, abilityId: ability.id } : {})}
+            />
+          ) : null}
         </div>
       ))}
     </div>

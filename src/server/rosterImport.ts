@@ -14,7 +14,9 @@ import {
   importRosterFormat,
 } from '../shared/rosterFiles'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
+import { vsFactionOf } from '../shared/factionNames'
 import { app } from './app'
+import { importVsMaps } from './importVsMaps'
 import { requireCatalogue } from './requireCatalogue'
 import { withinTime } from './timeLimit'
 
@@ -61,6 +63,7 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
     rules,
     translations,
     instance.catalogueRemovals(),
+    importVsMaps(),
   )
 }
 
@@ -78,9 +81,9 @@ async function importedFaction(
 ) {
   if (!name) return null
   if (!statedCatalogueId)
-    return factions.find((candidate) => matchesImportFaction(name, candidate.name, translations) && candidate.isDefault) ?? null
+    return factions.find((candidate) => matchesImportFaction(name, candidate, translations) && candidate.isDefault) ?? null
   const stated = await factionById(statedCatalogueId)
-  return stated && matchesImportFaction(name, stated.name, translations) ? stated : null
+  return stated && matchesImportFaction(name, stated, translations) ? stated : null
 }
 
 /** How long reading one pasted text may hold the server. The slowest of five thousand published lists takes 16 ms. */
@@ -99,8 +102,9 @@ async function importText(file: string, factions: Factions) {
   const statedCatalogueId = importRosterCatalogueId(file)
   const named = await importedFaction(factionName, statedCatalogueId, factions, translations)
   const base = named || statedCatalogueId ? null : instance.catalogue()
-  const byUnits = base ? importRosterUnitFaction(file, base) : null
-  const faction = named ?? (byUnits ? await importedFaction(byUnits.name, null, factions, translations) : null)
+  const byUnits = base ? importRosterUnitFaction(file, base, instance.rules()?.importNames) : null
+  const unitsName = byUnits && base ? (vsFactionOf(base, byUnits.id)?.name ?? byUnits.name) : null
+  const faction = named ?? (unitsName ? await importedFaction(unitsName, null, factions, translations) : null)
   if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
   const loaded = faction ? await requireCatalogue(faction.id) : null
   const rules = await instance.rulesFor(faction?.id)
@@ -111,6 +115,7 @@ async function importText(file: string, factions: Factions) {
     rules,
     translations,
     instance.catalogueRemovals(),
+    importVsMaps(),
   )
   return { result, loaded, rules }
 }

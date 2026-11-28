@@ -506,6 +506,15 @@ it.each(['Tau Empire', "T'au Empire"])('resolves %s to the faction however its a
   expect(referenceFaction({ catalogue } as ReferenceCorpus, name)?.id).toBe('tau')
 })
 
+it.each(['Asuryani', 'asuryani', 'aeldari'])('resolves the VS Data faction name %s to the faction that plays it', (name) => {
+  const catalogue = {
+    datasheets: [{ catalogueId: 'craftworlds', faction: 'Aeldari', referenceRoute: { catalogueId: 'aeldari', slug: 'unit' } }],
+    detachments: [],
+  } as unknown as CanonicalCatalogue
+  const factions = [{ id: 'mfm~craftworlds', vsFaction: { id: 'aeldari', name: 'Asuryani' } }] as unknown as ReferenceCorpus['factions']
+  expect(referenceFaction({ catalogue, factions } as ReferenceCorpus, name)?.id).toBe('craftworlds')
+})
+
 it('reads a datasheet record from an id its slug has since moved from', () => {
   const sheet = {
     id: 'd7e1-13bb-2177-b6bc',

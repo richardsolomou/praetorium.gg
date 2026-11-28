@@ -103,13 +103,17 @@ export const bareValueOf = (text: string, facts: TextFactsByKey | undefined) =>
     (found) => found.bareValue ?? null,
   )
 
-/** A catalogue text's combat facts, null where its words take no part; undefined for words, and tokens the catalogue records none for. */
-export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined) =>
+/**
+ * A catalogue text's combat facts, as the rule or profile `holder` holds it, null where its words take no part; undefined
+ * for words, and tokens the catalogue records none for.
+ */
+export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined, holder?: string) =>
   readText<TextFacts['combat']>(
     text,
     facts,
     () => undefined,
     (found) => found.combat,
+    holder,
   )
 
 /** What a token's words suggest for a reminder, where they suggest anything. */

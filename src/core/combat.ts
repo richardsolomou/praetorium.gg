@@ -141,9 +141,9 @@ export const combatSchema = z.object({
     woundReroll: reroll,
     lethal: z.boolean(),
     commandReroll: z.enum(['attacks', 'hit', 'wound', 'save', 'damage']).optional(),
-    /** One hit, wound or damage roll each that the attacker's rules let it re-roll this phase, spent like the Command Re-roll. */
+    /** One hit, wound, damage or save roll each that either unit's rules let it re-roll this phase, spent like the Command Re-roll. */
     singleRerolls: z
-      .array(z.enum(['hit', 'wound', 'damage']))
+      .array(z.enum(['hit', 'wound', 'damage', 'save']))
       .max(12)
       .optional(),
   }),
@@ -456,7 +456,7 @@ function rerollSpace({ options, weapons }: Pick<CombatInput, 'options' | 'weapon
 type RerollSpace = ReturnType<typeof rerollSpace>
 
 const SAVE_COMMAND_REROLL_REFUSAL =
-  'A Command Re-roll on a save roll is not calculated when failed saves differ in what they need, since which one to re-roll is a choice.'
+  'A re-roll of one save roll is not calculated when failed saves differ in what they need, since which one to re-roll is a choice.'
 
 const logFactorials = [0]
 function binomial(count: number, chance: number): Weights {
@@ -1138,7 +1138,9 @@ function checkedCombat(scenario: CombatInput) {
     throw new Error('Shared Feel No Pain source changes during separate mortal-wound abilities are not yet supported.')
   if (input.target.groups.some((group, index) => (group.damage ?? 0) + (index === 0 ? (input.target.damage ?? 0) : 0) >= group.wounds))
     throw new Error('The wounded model must have at least one wound remaining.')
-  if ((input.options.commandReroll || input.options.singleRerolls?.length) && input.weapons.some((weapon) => weapon.unmodifiedSix))
+  // A save is the defender's roll, which no change to an unmodified 6 competes for.
+  const attackRerolls = [...(input.options.singleRerolls ?? []), input.options.commandReroll].filter((kind) => kind && kind !== 'save')
+  if (attackRerolls.length && input.weapons.some((weapon) => weapon.unmodifiedSix))
     throw new Error(
       'A re-roll and a roll changed to an unmodified 6 in the same phase are not calculated together, since which roll each takes is a choice.',
     )

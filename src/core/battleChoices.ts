@@ -129,17 +129,20 @@ export function battleChoiceSheet(sheet: Datasheet, active: readonly ActiveComba
               const kind = datasheetCharacteristicKind(value.name)
               const own = changes.filter((change) => change.kind === kind)
               if (!own.length) return value
+              const set = own.reduce<number | undefined>((given, change) => ('set' in change ? change.set : given), undefined)
               const add = own.reduce((sum, change) => {
+                if ('set' in change) return sum
                 if (!('best' in change)) return sum + change.add
                 // A Save improves only down to the best the rule allows.
                 const current = Number.parseInt(value.value) + sum
                 return sum - Math.max(0, Math.min(change.by, current - change.best))
               }, 0)
-              return add
+              return add || set !== undefined
                 ? adjustedCharacteristic(
                     value,
                     add,
                     own.map((change) => change.source),
+                    set,
                   )
                 : value
             }),
@@ -172,14 +175,17 @@ function withGainedAbilities(sheet: Datasheet, active: readonly ActiveCombatRule
   return gained.length ? { ...sheet, abilities: [...sheet.abilities, ...gained] } : sheet
 }
 
-type UnitChange = { kind: DatasheetCharacteristicKind; source: string } & ({ add: number } | { by: number; best: number })
+type UnitChange = { kind: DatasheetCharacteristicKind; source: string } & ({ add: number } | { set: number } | { by: number; best: number })
 
 /** The unit characteristics an effect changes, as a datasheet's stat line shows them. */
 function unitChanges(effect: Effect, source: string): UnitChange[] {
   if (effect.role !== 'defender') return []
+  const stat = effect.unitStat
   return [
+    ...(stat?.set !== undefined ? [{ kind: stat.kind, set: stat.set, source }] : []),
+    ...(stat?.add ? [{ kind: stat.kind, add: stat.add, source }] : []),
     ...(effect.toughness ? [{ kind: 'toughness' as const, add: effect.toughness, source }] : []),
+    ...(effect.wounds ? [{ kind: 'wounds' as const, add: effect.wounds, source }] : []),
     ...(effect.improveSave ? [{ kind: 'save' as const, ...effect.improveSave, source }] : []),
-    ...(effect.unitStat ? [{ ...effect.unitStat, source }] : []),
   ]
 }

@@ -425,9 +425,13 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
   for (const datasheet of list(root.datasheets)) {
     const abilities = fieldsOf(datasheet.abilities)
     const faction = datasheet.faction_id ? `.faction.${dotted(datasheet.faction_id)}` : ''
-    // Wargear and special abilities are a datasheet's abilities too, aliased alike.
-    for (const group of ['other', 'wargear', 'special'])
-      for (const ability of list(abilities?.[group])) {
+    // Wargear, special and primarch abilities are a datasheet's abilities too, aliased alike; primarch ones sit in named groups.
+    const groups = [
+      ...['other', 'wargear', 'special'].map((group) => ({ group, held: list(abilities?.[group]) })),
+      ...list(abilities?.primarch).map((group) => ({ group: 'primarch', held: list(group.abilities) })),
+    ]
+    for (const { group, held } of groups)
+      for (const ability of held) {
         const base = `gdc.unit.ability.${dotted(datasheet.id)}.${named(ability.name)}`
         const slotted = group === 'wargear' ? [`${base}.slot.wargear${faction}`, `${base}.slot.wargear`] : []
         add('unit ability', [...slotted, `${base}${faction}`, base], [raw(ability.description)])

@@ -10,6 +10,7 @@ import {
   type CombatOptions,
   type CombatWeapon,
   type CombatPhase,
+  type DiceExpression,
 } from './combat'
 import {
   combatTextKey,
@@ -76,12 +77,20 @@ export type CombatRuleEffect = {
   role: 'attacker' | 'defender'
   phases: CombatPhase[]
   keyword?: string
-  characteristic?: { kind: DatasheetCharacteristicKind; nonCumulative?: boolean } & (
-    | { add: number; set?: never }
-    | { set: number; add?: never }
-  )
+  /** A weapon ability the attacks lose; with `keyword`, the one replaces the other. */
+  lostKeyword?: string
+  /** A set value applies first, then `multiply`, then `add`; only Attacks and Damage take dice. */
+  characteristic?: {
+    kind: DatasheetCharacteristicKind
+    nonCumulative?: boolean
+    add?: number | DiceExpression
+    set?: number | DiceExpression
+    multiply?: number
+  }
   weapon?: string
   requiresWeaponKeyword?: string
+  /** The effect applies only to weapons without this ability. */
+  lacksWeaponKeyword?: string
   targetKeywords?: string[]
   excludedTargetKeywords?: string[]
   condition?: 'stronger' | 'not-stronger' | 'double-strength' | 'critical-wound'
@@ -101,9 +110,15 @@ export type CombatRuleEffect = {
   excludedModelKeywords?: string[]
   invulnerable?: number
   save?: number
+  /** Re-rolls the defender's saving throws: those of 1, or every failed one. */
+  saveReroll?: 'ones' | 'failed'
   /** Improves the Save characteristic, never past `best`. */
   improveSave?: { by: number; best: number }
   toughness?: number
+  /** Added to the Wounds characteristic of the models the effect reaches. */
+  wounds?: number
+  /** Wounds the models' printed characteristic already counts, added only where a set Wounds replaces that characteristic. */
+  printedWounds?: number
   targetToughness?: number
   targetSaveModifier?: number
   damageDivisor?: number
@@ -118,8 +133,11 @@ export type CombatRuleEffect = {
   mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; perToughness?: boolean; sacrifice?: number }
   damageReroll?: 'ones' | 'any'
   damageReduction?: number
-  /** A unit characteristic no roll reads, as a Move bonus, which only a datasheet shows. */
-  unitStat?: { kind: 'movement' | 'leadership' | 'objective-control'; add: number }
+  /**
+   * A unit characteristic set, or one no roll reads changed, as a Move bonus, which only a datasheet shows; a set Toughness
+   * or Wounds applies before `toughness` and `wounds` add to it.
+   */
+  unitStat?: { kind: 'movement' | 'leadership' | 'objective-control' | 'toughness' | 'wounds'; add?: number; set?: number }
   /** The named ability the effect gives the unit, as Stealth, which a datasheet lists beside what it changes. */
   ability?: string
   /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
@@ -597,10 +615,8 @@ export function combatRuleProfiles(
           (keyword) => combatKeyword(keyword)?.kind,
         ),
       )
-      const adjustments = new Map<
-        DatasheetCharacteristicKind,
-        { positive: number; negative: number; exclusive: number; set?: number; sources: string[] }
-      >()
+      const adjustments = new Map<DatasheetCharacteristicKind, Adjustment>()
+      const lost: { kind: string; source: string }[] = []
       for (const { rule, role: effectRole, keywords } of scoped)
         for (const effect of rule.effects) {
           if (
@@ -608,19 +624,25 @@ export function combatRuleProfiles(
             !effect.phases.includes(phase) ||
             effect.condition ||
             (effect.requiresWeaponKeyword && !weaponKinds.has(combatKeywordKind(effect.requiresWeaponKeyword))) ||
+            (effect.lacksWeaponKeyword && weaponKinds.has(combatKeywordKind(effect.lacksWeaponKeyword))) ||
             !matchesEffectTarget(effect, keywords) ||
             (effect.weapon && weaponKey(effect.weapon) !== weaponKey(profile.name))
           )
             continue
+          const lostKind = effect.lostKeyword && combatKeywordKind(effect.lostKeyword)
+          if (lostKind) lost.push({ kind: lostKind, source: rule.name })
           if (effect.characteristic) {
             const modifier = effect.characteristic
             const original = profile.values.find((value) => datasheetCharacteristicKind(value.name) === modifier.kind)
             if (effectRole !== role || !combatRuleProjected(rule, original?.modifiers)) {
-              const adjustment = adjustments.get(modifier.kind) ?? { positive: 0, negative: 0, exclusive: 0, sources: [] }
+              const adjustment = adjustments.get(modifier.kind) ?? { positive: 0, negative: 0, exclusive: 0, dice: [], sources: [] }
+              const add = modifier.add ?? 0
               if (modifier.set !== undefined) adjustment.set = modifier.set
-              else if (modifier.nonCumulative) adjustment.exclusive = Math.min(adjustment.exclusive, modifier.add)
-              else if (modifier.add < 0) adjustment.negative += modifier.add
-              else adjustment.positive += modifier.add
+              if (modifier.multiply !== undefined) adjustment.multiply = (adjustment.multiply ?? 1) * modifier.multiply
+              if (typeof add === 'object') adjustment.dice.push(add)
+              else if (modifier.nonCumulative) adjustment.exclusive = Math.min(adjustment.exclusive, add)
+              else if (add < 0) adjustment.negative += add
+              else adjustment.positive += add
               adjustment.sources.push(rule.name)
               adjustments.set(modifier.kind, adjustment)
             }
@@ -667,12 +689,13 @@ export function combatRuleProfiles(
         }
       values = values.map((value) => {
         const kind = datasheetCharacteristicKind(value.name)
+        if (kind === 'keywords' && lost.length) return withoutKeywords(value, lost)
         const adjustment = adjustments.get(kind)
         if (!adjustment) return value
         const existingImprovement =
           kind === 'armour-penetration' && value.baseValue ? Math.min(0, Number(value.value) - Number(value.baseValue)) : 0
         const add = adjustment.positive + Math.min(adjustment.negative, adjustment.exclusive - existingImprovement)
-        return adjustedCharacteristic(value, add, adjustment.sources, adjustment.set)
+        return adjustedCharacteristic(value, add, adjustment.sources, adjustment.set, adjustment.multiply, adjustment.dice)
       })
       return { ...profile, values }
     }),
@@ -680,17 +703,77 @@ export function combatRuleProfiles(
 }
 
 type Characteristic = Datasheet['profiles'][number]['values'][number]
+type Adjustment = {
+  positive: number
+  negative: number
+  exclusive: number
+  set?: number | DiceExpression
+  multiply?: number
+  dice: DiceExpression[]
+  sources: string[]
+}
 
-/** A weapon characteristic with `add` applied to its printed number and its sources recorded; a value it cannot apply to stays as it is. */
-export function adjustedCharacteristic(value: Characteristic, add: number, sources: readonly string[], set?: number): Characteristic {
+const diceText = ({ dice, sides, bonus }: DiceExpression) =>
+  dice ? `${dice === 1 ? '' : dice}D${sides}${bonus ? `+${bonus}` : ''}` : String(bonus)
+
+/** A weapon's keywords without the abilities its attacks lose, crediting the rules that remove them. */
+function withoutKeywords(value: Characteristic, lost: readonly { kind: string; source: string }[]): Characteristic {
+  const held = splitWeaponKeywords(value.value)
+  const kept = held.filter((keyword) => !lost.some((loss) => loss.kind === combatKeywordKind(keyword)))
+  if (kept.length === held.length) return value
+  const sources = lost.filter((loss) => held.some((keyword) => combatKeywordKind(keyword) === loss.kind)).map((loss) => loss.source)
+  return {
+    ...value,
+    value: kept.join(', ') || '-',
+    baseValue: value.baseValue ?? value.value,
+    modifiers: [...new Set([...(value.modifiers ?? []), ...sources])],
+  }
+}
+
+/**
+ * Attacks or Damage set, multiplied, then with dice added, as one roll the simulator can make: dice of one size with a
+ * bonus. A multiplied roll of dice, or dice of two sizes, is no such roll, so it is written in a form no weapon parses
+ * and the weapon is refused rather than approximated.
+ */
+function rolledCharacteristic(starting: string, multiply: number, dice: readonly DiceExpression[]) {
+  const printed = diceExpression(starting)
+  if (!printed) return null
+  if (multiply !== 1 && printed.dice) return `${multiply}×(${starting})`
+  const rolled = [{ ...printed, bonus: printed.bonus * multiply }, ...dice]
+  const sides = new Set(rolled.flatMap((part) => (part.dice ? [part.sides] : [])))
+  if (sides.size > 1) return rolled.map(diceText).join('+')
+  return diceText({
+    dice: rolled.reduce((total, part) => total + part.dice, 0),
+    sides: sides.values().next().value ?? 6,
+    bonus: rolled.reduce((total, part) => total + part.bonus, 0),
+  })
+}
+
+/**
+ * A weapon characteristic set, multiplied and with `add` and `dice` added to its printed value, its sources recorded; a
+ * value it cannot apply to stays as it is.
+ */
+export function adjustedCharacteristic(
+  value: Characteristic,
+  add: number,
+  sources: readonly string[],
+  set?: number | DiceExpression,
+  multiply = 1,
+  dice: readonly DiceExpression[] = [],
+): Characteristic {
   const kind = datasheetCharacteristicKind(value.name)
-  const starting = set === undefined ? value.value : String(set)
+  const given = set === undefined ? value.value : typeof set === 'number' ? String(set) : diceText(set)
+  const rolls = kind === 'attacks' || kind === 'damage'
+  const starting = rolls && (multiply !== 1 || dice.length) ? rolledCharacteristic(given, multiply, dice) : given
+  if (starting === null) return value
   let adjusted: string
-  if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(starting)) {
-    const dice = diceExpression(starting)
-    if (!dice || !dice.dice || dice.bonus + add < 0) return value
-    const bonus = dice.bonus + add
-    adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
+  if (rolls && !/^\d+$/.test(starting)) {
+    const parsed = diceExpression(starting)
+    if (!parsed) adjusted = add ? `${starting}${add > 0 ? '+' : ''}${add}` : starting
+    else {
+      if (!parsed.dice || parsed.bonus + add < 0) return value
+      adjusted = diceText({ ...parsed, bonus: parsed.bonus + add })
+    }
   } else {
     if (!/^-?\d+[+"]?$/.test(starting)) return value
     const next = Number.parseInt(starting) + add
@@ -710,6 +793,9 @@ export function adjustedCharacteristic(value: Characteristic, add: number, sourc
   }
 }
 
+/** Whether an effect holds for some weapons alone, so its roll options go on those weapons rather than the whole attack. */
+const weaponScoped = (effect: CombatRuleEffect) => Boolean(effect.weapon || effect.requiresWeaponKeyword || effect.lacksWeaponKeyword)
+
 export function combatRuleOptions(
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
@@ -719,15 +805,7 @@ export function combatRuleOptions(
   const result: Partial<CombatOptions> = {}
   for (const rule of rules)
     for (const effect of rule.effects) {
-      if (
-        effect.role !== role ||
-        !effect.phases.includes(phase) ||
-        !effect.options ||
-        effect.condition ||
-        effect.requiresWeaponKeyword ||
-        effect.weapon
-      )
-        continue
+      if (effect.role !== role || !effect.phases.includes(phase) || !effect.options || effect.condition || weaponScoped(effect)) continue
       // Every attack in a matchup has the one target, so a single-die re-roll for some targets holds for all of them or none.
       if (effect.targetKeywords || effect.excludedTargetKeywords) {
         if (effect.options.singleRerolls && matchesEffectTarget(effect, targetKeywords))
@@ -775,6 +853,7 @@ export function combatRuleDefences(
           initial,
         )
       const limited = effects.length > everywhere.flatMap((rule) => rule.effects).length
+      const woundsSet = effects.some((effect) => effect.unitStat?.kind === 'wounds' && effect.unitStat.set !== undefined)
       return {
         ...group,
         ...(limited ? unitDefences(own, { ...printed, ...definedOf(group) }) : {}),
@@ -792,14 +871,38 @@ export function combatRuleDefences(
         ),
         toughness: Math.max(
           1,
-          group.toughness +
+          setStat(effects, 'toughness', group.toughness) +
             effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
             attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
+        ),
+        wounds: Math.max(
+          1,
+          setStat(effects, 'wounds', group.wounds) +
+            effects.reduce((total, effect) => total + (effect.wounds ?? 0) + (woundsSet ? (effect.printedWounds ?? 0) : 0), 0),
         ),
       }
     }),
     ...unit,
+    ...saveRerollOf(everywhere, target.saveReroll),
   }
+}
+
+/** A unit characteristic as the last effect setting it leaves it, before any addition. */
+const setStat = (effects: readonly CombatRuleEffect[], kind: 'toughness' | 'wounds', printed: number) =>
+  effects.reduce(
+    (value, effect) => (effect.unitStat?.kind === kind && effect.unitStat.set !== undefined ? effect.unitStat.set : value),
+    printed,
+  )
+
+/** The best re-roll of saving throws the unit's rules give it. */
+function saveRerollOf(rules: readonly ActiveCombatRule[], printed: CombatInput['target']['saveReroll']) {
+  const best = rules
+    .flatMap((rule) => rule.effects)
+    .reduce(
+      (roll, effect) => (effect.saveReroll && rerollRank[effect.saveReroll] > rerollRank[roll] ? effect.saveReroll : roll),
+      printed ?? 'none',
+    )
+  return best === 'none' ? {} : { saveReroll: best }
 }
 
 type UnitDefences = Pick<
@@ -988,11 +1091,12 @@ export function combatRuleWeapons(
     for (const rule of rules)
       for (const effect of rule.effects) {
         if (!applies(effect)) continue
-        if (effect.requiresWeaponKeyword) {
+        // Whether the weapon has an ability, printed or given by another of the rules.
+        const holds = (ability: string) => {
           const matches = (keyword: string) => {
             const held = combatKeyword(keyword)
-            const required = combatKeyword(effect.requiresWeaponKeyword!)
-            return Boolean(held && required && held.kind === required.kind && combatKeywordApplies(held, targetKeywords))
+            const wanted = combatKeyword(ability)
+            return Boolean(held && wanted && held.kind === wanted.kind && combatKeywordApplies(held, targetKeywords))
           }
           const original = source.profiles.find((candidate) => candidate.id === profile.id)
           const keywords = splitWeaponKeywords(
@@ -1002,11 +1106,19 @@ export function combatRuleWeapons(
             (other) =>
               other.name !== rule.name &&
               other.effects.some(
-                (grant) => applies(grant) && !grant.condition && !grant.requiresWeaponKeyword && grant.keyword && matches(grant.keyword),
+                (grant) =>
+                  applies(grant) &&
+                  !grant.condition &&
+                  !grant.requiresWeaponKeyword &&
+                  !grant.lacksWeaponKeyword &&
+                  grant.keyword &&
+                  matches(grant.keyword),
               ),
           )
-          if (!keywords.some(matches) && !otherGrant) continue
+          return keywords.some(matches) || otherGrant
         }
+        if (effect.requiresWeaponKeyword && !holds(effect.requiresWeaponKeyword)) continue
+        if (effect.lacksWeaponKeyword && holds(effect.lacksWeaponKeyword)) continue
         if (effect.damageReroll && next.damageReroll !== 'any') next.damageReroll = effect.damageReroll
         for (const field of ['criticalHit', 'criticalWound'] as const) {
           const threshold = effect[field]
@@ -1018,15 +1130,20 @@ export function combatRuleWeapons(
           if (effect[field]) next[field] = true
         if (effect.allHitsCritical) next.allHitsCritical = true
         if (effect.unmodifiedSix) next.unmodifiedSix = effect.unmodifiedSix
-        if (effect.condition === 'critical-wound' && effect.characteristic?.kind === 'armour-penetration')
-          next.criticalAp = (next.criticalAp ?? 0) + (effect.characteristic.add ?? 0)
+        if (
+          effect.condition === 'critical-wound' &&
+          typeof effect.characteristic?.add === 'number' &&
+          effect.characteristic.kind === 'armour-penetration'
+        )
+          next.criticalAp = (next.criticalAp ?? 0) + effect.characteristic.add
         if (effect.condition === 'stronger')
           next.strongerWoundModifier = (next.strongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
         if (effect.condition === 'not-stronger')
           next.notStrongerWoundModifier = (next.notStrongerWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
         if (effect.condition === 'double-strength')
           next.doubleStrengthWoundModifier = (next.doubleStrengthWoundModifier ?? 0) + (effect.options?.woundModifier ?? 0)
-        if (effect.condition || (!scopedOptions && !effect.weapon && !effect.targetKeywords && !effect.excludedTargetKeywords)) continue
+        if (effect.condition || (!scopedOptions && !weaponScoped(effect) && !effect.targetKeywords && !effect.excludedTargetKeywords))
+          continue
         for (const field of ['hitModifier', 'woundModifier'] as const) next[field] = (next[field] ?? 0) + (effect.options?.[field] ?? 0)
         next.positiveHitModifier = (next.positiveHitModifier ?? 0) + Math.max(0, effect.options?.hitModifier ?? 0)
         next.positiveWoundModifier = (next.positiveWoundModifier ?? 0) + Math.max(0, effect.options?.woundModifier ?? 0)

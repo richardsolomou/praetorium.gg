@@ -15,10 +15,13 @@ import { type CatalogueIndex, nameOf } from '../core/catalogue'
 import { eachDefinition } from '../core/definitions'
 import type { UnitSize } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { descriptionKey } from './datacards'
+import { cardName } from './datacards'
+import type { VsRosterData } from './vsDataLegality'
 import { factionDisplayName } from './factionNames'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { editionFamilyId } from '../core/catalogueEdition'
+import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
+import { inBook } from './vsDataPoints'
 
 /** What each faction's data updates removed and never brought back, by name: an older list can still name it. */
 export type RemovedNames = ReadonlyMap<string, ReadonlyMap<string, { kind: 'datasheet' | 'detachment' | 'enhancement'; at: number }>>
@@ -159,17 +162,54 @@ const factionOf = (loaded: LoadedCatalogue, catalogueId: string) =>
  * the wrong book is as likely to belong to either.
  */
 function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue): string | null {
-  const elsewhere = [...(datasheetFactions(loaded).get(normalized(stated)) ?? [])]
+  const elsewhere = [...(datasheetFactions(loaded, NO_IMPORT_NAMES).get(normalized(stated)) ?? [])]
     .filter((id) => id !== catalogueId)
     .map((id) => factionOf(loaded, id))
     .filter(Boolean)
   return elsewhere.length ? elsewhere.slice(0, 2).join(' or ') : null
 }
 
-/** Which detachment of this faction prints an enhancement by that name, if any does. */
+const enhancementNameCache = new WeakMap<VsRosterData, Map<string, ReadonlyMap<string, string>>>()
+
+/** The official app's name for each Enhancement a stored Detachment has in VS Data, by the catalogue option standing for it. */
+function vsEnhancementNames(loaded: LoadedCatalogue, detachmentId: string): ReadonlyMap<string, string> {
+  const data = loaded.vsRoster
+  const detachment = data?.detachments[detachmentId]
+  if (!data || !detachment) return new Map()
+  return cachedIn(enhancementNameCache, data, detachmentId, () => {
+    const names = new Map<string, string>()
+    for (const [key, id] of Object.entries(data.enhancements)) {
+      const [owner, option] = key.split('/') as [string, string]
+      const name = owner === detachment ? data.construction.definitions.enhancement?.[id]?.name : undefined
+      if (name) names.set(option, name)
+    }
+    return names
+  })
+}
+
+/** The catalogue option of the list's Detachments' Enhancement the official app names so, if any is. */
+export function vsEnhancementOption(stated: string, loaded: LoadedCatalogue, detachmentIds: readonly string[]) {
+  const wanted = cardName(stated)
+  if (!wanted) return undefined
+  for (const detachment of detachmentIds)
+    for (const [option, name] of vsEnhancementNames(loaded, detachment)) if (cardName(name) === wanted) return option
+  return undefined
+}
+
+/** Which detachment of this faction has an enhancement by that name, as the official app or BSData spells it, if any does. */
 export function enhancementDetachment(stated: string, loaded: LoadedCatalogue, catalogueId: string) {
   const options = loaded.detachments.get(catalogueId)?.options ?? []
-  return options.find((option) => loaded.datacards.enhancements.has(descriptionKey(option.name, stated))) ?? null
+  const wanted = cardName(stated)
+  if (!wanted) return null
+  const bsdataName = (id: string) => {
+    const definition = loaded.index.definitions.get(id)
+    return definition ? nameOf(definition, loaded.index.definitions) : ''
+  }
+  return (
+    options.find((option) =>
+      [...vsEnhancementNames(loaded, option.id)].some(([id, name]) => cardName(name) === wanted || cardName(bsdataName(id)) === wanted),
+    ) ?? null
+  )
 }
 
 const factionNameCache = new WeakMap<CatalogueIndex, Map<string, Set<string>>>()
@@ -191,20 +231,31 @@ function namesIn(index: CatalogueIndex, catalogueId: string) {
   return names
 }
 
-const datasheetFactionCache = new WeakMap<CatalogueIndex, Map<string, string[]>>()
+const datasheetFactionCache = new WeakMap<
+  CatalogueIndex,
+  WeakMap<ImportNames['datasheetNames'], WeakMap<ImportNames['datasheets'], Map<string, string[]>>>
+>()
 
-/** Which factions offer a datasheet under each name, for a name this one does not hold. */
-function datasheetFactions(loaded: LoadedCatalogue): ReadonlyMap<string, readonly string[]> {
-  return remember(datasheetFactionCache, loaded.index, () => {
+/**
+ * Which factions offer a datasheet under each name a list can give it, the names BSData gave it as frozen and VS Data's,
+ * for a name this one does not hold.
+ */
+function datasheetFactions(loaded: LoadedCatalogue, names: ImportNames): ReadonlyMap<string, readonly string[]> {
+  const byFrozen = remember(datasheetFactionCache, loaded.index, () => new WeakMap())
+  const byPrinted = remember(byFrozen, names.datasheetNames, () => new WeakMap())
+  return remember(byPrinted, names.datasheets, () => {
     const found = new Map<string, string[]>()
     for (const [catalogueId, entries] of loaded.index.datasheets) {
       for (const id of entries) {
-        const definition = loaded.index.definitions.get(id)
-        if (!definition) continue
-        const name = normalized(nameOf(definition, loaded.index.definitions))
-        const factions = found.get(name) ?? []
-        if (!factions.includes(catalogueId)) factions.push(catalogueId)
-        found.set(name, factions)
+        const own = frozenNames(names.datasheetNames, loaded, id, () => {
+          const definition = loaded.index.definitions.get(id)
+          return definition ? [nameOf(definition, loaded.index.definitions)] : []
+        })
+        for (const name of new Set([...own, ...(inBook(names.datasheets, catalogueId, id) ?? [])].map(normalized))) {
+          const factions = found.get(name) ?? []
+          if (!factions.includes(catalogueId)) factions.push(catalogueId)
+          found.set(name, factions)
+        }
       }
     }
     return found
@@ -217,11 +268,12 @@ function datasheetFactions(loaded: LoadedCatalogue): ReadonlyMap<string, readonl
  * The official app translates the faction's name but prints datasheets in English, so a
  * list whose faction is named in another language still says which army it is.
  */
-export function factionOfDatasheets(names: readonly string[], loaded: LoadedCatalogue): string | null {
+export function factionOfDatasheets(names: readonly string[], loaded: LoadedCatalogue, spellings: ImportNames): string | null {
   const factions = new Set(loaded.factions.map((faction) => faction.id))
   const counts = new Map<string, number>()
   for (const name of names)
-    for (const id of datasheetFactions(loaded).get(normalized(name)) ?? []) if (factions.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1)
+    for (const id of datasheetFactions(loaded, spellings).get(normalized(name)) ?? [])
+      if (factions.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1)
   const most = Math.max(0, ...counts.values())
   const leaders = [...counts].filter(([, count]) => count === most)
   return leaders.length === 1 && most * 2 > names.length ? leaders[0]![0] : null
@@ -232,9 +284,14 @@ export function factionOfDatasheets(names: readonly string[], loaded: LoadedCata
  * not all, as the Ultramarines for a list stated as Space Marines that fields Marneus Calgar. A list sharing no datasheet
  * with the faction it states is pasted against the wrong one, not a chapter of it.
  */
-export function chapterOfDatasheets(names: readonly string[], catalogueId: string, loaded: LoadedCatalogue): string | null {
+export function chapterOfDatasheets(
+  names: readonly string[],
+  catalogueId: string,
+  loaded: LoadedCatalogue,
+  spellings: ImportNames,
+): string | null {
   const offering = names.flatMap((name) => {
-    const ids = datasheetFactions(loaded).get(normalized(name))
+    const ids = datasheetFactions(loaded, spellings).get(normalized(name))
     return ids?.length ? [ids] : []
   })
   const own = offering.filter((ids) => ids.includes(catalogueId)).length

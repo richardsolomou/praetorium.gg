@@ -1,5 +1,111 @@
 # praetorium
 
+## 0.280.23 (2026-11-28)
+
+### Patch Changes
+
+- 7f35c57: [rosters] Army setup no longer offers two Detachments the rules don't allow together.
+- 2c65bc5: [rosters] An alert's timing dialog shows the rule text for core abilities, army rules and enhancements, which it used to leave blank.
+- 92df263: [rosters] An alert's timing dialog shows the rule's full text in a box with even spacing, instead of a cramped box that starts with a blank line.
+
+## 0.280.22 (2026-11-28)
+
+### Patch Changes
+
+- 1ffda0d: [rosters] An army over an allied points limit now names those allies, as in "allied Deathwatch units cost at most 500 points".
+- 4eb891b: [battles] A rule picked on one part of an attached unit, such as Noospheric Transference, now applies to the Bodyguard and every character joined to it, and taking it back removes it from all of them.
+- b262c5e: [rosters] A Chaos Knights army's Chaos Daemons units are held to 250, 500 or 750 points by battle size, as Daemonic Pact allows.
+- 18b0747: [reference] Datasheets show each model's count beside its name, so names like "Deathwing Terminators" and "Gretchin" are no longer misspelt.
+- ae37310: [reference] A datasheet's composition names each size a unit takes, such as Boyz at 10 or 20 models, instead of reading as any size between.
+- ff5565a: [reference] The unit index and the assistant show each unit's composition again.
+- e581b9b: [rosters] A unit that needs another Detachment now always says "needs the … detachment".
+- b262c5e: [rosters] Corsair Skyreavers, Starfangs, Kharseth and Prince Yriel now count towards a Drukhari army's points limit for Harlequins and Anhrathe units.
+- 1ffda0d: [rosters] A Vendetta Gunship [Legends] now counts towards a Genestealer Cults army's Brood Brothers Auxilia points limit.
+- c0d7a3b: [simulator] A rule that extends a weapon's range, such as Fuegan's Burning Lance, now counts in the simulator, so more weapons reach at a set distance and half-range abilities follow the longer range.
+- c0d7a3b: [simulator] A rule that adds to or sets a model's Wounds, such as Ironskein, now counts in the simulator.
+- c0d7a3b: [simulator] A rule that lets the defending unit re-roll one saving throw, such as Fates in Flux, now counts in the simulator.
+- c0d7a3b: [simulator] Rules that only regain wounds or inflict mortal wounds outside the attacks now show as not calculated instead of being left out silently.
+- c0d7a3b: [simulator] Re-rolls and roll bonuses a rule gives only to weapons with a named ability, such as Splinter Racks, now count for a unit that has no leader attached.
+- c0d7a3b: [simulator] A rule that helps only weapons without an ability, such as Fire and Fury, now counts in the simulator.
+
+## 0.280.21 (2026-11-28)
+
+### Patch Changes
+
+- 0c63948: [simulator] The Corvus Blackstar's Auspex Array is now calculated instead of shown as not calculated.
+- 0c63948: [simulator] Damaged brackets that several vehicles and monsters print alike, such as a Falcon's or a Chaos Land Raider's, are now calculated instead of shown as not calculated.
+- 0c63948: [simulator] Storm shields on Terminators are now calculated as their own wargear instead of shown as not calculated.
+
+## 0.280.20 (2026-11-28)
+
+### Patch Changes
+
+- 3f8f525: [battles] Hovering a unit's or Detachment's in-battle rule, such as Martial Ka'tah beside its stances, shows its summary as the datasheet does.
+- 9028872: [battles] Units can embark in an Orion Assault Dropship: 12 Adeptus Custodes Infantry, or a Dreadnought and 6 Adeptus Custodes Infantry.
+- 3f8f525: [simulator] Hovering a unit's own ability or its army rule in the simulator shows the same summary as its datasheet.
+- 9028872: [battles] A Tidewall Shieldline carries up to 22 T'au Empire Infantry models while its Tidewall Defence Platform stands.
+
+## 0.280.19 (2026-11-28)
+
+### Patch Changes
+
+- d04f5e2: [rosters] Archiving a list while a data update is arriving no longer sends you a points notification for it.
+- 1004a77: [battles] Battles imported from BattleBase find the Dêlve Assault Shift, Needgaârd Oathband, Haloscreed Battleclade and Brood Brother Auxilia Detachments by the spellings BattleBase uses, rather than adding a second Detachment named after its own id.
+- 919e7ef: [rosters] An imported list brings in each unit the builder adds from VS Data the same way, so its loadout edits like a unit you added yourself, at the same points and wargear.
+
+## 0.280.18 (2026-11-28)
+
+### Patch Changes
+
+- 984750f: [rosters] The roster setup dialog shows every detachment at once instead of in its own scrolling box.
+- 984750f: [rosters] Detachments you can't take now stay in the list, greyed out in place, instead of disappearing, and tapping one says why.
+- bcd3855: [assistant] Every assistant tool that takes a faction also accepts its keyword name, such as Asuryani for Aeldari or Legiones Daemonica for Chaos Daemons.
+- bcd3855: [rosters] An imported list whose units name its chapter or army, as a Dark Angels list stated as Space Marines, now comes in as that chapter or army more often.
+- 984750f: [rosters] The roster setup dialog no longer repeats what's missing beside its Create button.
+- 984750f: [rosters] The roster setup dialog labels the Points limit box beside the battle size.
+
+## 0.280.17 (2026-11-28)
+
+### Patch Changes
+
+- 1b8f410: [battles] Rad-Bombardment, Ride the Wind, Strands of Fate, Artillery Support, Miasmic Bombardment, Numberless Horde, Pledges to the Dark Prince and Gate of Infinity now remind you when they apply during a battle, and Masters of Misdirection offers its Infiltrators in battle setup.
+
+## 0.280.16 (2026-11-28)
+
+### Patch Changes
+
+- beb740b: [rosters] Regimental Attachés can join a Command Squad beside an Ogryn Bodyguard or Nork Deddog.
+- 2b6b4b4: [reference] Corsair datasheets now list the Corsair Enhancements their Detachment opens to them.
+- beb740b: [rosters] A Crucible Champion of the Chapter or Librarius Adept no longer joins a character or a unit that can fly.
+- ab75d6d: [reference] On the current rules version, a datasheet no longer lists Enhancements it can't take, such as those barred to a Monster or a Kroot Shaper, or any for a unit that can't take Enhancements at all.
+- ab75d6d: [reference] A datasheet now lists the Enhancements it can take once a Detachment makes it a Character or gives it a Mark, and those Crucible characters can take.
+- ab75d6d: [reference] Epic Hero datasheets no longer list Enhancements they can't take.
+- 63a1107: [rosters] Imported lists now read an Enhancement or upgrade the official app spells differently from New Recruit, such as Path of the Outcast's Assassins' Eye or the Ravenwing Command Squad's Supercharged Engines.
+- 63a1107: [rosters] Imported Company Heroes now keep the Furious Assault upgrade their list gives them instead of losing it.
+- 63a1107: [rosters] An imported list that names no Detachment now takes it from an Enhancement spelled as New Recruit spells it, such as Sublime Presence.
+- dfefcd3: [rosters] An imported list that groups a Command Squad, its troops and an Ogryn Bodyguard without naming the bodyguard attaches each unit where it can join.
+- 63a1107: [rosters] Imported lists in another language now read an upgrade by its translated name, such as the Spanish Ojo de asesino.
+- 6c733af: [rosters] A list that spells a unit's wargear as the official app does, such as a Corsair Voidscarred's Channeller Stones, imports with the model that carries it instead of an extra one.
+- 5f41862: [rosters] King of the Colosseum lists are now limited to 2 Enhancements, as at Incursion.
+- beb740b: [rosters] An Exalted Champion, Jokaero Weaponsmith or Imperial Space Marine can lead a unit beside another character.
+- beb740b: [rosters] An Ogryn Bodyguard, Nork Deddog or Regimental Attachés left unattached no longer shows an error.
+- 33b5b08: [rosters] Cryptothralls, Canoptek Tomb Crawlers and Servitors join a unit their Cryptek or Enginseer is attached to, one of each kind.
+- 33b5b08: [rosters] Legends and Crucible characters can join the units their datasheets list.
+- 33b5b08: [rosters] Characters can lead the units whose datasheets let them stand in for a unit the character leads, such as an Assault Squad, Command Squad, Bike Squad or Relic Terminator Squad, Hastarii for a Tech-Priest Enginseer, and Secutarii or Crusaders for an Inquisitor.
+- 33b5b08: [rosters] A D-Cannon, Shadow Weaver or Vibro Cannon Platform can join Guardian Defenders, one platform per unit.
+- 81556a0: [rosters] The unit size stepper now shows the size a unit was changed to, after a reload too, so it can be changed back.
+
+## 0.280.15 (2026-11-28)
+
+### Patch Changes
+
+- 1f6767b: [rosters] An alert set for a Detachment rule now suggests when that rule acts, as an ability's alert does, instead of starting with no time chosen.
+- 7bddc22: [rosters] An Enhancement that a rules version's points leave out of its Detachment now costs the field manual's points instead of the catalogue's.
+- 5960191: [simulator] Canoptek Tomb Crawlers fire both twin gauss reapers in the simulator.
+- f59352c: [rosters] 140 more datasheets, among them the Leman Russ tanks, Chaos Predators, Greater Daemons, the Assassins and the C'tan Shards, are now built as the official app prints them, with its sizes, weapon counts and wargear.
+- 195bc9a: [rosters] A unit built from VS Data now has its models' keywords too, so a squad led by a Character counts as one for attachments, reserves, keyword rules and roster limits such as the allied CHARACTER cap.
+- 5960191: [simulator] A unit built from VS Data now attacks with every weapon it carries, including weapons its datasheet spells differently, such as Twin Power Fists or The Bloody Twins.
+
 ## 0.280.14 (2026-11-28)
 
 ### Patch Changes

@@ -27,15 +27,13 @@ it('offers the dispositions of every selected detachment once', () => {
 })
 
 const shieldHosts = [
-  { id: 'aquilan', name: 'Aquilan Shield', exclusiveWith: [{ id: 'chosen', limit: 'Unique: Shield Host' }] },
-  { id: 'chosen', name: 'Emperor’s Chosen', exclusiveWith: [{ id: 'aquilan', limit: 'Unique: Shield Host' }] },
+  { id: 'aquilan', name: 'Aquilan Shield', exclusiveWith: [{ id: 'chosen', limit: 'Shield Host' }] },
+  { id: 'chosen', name: 'Emperor’s Chosen', exclusiveWith: [{ id: 'aquilan', limit: 'Shield Host' }] },
   { id: 'lions', name: 'Lions of the Emperor', exclusiveWith: [] },
 ]
 
 it('explains why a detachment sharing a one-per-army limit with a chosen one is unavailable', () => {
-  expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe(
-    'An army can include only one Unique: Shield Host detachment, and this army already has Aquilan Shield.',
-  )
+  expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe("Can't be taken with Aquilan Shield: only one Shield Host detachment")
 })
 
 it('offers a detachment that shares no limit with the chosen ones', () => {
@@ -45,10 +43,11 @@ it('offers a detachment that shares no limit with the chosen ones', () => {
 const priced = (id: string, points: number) => ({ id, name: id, points })
 
 it('refuses a detachment that costs more DP than the battle size has left', () => {
-  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toEqual({
-    kind: 'points',
-    reason: 'two costs 2 DP, and only 1 of 3 DP are left.',
-  })
+  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toEqual({ kind: 'points', reason: 'Needs 2 DP, 1 left' })
+})
+
+it('counts no DP left, never fewer, once a smaller battle size leaves the list over budget', () => {
+  expect(detachmentRefusal(priced('three', 1), [priced('one', 2), priced('two', 1)], 1000)?.reason).toBe('Needs 1 DP, 0 left')
 })
 
 it('offers a detachment over the DP left once the budget is waived', () => {
@@ -60,15 +59,12 @@ it('offers a detachment that fits in the DP left', () => {
 })
 
 it('refuses a lone detachment that costs more DP than the battle size allows', () => {
-  expect(detachmentRefusal(priced('one', 3), [], 1000)).toEqual({
-    kind: 'points',
-    reason: 'one costs 3 DP, more than the 2 DP this battle size allows.',
-  })
+  expect(detachmentRefusal(priced('one', 3), [], 1000)).toEqual({ kind: 'points', reason: 'Needs 3 DP, 2 at this size' })
 })
 
 it('refuses a detachment past the most an army can include', () => {
   expect(detachmentRefusal(priced('four', 0), [priced('one', 0), priced('two', 0), priced('three', 0)], 2000)).toEqual({
     kind: 'count',
-    reason: 'An army can include at most 3 detachments.',
+    reason: 'At most 3 detachments',
   })
 })

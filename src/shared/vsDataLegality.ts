@@ -52,9 +52,52 @@ export type CheckedUnit = {
   choices: readonly Pick<UnitChoice, 'name' | 'options'>[]
   /** The unit as VS Data fields it, for a pick by VS Data IDs: VS Data checks it whole, models and wargear included. */
   vs?: VsRosterUnit
+  /** What the unit costs the list, which VS Data's ally points limits count. */
+  points?: number
 }
 
 export type VsDataError = { entryId: string; entryName: string; message: string }
+
+/** The list as VS Data reads it, or null where VS Data cannot place it and leaves it to the catalogue's checks. */
+function vsDataPlacement(data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) {
+  const placed = vsDataBook(data, list.catalogueId)
+  if (!data || !placed) return null
+  const { own, without, definitions } = placed
+  // A faction that takes no Detachment, as a Titan army does, refuses any it holds, VS Data's or not.
+  const detachments = list.detachmentIds.map((id) => data.detachments[id] ?? (without ? `unknown:${id}` : undefined))
+  // A list with a Detachment VS Data does not file under its faction stays with the catalogue's checks.
+  if (!without && detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))) return null
+  return { ...placed, detachments }
+}
+
+/**
+ * The list's units (by `CheckedUnit.key`) that VS Data's checker counts towards an ally points limit at the list's battle
+ * size: each joins the first ally entry offering it under one of the list's Detachments, as `checkVsRoster` reads it.
+ */
+export function vsDataAllyLimited(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  units: readonly Pick<CheckedUnit, 'key' | 'entryId' | 'name' | 'vs'>[],
+): Set<number> {
+  const placed = vsDataPlacement(data, list)
+  if (!data || !placed) return new Set()
+  const { definitions, detachments } = placed
+  const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
+  const allies = placed.record?.allies ?? []
+  return new Set(
+    units.flatMap((unit) => {
+      const id = unit.vs?.unit ?? vsDataChecks(data, list.catalogueId, unit)
+      const entry = allies.find(
+        (ally) => ally.units.includes(id ?? '') && (!ally.detachments || ally.detachments.some((d) => detachments.includes(d))),
+      )
+      return entry?.points?.some((row) => row.battleSize === battleSize) ? [unit.key] : []
+    }),
+  )
+}
+
+/** Whether VS Data's checker reads the list as a whole, as `vsDataErrors` does wherever it is not null. */
+export const vsDataPlaces = (data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) =>
+  vsDataPlacement(data, list) !== null
 
 /**
  * What VS Data's checker finds wrong with a list beyond its units' wargear, which the catalogue still builds: allies,
@@ -66,13 +109,9 @@ export function vsDataErrors(
   list: { catalogueId: string; detachmentIds: readonly string[]; borrowedDetachmentId?: string | null; limit: number },
   units: readonly CheckedUnit[],
 ): VsDataError[] | null {
-  const placed = vsDataBook(data, list.catalogueId)
+  const placed = vsDataPlacement(data, list)
   if (!data || !placed) return null
-  const { definitions, faction, own, without } = placed
-  // A faction that takes no Detachment, as a Titan army does, refuses any it holds, VS Data's or not.
-  const detachments = list.detachmentIds.map((id) => data.detachments[id] ?? (without ? `unknown:${id}` : undefined))
-  // A list with a Detachment VS Data does not file under its faction stays with the catalogue's checks.
-  if (!without && detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))) return null
+  const { definitions, faction, without, detachments } = placed
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
@@ -130,8 +169,9 @@ export function vsDataErrors(
     ...(battleSize ? { battleSize } : {}),
     units: checked.map(({ read }) => read),
   }
-  const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
-  const errors = checkVsRoster(definitions, roster, unpriced)
+  const priced = checked.map(({ unit }) => ({ points: unit.points ?? 0, unpriced: [] }))
+  const price = { units: priced, points: priced.reduce((sum, { points }) => sum + points, 0), detachmentPoints: 0, unpriced: [] }
+  const errors = checkVsRoster(definitions, roster, price)
     .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
     // Saying it takes no Detachment says each one it holds is not its own.
     .filter((problem) => !without || problem.code !== 'detachment-faction')
@@ -197,10 +237,16 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
     'not-current': 'is not in this rules version',
     'detachment-faction': named(problem.message.replace(/ is not a .* detachment$/, ' cannot be taken by this army')),
     'detachment-count': problem.message.includes('no detachments') ? 'takes no Detachment' : 'needs one to three Detachments',
-    'detachment-group': named(problem.message.replace(/^(.*) shares (\S+) with (.*)$/, '$1 cannot be taken with $3, as both are $2')),
+    'detachment-group': named(
+      problem.message.replace(/^(.*) shares (.+) with (detachment:[\w.-]+)$/, '$1 cannot be taken with $3, as both are $2'),
+    ),
     'unit-faction': 'cannot be taken by this army',
     'unit-excluded': 'cannot be taken with this army or its Detachments',
-    'ally-detachment': named(problem.message.replace(/^.*? needs one of/, 'needs one of these Detachments:')),
+    // As the catalogue words a Detachment lock: needs the Deathwatch Support detachment.
+    'ally-detachment': `needs the ${joined(
+      (/ needs one of (.+)$/.exec(problem.message)?.[1] ?? '').split(', ').map(named),
+      'or',
+    )} detachment`,
     'ally-points': named(problem.message),
     'ally-limit': named(
       problem.message.replace(

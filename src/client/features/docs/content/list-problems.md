@@ -10,11 +10,13 @@ Check your filters ("Everything is filtered out." means they hide every match) a
 
 ### I can't select a detachment
 
-A greyed card tells you why: "An army can include only one … detachment". If the dialog says the combination costs too many DP, drop one or move up a battle size.
+Every detachment stays in the list, and one you can't take now is greyed out in place. Its DP turns amber when there aren't enough Detachment points left. Tap it, or hover over it, to see why, such as "Needs 2 DP, 1 left" or "Can't be taken with Awakened Dynasty: only one Dynasty detachment". Drop a detachment you've chosen, or move up a battle size.
 
 ### Attach to unit doesn't appear
 
 Nothing in the list or the book can take that attachment. Support units still need a Bodyguard. Some detachments narrow it further: in Pactbound Zealots, a Character only joins a unit with the same Mark of Chaos.
+
+Some units, such as Cryptothralls or Servitors, join a unit as part of it rather than as its Leader or Support unit. They need the character their rule names, such as a Cryptek, already attached there, and only one of each kind joins a unit.
 
 ### "Your latest changes have not been saved."
 
