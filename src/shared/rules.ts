@@ -2,14 +2,12 @@ import type { ImportNames } from './importNames'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
-import { type ConstructionDetachment, datacardsFactionKeys, DATACARDS_ATTRIBUTION, type FactionRestrictions } from './datacards'
+import { type ConstructionDetachment, datacardsFactionKeys, type FactionRestrictions } from './datacards'
 import { type Mission, missionForIn, type MissionCard } from './rulesCards'
 import type { DetachmentReference, DetachmentRulesDetail } from '../contracts/factions'
 import type { MissionTwist } from '../contracts/missions'
 import type { RuleDocument } from '../contracts/rules'
 import type { Deployment, TerrainLayout, TerrainTemplate } from '../contracts/terrain'
-/** Assemble rules from the available sources without guessing missing parts; preserve the source attribution required by CC BY 4.0. */
-export const RULES_DATA_ATTRIBUTION = DATACARDS_ATTRIBUTION
 export type LoadedRules = {
   abilityDescriptions: ReadonlyMap<string, string>
   /** Army-construction restrictions keyed by the player-facing faction slug. */

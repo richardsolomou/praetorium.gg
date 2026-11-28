@@ -5,7 +5,7 @@ import type { TextToken } from '../src/core/sourceText'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { textFileId, textHomesSteps, textSourceFiles } from '../src/server/sourceTexts'
 import { summariesOfFile, type VsDataSummaries, vsDataSummariesSteps } from '../src/server/vsDataSummaries'
-import { summaryNamedBy, tokensAtHome } from '../src/shared/ruleSummaries'
+import { recordsPrinting, tokensAtHome } from '../src/shared/ruleSummaries'
 import { completeSteps } from '../src/shared/steps'
 import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
@@ -42,7 +42,7 @@ describe.skipIf(!fs.existsSync(directory))('a rule kept from before a data updat
     const ofFile = new Map<string, RuleSummaries>(tokens.map((token) => [token.file, summariesOfFile(token.file, files, summaries)]))
     const moved = tokensAtHome(tokens, ofFile, homes)
     for (const token of moved) ofFile.set(token.file, summariesOfFile(token.file, files, summaries))
-    return summaryNamedBy(moved, ofFile)
+    return recordsPrinting(moved, ofFile)[0] ?? null
   }
 
   it('shows the summary of the file its string lives in now', () => {

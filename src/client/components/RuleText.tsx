@@ -133,7 +133,7 @@ export function SummaryById({
   return summary ? <RuleSummaryText summary={summary} className={className} /> : fallback
 }
 
-/** A rule the catalogue prints no text for, by its owner's VS Data record of that name inside `DatasheetUnit`. */
+/** A rule the catalogue prints no text for, by its owner's VS Data record of its exact name inside `DatasheetUnit`. */
 export function SummaryByName({ name, className, fallback = null }: { name: string; className?: string; fallback?: ReactNode }) {
   const summary = useUnitAbilitySummary(name, true)
   if (summary === undefined) return <RuleSummarySkeleton className={className} />

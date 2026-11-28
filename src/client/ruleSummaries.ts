@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { MISSION_SUMMARIES, RULE_SUMMARIES, type RuleSummaries, type RuleSummary } from '../contracts/rules'
 import { TEXT_HOMES_MAX } from '../contracts/schemas'
-import { abilityKeysNamed, summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
+import { abilityKeysNamed, recordsPrinting, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
 import { ruleAbilitySummariesQuery, ruleCoreSummaryQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
 
 type SummaryLookup = { summary: RuleSummary | null; pending: boolean }
@@ -29,12 +29,11 @@ export function useRuleSummaries(texts: readonly string[]) {
     ownAnswers.some((answer) => answer.isPending) ||
     (hashes.length > 0 && homes.isPending) ||
     homeAnswers.some((answer) => answer.isPending)
-  /** `name` is the ability printing `text`, whose own name settles which of several abilities printing it alike it is. */
-  const recordOf = (text: string, name?: string) => {
+  const recordsOf = (text: string) => {
     const named = wholeRuleTokens(text)
-    return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile, name) : null
+    return named.length ? recordsPrinting(tokensAtHome(named, ofFile, homes.data), ofFile) : []
   }
-  return { pending, recordOf, summaryOf: (text: string): RuleSummary | null => recordOf(text)?.summary ?? null }
+  return { pending, recordsOf, summaryOf: (text: string): RuleSummary | null => recordsOf(text)[0]?.summary ?? null }
 }
 
 /** The VS Data summary of the rule a text prints, and whether that is still being asked. */
