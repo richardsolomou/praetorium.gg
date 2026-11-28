@@ -2,7 +2,7 @@
  * Report-only: who each datasheet may lead or support, and what each transport admits, as the catalogue alone reads it
  * against the reading with VS Data's `attachment` and `transport-profile` records laid over it, per book of the current
  * rules version or the one named. A pair is lost when no army allows it any more, added when the catalogue alone never allowed it, and
- * conditional when only some armies allow it now. A transport's verdict on each datasheet of its book is whether one
+ * conditional when only some armies allow it now. A datasheet page's hosts, read without a selection, are compared apart. A transport's verdict on each datasheet of its book is whether one
  * model may embark and whether the datasheet's default size fits. Writes `data-dev/vs-data-attachment-parity[-<rules version>].json` with
  * datasheet names, and prints counts.
  *
@@ -10,7 +10,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { admitsHost, attachmentOf, attachmentPartyOf, attachmentRoles, inArmy } from '../src/core/attach'
+import { admitsHost, attachmentOf, attachmentPartyOf, attachmentRoles, inArmy, referenceAttachmentOf } from '../src/core/attach'
 import { type CatalogueIndex, nameOf } from '../src/core/catalogue'
 import { defaultSelection } from '../src/core/expand'
 import { nonMatchedPlayKind } from '../src/core/name'
@@ -39,6 +39,9 @@ const attachments: Record<string, Pairs> = {}
 const pairCounts: Record<string, { same: number; lost: number; added: number; conditional: number; roleChanged: number }> = {}
 /** Units that join any unit a leader of theirs leads, which no list of hosts can say; and bodyguards whose limits changed. */
 const joinsAnyLed: string[] = []
+/** Hosts a datasheet page lists for a joiner, which read without a selection and so apart from a list's pairs. */
+const pages: Record<string, { lost: string[]; added: string[] }> = {}
+const pageCounts = { lost: 0, added: 0 }
 const limits: Record<string, { before: unknown; after: unknown }> = {}
 type Verdicts = { admits: string[]; refuses: string[]; fits: string[]; overflows: string[] }
 const transports: Record<string, { from: 'vs-data' | 'printed'; changed: Verdicts; nowRead?: true }> = {}
@@ -121,6 +124,18 @@ for (const catalogue of index.catalogues.values()) {
     counts.roleChanged += found.roleChanged.length
     if (Object.values(found).some((list) => list.length)) attachments[key] = found
   }
+  for (const joiner of units) {
+    const key = `${catalogue.name} / ${joiner.name}`
+    if (!own.has(joiner.id) || pages[key]) continue
+    const definition = index.definitions.get(joiner.id)!
+    const hostsOf = (read: CatalogueIndex) =>
+      new Set((referenceAttachmentOf(definition, read)?.targets ?? []).map((name) => name.toUpperCase()))
+    const [was, now] = [hostsOf(catalogueOnly), hostsOf(index)]
+    const page = { lost: [...was].filter((name) => !now.has(name)), added: [...now].filter((name) => !was.has(name)) }
+    pageCounts.lost += page.lost.length
+    pageCounts.added += page.added.length
+    if (page.lost.length || page.added.length) pages[key] = page
+  }
   for (const host of units) {
     const key = `${catalogue.name} / ${host.name}`
     if (!own.has(host.id) || limits[key]) continue
@@ -168,11 +183,12 @@ for (const catalogue of index.catalogues.values()) {
 fs.mkdirSync('data-dev', { recursive: true })
 fs.writeFileSync(
   `data-dev/vs-data-attachment-parity${version ? `-${version}` : ''}.json`,
-  `${JSON.stringify({ pairCounts, transportCounts, printedTransports: [...printedTransports], joinsAnyLed, limits, attachments, transports }, null, 2)}\n`,
+  `${JSON.stringify({ pairCounts, pageCounts, transportCounts, printedTransports: [...printedTransports], joinsAnyLed, limits, attachments, pages, transports }, null, 2)}\n`,
 )
 console.log(
   JSON.stringify({
     pairCounts,
+    pageCounts,
     transportCounts,
     printedTransports: [...printedTransports],
     joinsAnyLed: joinsAnyLed.length,

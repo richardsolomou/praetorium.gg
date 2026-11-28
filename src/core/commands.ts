@@ -108,6 +108,9 @@ export const rosterPickSchema = z.object({
     .describe(
       'The unit by VS Data IDs, for a datasheet get_unit_options returns with vs: it stands for models, choices, spreads and toggles, so a pick with it leaves those out. Keep it as read, or set it from get_unit_options.',
     ),
+  rulesVersion: id
+    .optional()
+    .describe('The earlier rules version this unit was saved in before its list moved to another; keep it as read, never set it.'),
 })
 const phase = z.enum(PHASES)
 const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()
