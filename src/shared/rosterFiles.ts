@@ -952,8 +952,8 @@ function textRosterPick(
   const respelled = respelledNames(entryId, loaded.index)
   // The official app prints some wargear as VS Data spells it, as a Corsair Voidscarred's "Channeller Stones" for the
   // catalogue's "Channeler stones": the one of this unit's names the reviewed spellings give that spelling. A spelling
-  // that is only the name in another number, as Termagants' "Termagant spinefists", is left unread, as it was, since
-  // reading it changes how the squad divides.
+  // that is only the name in another number, as Termagants' "Termagant spinefists", is left unread, since reading it
+  // changes how the squad divides.
   const vsSpelled = (label: string) => {
     const key = wargearKey(label).replace(ARTICLE, '')
     const names = [...new Set(respelled.values())].filter(
