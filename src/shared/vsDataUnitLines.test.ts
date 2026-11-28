@@ -39,7 +39,12 @@ it('writes each model’s name as VS Data does, beside its count', () => {
   expect(
     unitComposition({
       sizes: [],
-      models: [model('Deathwing Terminators', 4, 9), model('Gretchin', 1, 3), model('Beast of Nurgle', 1, 2), model('Ceramite Fists.', 4, 4)],
+      models: [
+        model('Deathwing Terminators', 4, 9),
+        model('Gretchin', 1, 3),
+        model('Beast of Nurgle', 1, 2),
+        model('Ceramite Fists.', 4, 4),
+      ],
     }).map((line) => line.map((run) => run.text).join('')),
   ).toEqual(['4–9 × Deathwing Terminators', '1–3 × Gretchin', '1–2 × Beast of Nurgle', '4 × Ceramite Fists'])
 })
