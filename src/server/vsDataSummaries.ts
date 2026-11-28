@@ -149,7 +149,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           // Last, so an ability's own id wins over another's former one.
           ...abilitySummaries.map((ability) => [ability[0].slice('ability:'.length), value(ability)] as const),
         ])
-      const served = (id: string, unit: (typeof file.units)[string]) => ({
+      const servedUnit = (id: string, unit: (typeof file.units)[string]) => ({
         ...unit,
         id,
         ...(unit.invulnerableSaves
@@ -169,11 +169,11 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
             index
               .aliasesOf({ kind: 'unit', id })
               .filter((alias) => alias.startsWith('bsdata.'))
-              .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), served(id, unit)] as const),
+              .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), servedUnit(id, unit)] as const),
           ),
           ...[...idsIn(legacyUnitIds, baseOf(edition) ? null : edition)].flatMap(([key, id]) => {
             const unit = key.includes('/') ? file.units[id] : undefined
-            return unit ? [[key, served(id, unit)] as const] : []
+            return unit ? [[key, servedUnit(id, unit)] as const] : []
           }),
         ]),
         abilities: abilitiesBy(([, summary]) => summary),
