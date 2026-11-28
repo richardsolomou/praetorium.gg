@@ -36,7 +36,6 @@ export function sealedEventRosterFixture(status: CatalogueEdition['status']) {
     factionKeys: new Map(),
     detachmentReferences: new Map(),
     detachmentDetails: new Map(),
-    factionRestrictions: new Map(),
   }
   return { saved, catalogue, rules, edition }
 }

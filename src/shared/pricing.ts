@@ -61,7 +61,8 @@ import { deploymentRules } from './rosterDeployment'
 import { vsDataChecks, vsDataEnhancementOptions, vsDataErrors, vsDataWithoutDetachments, vsPickErrors } from './vsDataLegality'
 import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
-import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
+import { isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
+import { vsDataRefusedUnits } from './vsDataOffers'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import type { PriceInput } from '../contracts/schemas'
@@ -695,27 +696,25 @@ function calculateRoster(
   const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
   const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
-  const restrictions = rules?.factionRestrictions.get(factionSlug)
-  // Keywords and Toughness are only inputs to these two construction rule sets.
+  // Keywords and Toughness are only inputs to King of the Colosseum's construction rules.
   // Projecting every contextual datasheet for an ordinary roster would revisit the whole roster once per unit.
-  const constructionUnits =
-    restrictions || isKotcLimit(data.limit)
-      ? picked.map((unit) => {
-          const catalogueId = catalogueOfUnit(unit)
-          const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
-            selections,
-            unitSelectionIndex: selectionIndex.get(unit.selection),
-            keywordIds: keywordsFor(catalogueId, selectionIndex.get(unit.selection) ?? -1),
-          })
-          return {
-            entryId: unit.entryId,
-            name: unit.name,
-            keywords: sheet?.keywords ?? [],
-            toughness: toughnessOf(sheet?.profiles ?? []),
-            warlord: hasWarlordToggle(unit.toggles),
-          }
+  const constructionUnits = isKotcLimit(data.limit)
+    ? picked.map((unit) => {
+        const catalogueId = catalogueOfUnit(unit)
+        const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
+          selections,
+          unitSelectionIndex: selectionIndex.get(unit.selection),
+          keywordIds: keywordsFor(catalogueId, selectionIndex.get(unit.selection) ?? -1),
         })
-      : []
+        return {
+          entryId: unit.entryId,
+          name: unit.name,
+          keywords: sheet?.keywords ?? [],
+          toughness: toughnessOf(sheet?.profiles ?? []),
+          warlord: hasWarlordToggle(unit.toggles),
+        }
+      })
+    : []
   /** Ignore limits broken inside a unit with no player choices; never suppress a limit on the unit itself or on a player-selected upgrade. */
   const composedByCatalogue = new Map<string, string>()
   if (whole.errors.some((error) => error.limit)) {
@@ -770,6 +769,9 @@ function calculateRoster(
    * upgrade costs no enhancement, so the army's total already excludes it.
    */
   const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
+  // VS Data counts an army's Enhancements only at a battle size it records; at another, as King of the Colosseum's 600,
+  // the catalogue still counts them.
+  const vsCountsEnhancements = vsData !== null && battleSizes.some((size) => size.points === data.limit)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
@@ -821,14 +823,14 @@ function calculateRoster(
       (error) =>
         !(error.message.startsWith('needs one of these Detachments') && locked.has(error.entryId)) &&
         !(isKotcLimit(data.limit) && error.message === 'needs one to three Detachments'),
-    ) ?? factionRestrictionViolations(restrictions, constructionUnits)),
+    ) ?? vsDataRefusedUnits(loaded, data, picked)),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLocks,
     ...(vsData === null ? vsPickErrors(loaded.vsRoster, data, checkedUnits) : []),
     ...pointCaps.errors,
     ...enhancementsPerUnitErrors,
-    ...(vsData === null && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
+    ...(!vsCountsEnhancements && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {
             entryId: 'enhancements',

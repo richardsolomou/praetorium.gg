@@ -217,6 +217,7 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
         ? costRowFor(rows, {
             detachments: roster.detachments.map((id) => definitions.get('detachment', id)?.name ?? id),
             armies: armiesOf(definitions, roster.faction),
+            mix: Object.fromEntries(counts),
             models: definitions
               .modelsOf(unit.id)
               .map((model) => `${counts.get(model.id) ?? 0} ${model.name}`)
