@@ -27,7 +27,7 @@ import {
 } from '../src/core/unitChoices'
 import { type Per, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { carried, modelCounts, type VsRosterUnit } from '../src/core/vsDataRoster'
-import { vsFirstFielding, vsResized, vsUnitOptions, vsWithChoice } from '../src/core/vsDataUnit'
+import { vsFirstFielding, vsResized, vsUnitOptions, vsUnitProblems, vsWithChoice } from '../src/core/vsDataUnit'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { unitIdsIn } from '../src/shared/cataloguePicker'
 import { rosterDetachments } from '../src/shared/rosterDetachments'
@@ -132,7 +132,7 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     check: 'enhancements',
     units: /.*/,
     detail:
-      /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: only BSData talismanofburningblood only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
+      /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: (only BSData talismanofburningblood )?only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
     why: 'VS Data follows the app: the Standard needs ANCIENT, Shadow Legion admits no Daemon Prince, Pactbound psykers bear no Khorne mark, Cabal of Chaos follows the allegiance taken, and these Detachment upgrades take non-Characters',
   },
   {
@@ -529,7 +529,11 @@ for (const [entryId, catalogueId] of listing) {
     const bsKeywords = keywordsOf(plain)
     const vsKeywords = keywordsOf(priceOf(faction.id, { entryId, vs: { models: {}, options: {}, ...firstPick } }))
       .split(',')
-      .filter((keyword) => !fromModels.has(keyword) || bsKeywords.split(',').includes(keyword))
+      // VS Data prints a datasheet's own name as a keyword, as the app does, where BSData spells it shorter or leaves it off.
+      .filter(
+        (keyword) =>
+          (!fromModels.has(keyword) && keyword !== same(definitions.get('unit', unitId)!.name)) || bsKeywords.split(',').includes(keyword),
+      )
       .join()
     if (vsKeywords !== bsKeywords) differ('keywords', unitId, `BSData ${bsKeywords}, VS Data ${vsKeywords}`)
     // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree, which follows the pick's VS
@@ -624,6 +628,8 @@ for (const [entryId, catalogueId] of listing) {
           one.option === other.option
             ? vsWithChoice(definitions, first, one.option, { [one.choice]: 1, [other.choice]: 1 })
             : vsWithChoice(definitions, one.once, other.option, { [other.choice]: 1 })
+        // A pair VS Data refuses, as a Skitarii squad's one data-tether or omnispex in all, is no pick to compare.
+        if (vsUnitProblems(definitions, both).length) return
         const missing = lost(both, [...one.gives, ...other.gives])
         if (missing.length) changing.push(`${one.choice} with ${other.choice}, which loses ${missing.join(', ')}`)
       }),
