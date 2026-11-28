@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { vsDataDefinitions } from '../core/vsDataConstruction'
 import { vsLinksIndex } from './vsDataAttachments'
+import { vsRosterAttachments, vsRosterData } from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data })
 const unit = (name: string) => record(name, { faction: 'test', keywords: [], sizes: [1] })
@@ -182,5 +183,29 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
 
   it('lets a unit join a stand-in for a host it takes by keyword', () => {
     expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toEqual(['Hastarii'])
+  })
+})
+
+describe("an earlier rules version's attachments", () => {
+  const names: Record<string, string> = { captain: 'Captain', intercessors: 'Intercessor Squad' }
+  const roster = vsRosterData(
+    {
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'MFM 1.4' },
+      unavailable: [],
+      points: [],
+      definitions: {
+        faction: { test: { name: 'Test', data: { formatVersion: 2 } } },
+        unit: { 'test.captain': unit('Captain'), 'test.intercessors': unit('Intercessor Squad') },
+        attachment: { 'test.captain': record('Captain', { unit: 'test.captain', leads: ['test.intercessors'] }) },
+      },
+    },
+    { books: {}, detachments: {}, units: { 'old~captain': 'test.captain', 'old~intercessors': 'test.intercessors' }, enhancements: {} },
+    'old',
+    (id) => names[id],
+  )
+
+  it('reads them from the roster definitions it was built from', () => {
+    expect(vsRosterAttachments(roster, (id) => names[id]).captain?.targets).toEqual(['Intercessor Squad'])
   })
 })
