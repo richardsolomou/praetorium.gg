@@ -535,7 +535,7 @@ function OptionAbilities({
               rules={rules}
               className={PROSE}
               // The unit's own ability reads its record by id, as the datasheet's does; an upgrade is its detachment's.
-              {...(ownAbility(ability) ? { name: ability.name, abilityId: ability.id } : {})}
+              {...(ownAbility(ability) ? { name: ability.name, abilityId: ability.id } : { abilityId: ability.id })}
             />
           ) : null}
         </div>

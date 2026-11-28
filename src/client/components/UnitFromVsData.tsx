@@ -64,9 +64,11 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
 export function useDatasheetAbilitySummary(text: string, name: string | undefined, id?: string): RuleSummary | null | undefined {
   const { pending, recordsOf } = useRuleSummaries([text])
   const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
-  const units = useVsDataUnits(catalogueId, Boolean(subject && name))
+  const units = useVsDataUnits(catalogueId, Boolean(subject && (name || id)))
   if (pending || units === undefined) return undefined
-  return datasheetAbilitySummary(units, subject, id, recordsOf(text), name)
+  if (name) return datasheetAbilitySummary(units, subject, id, recordsOf(text), name)
+  // Unnamed, as a rule another owner grants the unit: its id's record, else whatever its words print, whoever owns it.
+  return (units && datasheetAbilitySummary(units, subject, id, [])) ?? datasheetAbilitySummary(null, subject, id, recordsOf(text))
 }
 
 /**

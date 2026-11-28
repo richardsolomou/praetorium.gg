@@ -21,15 +21,17 @@ export const ownAbility = ({ kind, source }: Pick<Datasheet['abilities'][number]
 /**
  * What finds a combat rule's summary as its datasheet finds it: the unit's own ability by its BSData id and name, an army
  * rule by its name, and a detachment rule by its name under the detachment. An enhancement or a granted ability, which
- * its detachment owns, and a Stratagem read by their words alone, as the unit around them would filter their records out.
+ * its detachment owns, reads by its id alone, so the unit around it never filters its record out; a Stratagem by its words.
  */
 export function combatRuleLookup(
   { id, name }: Pick<CombatRule, 'id' | 'name'>,
   owners: CombatRuleOwners,
 ): { name?: string; abilityId?: string; owner?: string } {
   const [kind, held] = id.split(':')
-  if (kind === 'unit')
-    return owners.abilities.some((ability) => ability.id === held && ownAbility(ability)) ? { name, abilityId: held } : {}
+  if (kind === 'unit') {
+    const ability = owners.abilities.find((candidate) => candidate.id === held)
+    return ability && ownAbility(ability) ? { name, abilityId: held } : { abilityId: held }
+  }
   if (kind === 'army') return { name }
   const owner = kind === 'detachment' && held ? owners.detachments?.[held] : undefined
   return owner ? { name, owner } : {}
