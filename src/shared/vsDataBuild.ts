@@ -8,6 +8,7 @@ import { priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
+import { vsShellIn, vsShellSpreads } from './vsDataShell'
 
 const definitionsOf = new WeakMap<LoadedCatalogue, VsDataDefinitions | null>()
 
@@ -56,8 +57,11 @@ export function buildPick(
     const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).find(
       ([key, id]) => id === vs.enhancement && detachments.includes(key.slice(0, key.indexOf('/'))),
     )
+    // The catalogue tree follows the pick's VS Data choices where the options map files each under a catalogue option, so
+    // the abilities, characteristics and keywords read from it are the loadout's, not the default's.
+    const spreads = vsShellSpreads(vsShellIn(loaded.vsRoster, pick.entryId), vs.options)
     const built = buildVsUnit(
-      { ...pick, vs },
+      { ...pick, vs, ...(spreads ? { choices: {}, spreads } : {}) },
       loaded.index,
       {
         definitions,

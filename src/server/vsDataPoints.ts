@@ -3,14 +3,16 @@ import path from 'node:path'
 import rawBooks from '../../catalogue/legacy-ids/books.json' with { type: 'json' }
 import rawDetachments from '../../catalogue/legacy-ids/detachments.json' with { type: 'json' }
 import rawEnhancements from '../../catalogue/legacy-ids/enhancements.json' with { type: 'json' }
+import rawOptions from '../../catalogue/legacy-ids/options.json' with { type: 'json' }
 import rawUnits from '../../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { type CatalogueIndex, nameOf } from '../core/catalogue'
-import { legacyIdsSchema } from '../core/legacyIds'
+import { legacyIdsSchema, legacyOptionsSchema } from '../core/legacyIds'
 import { type VsDataConstruction, vsDataConstructionSchema, vsDataDefinitions } from '../core/vsDataConstruction'
 import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsDataPoints'
-import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
+import { vsRosterData } from '../shared/vsDataLegality'
 import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
 import { vsLinksIndex } from '../shared/vsDataAttachments'
+import { type VsRosterWithShell, vsShellOf } from '../shared/vsDataShell'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 
 const ids: VsDataIds = {
@@ -73,9 +75,17 @@ function constructionIn(
   return { entry, construction: vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))) }
 }
 
-/** A rules version's roster definitions and points: what VS Data's checker reads of a list and what a VS pick is built and priced from. */
-export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, editionId?: string): VsRosterData | null {
+let shell: VsRosterWithShell['shell']
+
+/**
+ * A rules version's roster definitions and points: what VS Data's checker reads of a list and what a VS pick is built and
+ * priced from, with the current version's shell (`vsShellOf`), the only one the options map covers.
+ */
+export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, editionId?: string): VsRosterWithShell | null {
   const found = constructionIn(directory, editionId)
   if (!found) return null
-  return vsRosterData(found.construction, ids, found.entry.base ? null : found.entry.edition.id, (entryId) => nameIn(index, entryId))
+  const data = vsRosterData(found.construction, ids, found.entry.base ? null : found.entry.edition.id, (entryId) => nameIn(index, entryId))
+  if (!found.entry.base) return data
+  shell ??= vsShellOf(legacyOptionsSchema.parse(rawOptions).units)
+  return { ...data, shell }
 }
