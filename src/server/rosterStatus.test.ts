@@ -10,7 +10,6 @@ const rulesWithout = {
   factionKeys: new Map(),
   detachmentReferences: new Map(),
   detachmentDetails: new Map(),
-  factionRestrictions: new Map(),
 } as Partial<LoadedRules> as LoadedRules
 
 const loaded = bookOf({

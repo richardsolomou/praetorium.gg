@@ -231,12 +231,12 @@ export function catalogueEditionLoaders(
     }
     const books = yield* constructionBooks(scope)
     if (!runtime) return
-    for (const [catalogue, rules, id] of books) {
+    for (const [catalogue, , id] of books) {
       const ready = preparedSummaries().get(id)
-      if (ready) seedConstructionSummaries(catalogue, rules, id, ready)
+      if (ready) seedConstructionSummaries(catalogue, id, ready)
     }
     for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true, nonMatchedPlay: true }))
-    for (const [catalogue, rules, id] of books) yield* pickerConstruction(catalogue, rules, id)
+    for (const [catalogue, , id] of books) yield* pickerConstruction(catalogue, id)
   }
   function* constructionBooks(
     scope: Exclude<ConstructionScope, 'editions-loaded'>,
@@ -266,7 +266,7 @@ export function catalogueEditionLoaders(
       new Map(
         (['serving', 'others'] as const)
           .flatMap((scope) => completeSteps(constructionBooks(scope)))
-          .map(([catalogue, rules, id]) => [id, constructionSummaries(catalogue, rules, id)]),
+          .map(([catalogue, , id]) => [id, constructionSummaries(catalogue, id)]),
       ),
     resolve,
     factionFor,

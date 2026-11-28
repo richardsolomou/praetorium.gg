@@ -67,7 +67,7 @@ A choice the whole army shares, like a Doctrina Imperative, follows you from uni
 
 ## Ability alerts
 
-Press the bell beside an ability, rule or chosen enhancement, then choose when the alert appears, such as the start of your Shooting phase. The alert suggests a time from the rule's wording for you to check.
+Press the bell beside an ability, rule or chosen enhancement, then choose when the alert appears, such as the start of your Shooting phase. The alert suggests when the rule acts, for you to check.
 
 An alert covers every unit with that ability in all your rosters, and in battle one reminder names them all. You can keep up to 200. Signed in, your account keeps them. Otherwise this browser does, and saving your list to an account brings them along.
 

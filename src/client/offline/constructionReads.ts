@@ -29,8 +29,8 @@ export const constructionReads = {
     calculateRosterPrice(priceSchema.parse(data), catalogue, rules),
   units: ({ catalogue, rules }: Construction, data: Data<typeof server.units>) =>
     pickerUnitsFor(catalogue, rules, data.catalogueId, data.query ?? '', data.battleSize, data.waivedRules, data.detachmentIds),
-  booksOffering: ({ catalogue, rules }: Construction, data: { entryId: string; catalogueId: string }) =>
-    booksOffering(catalogue, rules, data.entryId, [data.catalogueId]),
+  booksOffering: ({ catalogue }: Construction, data: { entryId: string; catalogueId: string }) =>
+    booksOffering(catalogue, data.entryId, [data.catalogueId]),
   datasheet: ({ catalogue, rules }: Construction, data: Data<typeof server.datasheet>) =>
     rosterDatasheet(catalogue, data, rosterDatasheetContext(catalogue, datasheetSchema.parse(data)), data.everyWeapon ?? false, rules),
   loadoutDatasheets: ({ catalogue, rules }: Construction, data: Data<typeof server.loadoutDatasheets>) =>

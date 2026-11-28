@@ -227,7 +227,8 @@ export type DefinitionKind = keyof DataOf
 export type Definition<K extends DefinitionKind = DefinitionKind> = { id: string; name: string; data: DataOf[K] }
 
 type OrUnresolved<T> = T | { unresolved: string }
-export type PointsCost = { models: number; composition?: string; points: OrUnresolved<number> }
+/** A cost row; `mix` gives the count of each model, by model ID, of a row priced by the models it holds. */
+export type PointsCost = { models: number; composition?: string; mix?: Readonly<Record<string, number>>; points: OrUnresolved<number> }
 export type PointsUnit = {
   id: string
   name: string
