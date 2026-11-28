@@ -3,6 +3,7 @@ import { facetSchema } from '../core/listFilter'
 import { battleOutcome } from '../core/standings'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { app } from './app'
+import { factionSlugOf, withFactionSlugs } from '../shared/factionNames'
 import { resultOf, WRITE } from './accountToolResult'
 import { additionalAccountScopes } from './additionalAccountTools'
 import type { McpAccountScope } from '../shared/mcpConsent'
@@ -183,10 +184,11 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
         const instance = app()
         const player = owner()
         const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
+        const read = filter && withFactionSlugs(filter, factions)
         const { battles, nextCursor } = await instance.service.battleFeedService.battles(
           player,
           rules,
-          { limit: BATTLES_PAGE, before, filter, order },
+          { limit: BATTLES_PAGE, before, filter: read, order },
           factions,
         )
         return { battles: battles.map((battle) => agentBattle(battle, player)), nextCursor }
@@ -207,7 +209,17 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
         const player = owner()
         const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
         const [{ record, performance, facets }, rankings] = await Promise.all([
-          instance.service.profileService.playerProfile(player, player, filter, rules, factions),
+          instance.service.profileService.playerProfile(
+            player,
+            player,
+            {
+              ...filter,
+              ...(filter.faction ? { faction: factionSlugOf(filter.faction, factions) } : {}),
+              ...(filter.opponentFaction ? { opponentFaction: factionSlugOf(filter.opponentFaction, factions) } : {}),
+            },
+            rules,
+            factions,
+          ),
           instance.service.standingsService.playerRankings(player),
         ])
         const totals = (rows: typeof performance.detachments) => rows.map(({ key, label, total }) => ({ key, label, ...total }))
