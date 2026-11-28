@@ -189,7 +189,8 @@ jobs:
           # Nothing verifies image attestations, and generating them costs about 20 seconds per release.
           sbom: 'false'
           provenance: 'false'
-      - name: Publish and route shared build assets before changing replicas
+      # A tab keeps its release's chunks, which replicas of any later release read back from here.
+      - name: Publish shared build assets before changing replicas
         env:
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |
@@ -210,7 +211,6 @@ jobs:
           docker cp "$previous:/app/.output/public/assets/." "$RUNNER_TEMP/previous-assets/"
           docker cp "$current:/app/.output/public/assets/." "$RUNNER_TEMP/current-assets/"
           node scripts/publishWebAssets.ts "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
-          node scripts/configureDokployNode.ts assets "$TARGET" "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
       - name: Publish the matching product module
         if: ${{ !inputs.skip-product-publish }}
         env:
@@ -266,6 +266,9 @@ jobs:
           const { waitForWebRevision } = await import(pathToFileURL(`${process.env.RUNNER_TEMP}/web-readiness.mts`).href)
           await waitForWebRevision(process.env.TARGET === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg', process.env.DEPLOY_SHA)
           NODE
+      # Only a replica of this release reads other releases' chunks from the bucket, so assets reach replicas once it serves.
+      - name: Route shared build assets to the replicas
+        run: node scripts/configureDokployNode.ts assets "$TARGET" "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
       # Catalogue discovery and the history baseline follow production, so a rollback also returns current.json to the snapshot it serves.
       - name: Activate the catalogue snapshot production serves
         if: inputs.environment == 'production'

@@ -23,7 +23,12 @@ const configuration = z
   })
   .loose()
 
-export function webAssetRouting(source: string, host: string) {
+/**
+ * The Dokploy Traefik configuration with `/assets/` left to the web replicas, which serve their own release's files and
+ * read other releases' from the bucket's API (`bucketAssets`), instead of a route through the bucket's public domain,
+ * whose first read of each new file from hera's Cloudflare edge can take minutes.
+ */
+export function withoutBucketAssetRoute(source: string, host: string) {
   const config = configuration.parse(parse(source))
   const candidates = Object.entries(config.http.routers).filter(
     ([, value]) => value.rule === `Host(\`${host}\`)` && value.entryPoints.includes('websecure') && value.tls,
@@ -32,32 +37,10 @@ export function webAssetRouting(source: string, host: string) {
   const [name, web] = candidates[0]!
   if (!config.http.services[web.service]) throw new Error('Missing web service')
   const prefix = `${name}-assets`
-  config.http.routers[prefix] = {
-    ...web,
-    rule: `${web.rule} && PathPrefix(\`/assets/\`) && (Method(\`GET\`) || Method(\`HEAD\`))`,
-    priority: Math.max(web.priority ?? web.rule.length, 100) + 1,
-    service: prefix,
-    middlewares: [...(web.middlewares ?? []), `${prefix}-errors`, `${prefix}-path`, `${prefix}-headers`],
-  }
-  config.http.services[prefix] = {
-    loadBalancer: { servers: [{ url: 'https://s3.praetorium.gg' }], passHostHeader: false },
-  }
-  config.http.middlewares ??= {}
-  config.http.middlewares[`${prefix}-headers`] = {
-    headers: {
-      customRequestHeaders: {
-        Cookie: '',
-        Authorization: '',
-        'Cf-Access-Jwt-Assertion': '',
-        'CF-Access-Client-Id': '',
-        'CF-Access-Client-Secret': '',
-      },
-    },
-  }
-  config.http.middlewares[`${prefix}-path`] = { replacePathRegex: { regex: '^/assets/(.*)', replacement: '/web-assets/${1}' } }
-  // The application's asset miss already sends no-store, including on the first rollout.
-  config.http.middlewares[`${prefix}-errors`] = {
-    errors: { status: ['400-599'], service: web.service, query: '/assets/unavailable-{status}.js' },
-  }
+  if (!config.http.routers[prefix]) return source
+  delete config.http.routers[prefix]
+  delete config.http.services[prefix]
+  for (const middleware of Object.keys(config.http.middlewares ?? {}))
+    if (middleware.startsWith(`${prefix}-`)) delete config.http.middlewares![middleware]
   return stringify(config)
 }
