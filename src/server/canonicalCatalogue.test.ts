@@ -19,6 +19,7 @@ import {
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from '../shared/datacards'
 import type { SelectionEntry } from '../core/catalogue'
 import type { LoadedRules } from '../shared/rules'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
 
@@ -92,6 +93,33 @@ describe('canonical catalogue', () => {
       ],
       provenance: { sources: ['points'], strategy: 'single-source' },
     })
+  })
+  it('counts the models of a datasheet VS Data defines as its unit fields them', () => {
+    const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+    const loaded = {
+      ...catalogue(),
+      vsRoster: vsRosterData(
+        {
+          release: 'test',
+          rulesVersion: { edition: '11th', update: 'test' },
+          unavailable: [],
+          points: [],
+          definitions: {
+            faction: { host: record('Host', {}) },
+            unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5, 10] }) },
+            model: {
+              'host.squad.sergeant': record('Sergeant', { unit: 'host.squad', min: 1, max: 1, wargear: {} }),
+              'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 9, wargear: {} }),
+            },
+          },
+        },
+        { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad' }, enhancements: {} },
+        null,
+        () => 'Squad',
+      ),
+    }
+
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.composition).toEqual(['1 Sergeant', '4–9 Troopers'])
   })
   it('compiles upstream labels into one typed datasheet with provenance', () => {
     const compiled = compileCanonicalCatalogue(catalogue(), revisions)
