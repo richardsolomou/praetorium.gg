@@ -82,8 +82,9 @@ const unholdableLimits = new WeakMap<object, Set<object>>()
 /**
  * The list's units (by `CheckedUnit.key`) that VS Data's own limits cannot hold, so the catalogue's copy limits and rules
  * stand for them: a unit its faction limits by its own name, which VS Data's unit does not carry (the Emperor's
- * Champion), and a unit holding a keyword of a faction limit no unit can count, as Commissar Graves beside Commissar
- * Graves on Foot or Commander Farsight beside an Ethereal.
+ * Champion, Marneus Calgar; goes once richardsolomou/vs-data#226's release is pinned), and a unit holding a keyword of a
+ * faction limit no unit can count, as Commissar Graves beside Commissar Graves on Foot or Commander Farsight beside an
+ * Ethereal (goes once `vsDataRoster.ts` reads the alternative limits richardsolomou/vs-data#227 adds).
  */
 export function vsDataUnheld(
   data: VsRosterData | undefined,
