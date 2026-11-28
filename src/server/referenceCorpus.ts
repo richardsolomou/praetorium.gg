@@ -15,7 +15,7 @@ import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import { dispositionMatchups, gameReferencesFor } from '../shared/gameReferences'
 import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import type { LoadedRules } from '../shared/rules'
-import { KOTC_MATCHUP_ID } from '../contracts/terrain'
+import { COMBAT_PATROL_MATCHUP_ID, KOTC_MATCHUP_ID } from '../contracts/terrain'
 import { referenceText } from './referenceText'
 import { factionReferenceHref, type ReferenceFaction } from '../core/factionReferenceRoute'
 import { completeSteps, type Steps } from '../shared/steps'
@@ -314,8 +314,8 @@ function deploymentDocuments(
       title: deployment.name,
       faction: null,
       url,
-      revisions: missionRevisions(revisions),
-      attribution: [VS_DATA_ATTRIBUTION],
+      // Combat Patrol zones are measured from the pack's printed maps, not drawn by Battlemaster.
+      ...battlefieldSources(revisions, layout?.matchupId, deployment.zones.length > 0 && layout?.matchupId !== COMBAT_PATROL_MATCHUP_ID),
       sections: present([
         section(
           files,
@@ -350,12 +350,7 @@ function terrainDocuments(
       title: layout.name,
       faction: null,
       url,
-      revisions: definedRevisions({ summaries: revisions.summaries, battlemaster: revisions.battlemaster }),
-      // King of the Colosseum arenas are drawn from their publisher's diagrams, not Battlemaster's.
-      attribution: [
-        VS_DATA_ATTRIBUTION,
-        ...(layout.geometry && layout.matchupId !== KOTC_MATCHUP_ID ? ['Terrain geometry provided by Battlemaster'] : []),
-      ],
+      ...battlefieldSources(revisions, layout.matchupId, Boolean(layout.geometry)),
       sections: present([
         section(files, url.split('#')[0]!, `terrain-${layout.id}`, layout.name, [
           layout.description,
@@ -416,6 +411,24 @@ function dispositionDocument(
 
 function missionRevisions(revisions: CanonicalCatalogue['revisions']) {
   return definedRevisions({ summaries: revisions.summaries })
+}
+
+/**
+ * A battlefield's sources: VS Data's, drawn with Battlemaster's geometry where it has any, except King of the
+ * Colosseum arenas, which Praetorium traces from their publishers' diagrams in the datacards tree.
+ */
+function battlefieldSources(revisions: CanonicalCatalogue['revisions'], matchupId: string | undefined, drawnByBattlemaster: boolean) {
+  if (matchupId === KOTC_MATCHUP_ID) {
+    return {
+      revisions: definedRevisions({ datacards: revisions.datacards }),
+      attribution: ['Battlefield diagrams from Play On Tabletop and Frontline Gaming'],
+    }
+  }
+  if (!drawnByBattlemaster) return { revisions: missionRevisions(revisions), attribution: [VS_DATA_ATTRIBUTION] }
+  return {
+    revisions: definedRevisions({ summaries: revisions.summaries, battlemaster: revisions.battlemaster }),
+    attribution: [VS_DATA_ATTRIBUTION, 'Terrain geometry provided by Battlemaster'],
+  }
 }
 
 /** The sources that pinned a revision, in the order given. */

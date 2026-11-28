@@ -15,7 +15,7 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
   return {
     format: 'praetorium.canonical-catalogue.v1',
     compilerVersion: 1,
-    revisions: { datacards: revision, summaries: revision },
+    revisions: { battlemaster: revision, datacards: revision, summaries: revision },
     datasheets: [],
     detachments: [],
     ruleDocuments: [
@@ -322,17 +322,31 @@ it('credits mission references to VS Data at its release revision', () => {
     { id: ids[0], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
     { id: ids[1], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
     { id: ids[2], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
-    { id: ids[3], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
-    { id: ids[4], attribution: [VS_DATA_ATTRIBUTION, 'Terrain geometry provided by Battlemaster'], revisions: { summaries: 'one' } },
+    {
+      id: ids[3],
+      attribution: [VS_DATA_ATTRIBUTION, 'Terrain geometry provided by Battlemaster'],
+      revisions: { summaries: 'one', battlemaster: 'one' },
+    },
+    {
+      id: ids[4],
+      attribution: [VS_DATA_ATTRIBUTION, 'Terrain geometry provided by Battlemaster'],
+      revisions: { summaries: 'one', battlemaster: 'one' },
+    },
     { id: ids[5], attribution: [VS_DATA_ATTRIBUTION], revisions: { summaries: 'one' } },
   ])
 })
 
-it('does not credit Battlemaster for a King of the Colosseum arena', () => {
-  const arena = { ...missionRules.terrainLayouts[0]!, id: 'arena', matchupId: KOTC_MATCHUP_ID, deploymentId: null, pieces: [] }
+it('credits a King of the Colosseum arena and its deployment to their diagram publishers', () => {
+  const arena = { ...missionRules.terrainLayouts[0]!, id: 'arena', matchupId: KOTC_MATCHUP_ID, pieces: [] }
   const corpus = missionCorpus({ ...missionRules, terrainLayouts: [arena] })
+  const credit = { attribution: ['Battlefield diagrams from Play On Tabletop and Frontline Gaming'], revisions: { datacards: 'one' } }
 
-  expect(corpus.byId.get('terrain:arena')?.attribution).toEqual([VS_DATA_ATTRIBUTION])
+  expect(
+    ['terrain:arena', 'deployment:hammer-and-anvil'].map((id) => {
+      const { attribution, revisions } = corpus.byId.get(id)!
+      return { attribution, revisions }
+    }),
+  ).toEqual([credit, credit])
 })
 
 it('does not construct a reference without an active canonical snapshot', () => {
