@@ -69,11 +69,7 @@ const price = (catalogueId: string, entryId: string, detachmentIds: string[], mo
  */
 const legalityCategory = (keyword: string) => /^allies/.test(keyword) || ['shadowlegion', 'undivided', 'reconaugury'].includes(keyword)
 const keywordsOf = (unit: Priced | undefined) =>
-  (unit?.keywords ?? [])
-    .map(same)
-    .filter((keyword) => !legalityCategory(keyword))
-    .toSorted()
-    .join()
+  [...new Set((unit?.keywords ?? []).map(same).filter((keyword) => !legalityCategory(keyword)))].toSorted().join()
 
 /** Differences where VS Data follows the app, which leave a datasheet VS-native. */
 const LISTED_SIZES = 'sizes the field manual lists'
