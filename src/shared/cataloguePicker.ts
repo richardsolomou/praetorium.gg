@@ -161,8 +161,8 @@ const listedUnitIds = new WeakMap<LoadedCatalogue, Map<string, Set<string>>>()
 const detachmentOffers = new WeakMap<LoadedCatalogue, Map<string, string[] | null>>()
 
 /**
- * The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it: VS Data's
- * ally entries where VS Data places the list and reads the datasheet, else the catalogue's visibility rules.
+ * The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it: the ones
+ * VS Data's ally entries name where VS Data places the list and reads the datasheet, else the catalogue's visibility rules.
  */
 export function detachmentsUnlocking(
   loaded: LoadedCatalogue,
@@ -177,12 +177,11 @@ export function detachmentsUnlocking(
     { catalogueId, detachmentIds: detachments.ids },
     { entryId, name: entry.name ?? '' },
   )
-  if (offering !== undefined)
-    return (
-      offering &&
-      (loaded.detachments.get(catalogueId)?.options ?? []).flatMap((option) =>
-        offering.includes(loaded.vsRoster?.detachments[option.id] ?? '') ? [option.name] : [],
-      )
+  // Where VS Data offers the unit, the catalogue's visibility rules may still hide it, so an ally entry that names no
+  // Detachment never opens the picker on its own.
+  if (offering)
+    return (loaded.detachments.get(catalogueId)?.options ?? []).flatMap((option) =>
+      offering.includes(loaded.vsRoster?.detachments[option.id] ?? '') ? [option.name] : [],
     )
   const options = { primaryCatalogueId: catalogueId, mustering: true }
   const roster = detachments.selections
