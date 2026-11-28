@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.280.41 (2026-11-28)
+
+### Patch Changes
+
+- fdd9844: [rosters] Import official-app lists with the plasma pistols selected for Vanguard Veterans.
+- c126d08: [rosters] Paste a ListForge share link to import the full list, or get directions to the complete export when you paste Simple Text.
+
 ## 0.280.40 (2026-11-28)
 
 ### Patch Changes
