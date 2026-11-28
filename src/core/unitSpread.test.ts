@@ -1517,3 +1517,56 @@ describe('a squad divided by one choice and then another', () => {
     expect(built.choices.find((choice) => choice.name === 'Melee')?.room).toBe(5)
   })
 })
+
+describe('two weapons that each lower the other’s limit', () => {
+  // A Ghost Warrior's weapons: two starcannons or two bright lances, each lance taking one starcannon's place, and flamers.
+  const atMost = (id: string, value: number) => [{ id, type: 'max' as const, value, field: 'selections', scope: 'parent', shared: true }]
+  const lowers = (limit: string, other: string) => [
+    {
+      type: 'decrement' as const,
+      affects: 'self.entries',
+      field: limit,
+      scope: 'parent',
+      value: 1,
+      repeats: [{ childId: other, field: 'selections', scope: 'parent', value: 1, repeats: 1, includeChildSelections: true, shared: true }],
+    },
+  ]
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'warrior',
+        name: 'Ghost Warrior',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'guns',
+            name: 'Ranged Weapons',
+            constraints: atMost('guns-max', 4),
+            selectionEntries: [
+              {
+                id: 'lance',
+                name: 'Bright Lance',
+                type: 'upgrade',
+                constraints: atMost('lance-max', 2),
+                modifiers: lowers('lance-max', 'star'),
+              },
+              { id: 'flamer', name: 'Flamer', type: 'upgrade', constraints: atMost('flamer-max', 4) },
+              {
+                id: 'star',
+                name: 'Starcannon',
+                type: 'upgrade',
+                constraints: atMost('star-max', 2),
+                modifiers: lowers('star-max', 'lance'),
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers two of the one listed after the other', () => {
+    const guns = buildUnit('warrior', index)!.choices.find((choice) => choice.name === 'Ranged Weapons')!
+    expect(guns.options.find((option) => option.id === 'star')?.max).toBe(2)
+  })
+})
