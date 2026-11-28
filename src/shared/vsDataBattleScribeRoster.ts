@@ -59,12 +59,16 @@ export function vsDataUnitXml(
   )
   const details = [rules, categoriesXml(keywords), costXml(points)]
   const own = { entryId, name: unit.name, customName: nickname }
+  // The god a unit swore to is a choice on the unit, as BattleScribe writes a mark.
+  const allegiance = picked.allegiance ? definitions.get('allegiance', picked.allegiance) : undefined
+  const sworn = allegiance ? [selectionXml({ entryId: allegiance.id, name: allegiance.name, number: 1, type: 'upgrade' }, [], [], [])] : []
   // BattleScribe writes a unit only ever one model as that model, and a unit that could field more as a unit.
   const single = models.length === 1 && unit.data.sizes.every((size) => size === 1)
   if (single)
     return selectionXml({ ...own, number: 1, type: 'model' }, [...statlines.map(statlineXml), ...described], details, [
       ...carriedXml(''),
       ...carriedXml(models[0]!.id),
+      ...sworn,
     ])
   return selectionXml({ ...own, number: 1, type: 'unit' }, [...statlinesOf(undefined), ...described], details, [
     ...models.map((model) =>
@@ -76,6 +80,7 @@ export function vsDataUnitXml(
       ),
     ),
     ...carriedXml(''),
+    ...sworn,
   ])
 }
 

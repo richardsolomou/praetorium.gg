@@ -13,6 +13,7 @@ const construction: VsDataConstruction = {
   points: [],
   definitions: {
     faction: { host: record('Host', {}) },
+    allegiance: { nurgle: record('Nurgle', {}) },
     unit: {
       'host.squad': record('Squad', {
         faction: 'host',
@@ -47,7 +48,7 @@ const construction: VsDataConstruction = {
     },
   },
 }
-const picked = { unit: 'host.squad', options: { 'host.squad.special': { 'host.squad.flamer': 1 } } }
+const picked = { unit: 'host.squad', options: { 'host.squad.special': { 'host.squad.flamer': 1 } }, allegiance: 'nurgle' }
 const xml = vsDataUnitXml(
   { picked, entryId: 'bs-squad', points: 100, abilities: [] },
   { faction: 'host', detachments: [], units: [picked] },
@@ -72,4 +73,8 @@ it('marks a faction keyword as BattleScribe does, which Yellowscribe sorts keywo
 // Yellowscribe hands a weapon left on the unit to every model, so the unit's own wargear goes on its one-model stack.
 it('gives what the unit carries apart from its models to the model fielded alone', () => {
   expect(xml).toMatch(/name="Sergeant" [^>]*type="model">(?:(?!type="model").)*name="Turret"/)
+})
+
+it('writes the god a unit swore to as a choice on the unit, as BattleScribe writes a mark', () => {
+  expect(xml).toMatch(/name="Nurgle" entryId="nurgle" number="1" type="upgrade"/)
 })
