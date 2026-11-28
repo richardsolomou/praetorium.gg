@@ -230,8 +230,8 @@ function withRulesTokens(file: CatalogueFile, textTypes: ReadonlySet<string>, sw
 }
 
 /**
- * The facts a device downloads: what the catalogue's rules read of every text its definitions and cards hold, as the
- * server reads them. A reference that names no rule the catalogue holds matches nothing, and bold text can mark a whole
+ * The facts a device downloads: what the catalogue's rules read of every text its definitions and cards hold, and for
+ * each rule or profile holding one where they read differently (`heldFactsKey`), as the server reads them. A reference that names no rule the catalogue holds matches nothing, and bold text can mark a whole
  * sentence, so only references to known rules travel.
  */
 export function downloadedDefinitionFacts(loaded: LoadedCatalogue) {
