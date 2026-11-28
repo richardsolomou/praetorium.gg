@@ -1042,8 +1042,7 @@ function textRosterPick(
     resolved(label, enhancement) ??
     translated(label, enhancement) ??
     printed(label, enhancement) ??
-    vsSpelled(label) ??
-    normalized(printedAs(label)[0]?.[0] ?? label)
+    normalized(printedAs(label)[0]?.[0] ?? vsSpelled(label) ?? label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
