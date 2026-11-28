@@ -181,6 +181,29 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
           ],
         ]
       }
+      // A uniform VS option with substitutes swaps its main choice for the whole squad, around the substitutes it holds,
+      // which step a model at a time.
+      const mains = vs ? choice.options.filter((entry) => entry.wholeSquad) : []
+      if (mains.length) {
+        const counts = Object.fromEntries(choice.options.map((entry) => [entry.id, entry.count]))
+        const held = mains.find((entry) => entry.count > 0)
+        return [
+          [
+            ...mains.flatMap((entry) =>
+              option(choice.key, entry.id, 0, entry === held ? null : spread(choice.key, { ...counts, [entry.id]: entry.count + 1 })),
+            ),
+            ...(choice.optional
+              ? option(
+                  choice.key,
+                  '',
+                  0,
+                  held ? spread(choice.key, { ...counts, ...Object.fromEntries(mains.map((entry) => [entry.id, 0])) }) : null,
+                )
+              : []),
+            ...steps({ ...choice, options: choice.options.filter((entry) => !entry.wholeSquad) }),
+          ],
+        ]
+      }
       const specialists = choices.flatMap((nested) => (governs(nested)?.parent === choice ? [nested] : []))
       const hosts = new Set(specialists.map((nested) => governs(nested)!.option.id))
       return [
