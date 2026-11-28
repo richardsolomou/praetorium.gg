@@ -523,7 +523,6 @@ it('refreshes cached saved-roster prices, totals and legality after an edition-o
           factionKeys: new Map(),
           detachmentReferences: new Map(),
           detachmentDetails: new Map(),
-          factionRestrictions: new Map(),
         },
     )
     const price = await cachedRosterPrice(saved)

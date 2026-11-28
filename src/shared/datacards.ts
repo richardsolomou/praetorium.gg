@@ -626,20 +626,6 @@ export function factionRestrictions(datacards: Pick<LoadedDatacards, 'factions'>
   }
   return restrictions as ReadonlyMap<string, FactionRestrictions>
 }
-/** Why a unit is refused by a faction's construction rules, or null when it is allowed. */
-export function restrictedBy(
-  restrictions: FactionRestrictions,
-  name: string,
-  keywords: readonly string[],
-): { keyword: string | null } | null {
-  const carried = keywords.map((keyword) => withoutFactionPrefix(keyword).trim())
-  const keyword = carried.find((candidate) => restrictions.excludedKeywords.has(candidate.toLowerCase()))
-  if (keyword) return { keyword }
-  const lowered = name.trim().toLowerCase()
-  if (!restrictions.excludedNames.has(lowered)) return null
-  const exemption = restrictions.excludedNames.get(lowered)
-  return exemption && carried.some((candidate) => candidate.toLowerCase() === exemption) ? null : { keyword: null }
-}
 /** Every named exclusion list the prose states that `factionRestrictions` did not type. */
 export function factionRestrictionCoverageIssues(datacards: Pick<LoadedDatacards, 'factions'>) {
   const parsed = factionRestrictions(datacards)
