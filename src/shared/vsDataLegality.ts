@@ -4,7 +4,7 @@ import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unit
 import { remember } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
 import type { VsAttachment } from '../core/attach'
-import { vsAttachmentsIndex } from './vsDataAttachments'
+import { vsAttachmentHosts, vsAttachmentsIndex } from './vsDataAttachments'
 import { datasheetOf, idsIn, inBook, type VsDataIds } from './vsDataPoints'
 
 /**
@@ -20,6 +20,8 @@ export type VsRosterData = {
   enhancements: Record<string, string>
   /** Who each datasheet may join in this rules version, from VS Data's attachment records, so every rules version's lists are judged by their own. */
   attachments: Record<string, VsAttachment>
+  /** The datasheets VS Data defines a unit for there, which it alone decides as hosts of a joiner it has a record for. */
+  attachmentHosts: string[]
 }
 
 export function vsRosterData(
@@ -42,6 +44,7 @@ export function vsRosterData(
     units,
     enhancements: Object.fromEntries(idsIn(ids.enhancements, edition)),
     attachments: vsAttachmentsIndex(definitions, ids, edition, nameOf),
+    attachmentHosts: vsAttachmentHosts(definitions, ids.units, edition, nameOf),
   }
 }
 

@@ -339,6 +339,8 @@ export type CatalogueIndex = {
   textFacts?: TextFactsByKey
   /** Who each datasheet may join by VS Data's attachment records, by the entry IDs saved lists hold. */
   attachments?: Readonly<Record<string, VsAttachment>>
+  /** The names of the datasheets VS Data defines a unit for, which it alone decides as hosts of a joiner it has a record for. */
+  attachmentHosts?: readonly string[]
 }
 
 /**

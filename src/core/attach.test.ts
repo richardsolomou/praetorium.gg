@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf } from './attach'
+import { attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf, vsDecidesHost } from './attach'
 import { attachedUnit } from './attachedUnits'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
@@ -271,8 +271,8 @@ describe('a character that can join a unit', () => {
     expect(attachmentOf(index.definitions.get('captain')!, index)?.targets).toEqual(['TERMINATOR SQUAD', 'Deathwing Terminator Squad'])
   })
 
-  it('adds targets unlocked by a selected enhancement', () => {
-    const index = indexOf({
+  const murdermindIndex = () =>
+    indexOf({
       sharedSelectionEntries: [
         {
           id: 'chronomancer',
@@ -324,6 +324,9 @@ describe('a character that can join a unit', () => {
         { id: 'heavy-link', name: 'Lokhust Heavy Destroyers', type: 'selectionEntry', targetId: 'heavy-destroyers' },
       ],
     })
+
+  it('adds targets unlocked by a selected enhancement', () => {
+    const index = murdermindIndex()
     const chronomancer = index.definitions.get('chronomancer')!
 
     expect(attachmentOf(chronomancer, index, { id: 'chronomancer' })?.targets).toEqual(['IMMORTALS'])
@@ -331,6 +334,19 @@ describe('a character that can join a unit', () => {
       'IMMORTALS',
       'Lokhust Heavy Destroyers',
     ])
+  })
+
+  it("keeps a host its own selection unlocks where VS Data's record says nothing of that selection", () => {
+    const index = {
+      ...murdermindIndex(),
+      attachments: { chronomancer: { kind: 'support' as const, targets: ['Immortals'], named: ['Immortals'] } },
+      attachmentHosts: ['Immortals', 'Lokhust Heavy Destroyers'],
+    }
+    const chronomancer = index.definitions.get('chronomancer')!
+
+    expect(attachmentOf(chronomancer, index, { id: 'chronomancer', selections: [{ id: 'murdermind' }] })?.targets).toContain(
+      'Lokhust Heavy Destroyers',
+    )
   })
 
   it('shows a datasheet page its ability text rather than wider association targets', () => {
@@ -383,6 +399,62 @@ describe('a character that can join a unit', () => {
     }
 
     expect(referenceAttachmentOf(index.definitions.get('agent')!, index)?.targets).toEqual(['Tactical Squad', 'Crusaders'])
+  })
+
+  it('names each host on a datasheet page as its datasheet is named', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'lieutenant',
+          name: 'Lieutenant',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following unit:\n■ CRUSADER SQUAD')],
+        },
+        { id: 'crusaders', name: 'Crusader Squad', type: 'unit' },
+      ],
+      entryLinks: [{ id: 'crusader-link', name: 'Crusader Squad', type: 'selectionEntry', targetId: 'crusaders' }],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('lieutenant')!, index)?.targets).toEqual(['Crusader Squad'])
+  })
+
+  it('reads a keyword host on a datasheet page as units of that keyword', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'inquisitor',
+          name: 'Inquisitor',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following unit:\n■ BATTLELINE IMPERIUM INFANTRY')],
+        },
+      ],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('inquisitor')!, index)?.targets).toEqual(['BATTLELINE IMPERIUM INFANTRY units'])
+  })
+
+  it('lists on a datasheet page every datasheet a host names the start of', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'leader',
+          name: 'Acolyte Iconward',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following unit:\n■ ACOLYTE HYBRIDS')],
+        },
+        { id: 'pistols', name: 'Acolyte Hybrids with Autopistols', type: 'unit' },
+        { id: 'flamers', name: 'Acolyte Hybrids with Hand Flamers', type: 'unit' },
+      ],
+      entryLinks: [
+        { id: 'pistols-link', name: 'Acolyte Hybrids with Autopistols', type: 'selectionEntry', targetId: 'pistols' },
+        { id: 'flamers-link', name: 'Acolyte Hybrids with Hand Flamers', type: 'selectionEntry', targetId: 'flamers' },
+      ],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('leader')!, index)?.targets).toEqual([
+      'Acolyte Hybrids with Autopistols',
+      'Acolyte Hybrids with Hand Flamers',
+    ])
   })
 
   it('offers a unit association only datasheets that are units', () => {
@@ -1230,6 +1302,58 @@ it("takes VS Data's role over the catalogue's", () => {
     attachments: { priest: { kind: 'leader' as const, targets: ['Assault Squad'], named: ['Assault Squad'] } },
   }
   expect(attachmentOf(index.definitions.get('priest')!, index)?.kind).toBe('leader')
+})
+
+describe('a joiner VS Data has a record for', () => {
+  const captain = (vsData: Record<string, unknown>) => {
+    const index = {
+      ...indexOf({
+        sharedSelectionEntries: [
+          {
+            id: 'captain',
+            name: 'Captain',
+            type: 'model',
+            profiles: [ability('Leader', 'This model can be attached to the following units:\n■ TACTICAL SQUAD\n■ ASSAULT SQUAD')],
+          },
+        ],
+      }),
+      attachments: { captain: { kind: 'leader' as const, targets: ['Intercessor Squad'], named: ['Intercessor Squad'], ...vsData } },
+      attachmentHosts: ['Intercessor Squad', 'Assault Squad'],
+    }
+    return attachmentOf(index.definitions.get('captain')!, index)?.targets
+  }
+
+  it("leaves out a host VS Data defines but does not name for it, and keeps the catalogue's others", () => {
+    expect(captain({})).toEqual(['TACTICAL SQUAD', 'Intercessor Squad'])
+  })
+
+  it("keeps the catalogue's reading of the hosts VS Data is not settled on for a joiner", () => {
+    expect(captain({ catalogueHosts: ['Assault Squad'] })).toEqual(['TACTICAL SQUAD', 'ASSAULT SQUAD', 'Intercessor Squad'])
+  })
+
+  it("keeps the catalogue's hosts for a joiner whose VS Data hosts are not settled", () => {
+    expect(captain({ catalogueHosts: true })).toEqual(['TACTICAL SQUAD', 'ASSAULT SQUAD', 'Intercessor Squad'])
+  })
+})
+
+describe('whether VS Data decides a host', () => {
+  const index = {
+    ...indexOf({ sharedSelectionEntries: [{ id: 'captain', name: 'Captain', type: 'model' }] }),
+    attachments: { captain: { kind: 'leader' as const, targets: ['Intercessor Squad'], named: ['Intercessor Squad'] } },
+    attachmentHosts: ['Intercessor Squad', 'Assault Squad'],
+  }
+
+  it('admits a host VS Data names', () => {
+    expect(vsDecidesHost(index, 'captain', 'Intercessor Squad', [])).toBe(true)
+  })
+
+  it('refuses a host VS Data defines and does not name', () => {
+    expect(vsDecidesHost(index, 'captain', 'Assault Squad', [])).toBe(false)
+  })
+
+  it('leaves the catalogue a host VS Data has no unit for', () => {
+    expect(vsDecidesHost(index, 'captain', 'Tactical Squad', [])).toBeUndefined()
+  })
 })
 
 describe("VS Data's attachment rules", () => {

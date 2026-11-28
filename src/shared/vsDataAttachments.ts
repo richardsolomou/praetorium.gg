@@ -6,6 +6,29 @@ import { idsIn, type VsDataIds } from './vsDataPoints'
 
 const ROLE = { leads: 'leader', supports: 'support' } as const
 
+const AGENTS_LEGENDS_SQUADS = [
+  'imperial-agents.deathwatch-terminator-squad',
+  'imperial-agents.fortis-kill-team',
+  'imperial-agents.indomitor-kill-team',
+  'imperial-agents.spectrus-kill-team',
+]
+
+/**
+ * Joiners whose VS Data hosts are known wrong or unsettled, which keep the catalogue's reading of every host VS Data does
+ * not name, or of these: the Regimental Attachés' join, the Crisis Commander's misprinted host, the Watch Masters'
+ * Legends squads, and the codex Fortis Kill Team that Judiciar Xacharus and Chaplain Kastiel take by a keyword VS Data
+ * does not give it. VS Data's fix for all of them is richardsolomou/vs-data#228, so the list comes out with the pin of the
+ * release that carries it.
+ */
+const CATALOGUE_HOSTS: Readonly<Record<string, true | readonly string[]>> = {
+  'astra-militarum.regimental-attaches': true,
+  'tau-empire.commander-in-crisis-battlesuit': true,
+  'imperial-agents.watch-master': AGENTS_LEGENDS_SQUADS,
+  'imperial-agents.watch-captain-artemis': AGENTS_LEGENDS_SQUADS,
+  'space-marines.judiciar-xacharus': ['deathwatch.fortis-kill-team'],
+  'space-marines.chaplain-kastiel': ['deathwatch.fortis-kill-team'],
+}
+
 /**
  * Who each datasheet may join in one rules version, from VS Data's attachment records, by the BSData entry IDs saved
  * lists hold. A host is named as every catalogue datasheet of its VS Data unit is, and a unit none stands for is left
@@ -23,14 +46,18 @@ export function vsAttachmentsIndex(
   const detachmentsOf = reverse(idsIn(ids.detachments, edition))
   // A unit no catalogue datasheet stands for, as the sodalities VS Data splits by spear, is no host a list can field yet.
   const namesOf = (unit: string) => [...new Set((entriesOf.get(unit) ?? []).flatMap((entryId) => nameOf(entryId) ?? []))]
+  // A unit holds its models' keywords too, as Chaplain Grimaldus and the Command Squads are CHARACTERs only by a model's.
+  const keywordsOf = (unit: string) =>
+    [
+      ...(definitions.get('unit', unit)?.data.keywords ?? []),
+      ...definitions.modelsOf(unit).flatMap((model) => model.data.keywords ?? []),
+    ].map((keyword) => keyword.toUpperCase())
   const resolved = new Map<string, VsAttachment | null>()
   const standIns = standInsOf(definitions)
   // Read only for a condition that takes hosts by keyword, as most rules versions' lists never need it.
   let unitKeywords: { id: string; keywords: string[] }[] | undefined
   const holdingKeywords = (keywords: readonly string[], excluded: readonly string[] = []) =>
-    (unitKeywords ??= definitions
-      .all('unit')
-      .map(({ id, data }) => ({ id, keywords: data.keywords.map((keyword) => keyword.toUpperCase()) })))
+    (unitKeywords ??= definitions.all('unit').map(({ id }) => ({ id, keywords: keywordsOf(id) })))
       .filter(
         (unit) =>
           keywords.every((keyword) => unit.keywords.includes(keyword.toUpperCase())) &&
@@ -48,7 +75,9 @@ export function vsAttachmentsIndex(
     const host = capacity ? { capacity } : {}
     if (data.joins?.length) {
       const joins = data.joins.map((join): AttachmentJoin => {
-        const targets = (join.units ?? []).flatMap(namesOf)
+        // A host joined by its keywords is named too, as a condition's are.
+        const holders = join.keywords?.length ? holdingKeywords(join.keywords).filter((unit) => unit !== data.unit) : []
+        const targets = [...new Set([...(join.units ?? []), ...holders].flatMap(namesOf))]
         return {
           ...(targets.length ? { targets } : {}),
           ...(join.keywords?.length ? { keywords: join.keywords } : {}),
@@ -62,7 +91,7 @@ export function vsAttachmentsIndex(
     // An attachment takes one role in an army, so a record that leads some units and supports others stays the catalogue's.
     if (data.leads?.length && data.supports?.length) return capacity ? { targets: [], named: [], ...host } : null
     const role = data.leads?.length ? 'leads' : data.supports?.length ? 'supports' : undefined
-    const keywords = (definitions.get('unit', data.unit)?.data.keywords ?? []).map((keyword) => keyword.toUpperCase())
+    const keywords = keywordsOf(data.unit)
     // A bodyguard that stands in for one of its hosts, as "it can be attached to this unit instead" says, takes it too.
     const instead = (named: readonly string[], entryRole: 'leads' | 'supports') =>
       standingIn(named, entryRole, keywords, standIns).filter((unit) => unit !== data.unit)
@@ -70,9 +99,11 @@ export function vsAttachmentsIndex(
     const targets = [...new Set(hosts.flatMap(namesOf))]
     // A condition no list can meet here is left out, and its hosts with it, so the catalogue's reading of them stands.
     const conditional = (data.conditional ?? []).flatMap((entry) => {
-      // A host taken by its keywords brings the bodyguards that stand in for it, as named hosts do.
-      const stoodIn = [...(entry.units ?? []), ...(entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords) : [])]
-      const entryHosts = [...(entry.units ?? []), ...instead(stoodIn, entry.role)]
+      // A host taken by its keywords is named too, as the catalogue may not give it those keywords, and brings the
+      // bodyguards that stand in for it, as named hosts do.
+      const holders = entry.keywords ? holdingKeywords(entry.keywords, entry.excludedKeywords).filter((unit) => unit !== data.unit) : []
+      const stoodIn = [...(entry.units ?? []), ...holders]
+      const entryHosts = [...stoodIn, ...instead(stoodIn, entry.role)]
       const read = condition({ ...entry, ...(entryHosts.length ? { units: entryHosts } : {}) }, namesOf, entriesOf, detachmentsOf)
       return read.requires?.some((group) => !group.length) ? [] : [read]
     })
@@ -102,9 +133,25 @@ export function vsAttachmentsIndex(
     if (!record) continue
     if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
     const found = resolved.get(unit)
-    if (found) attachments[entryId] = found
+    // A joiner VS Data has no roster definition of yet, as a copied Crucible datasheet, keeps the catalogue's hosts too.
+    const kept = CATALOGUE_HOSTS[unit] ?? (definitions.get('unit', unit) ? undefined : true)
+    if (found)
+      attachments[entryId] = kept ? { ...found, catalogueHosts: kept === true ? true : [...new Set(kept.flatMap(namesOf))] } : found
   }
   return attachments
+}
+
+/** The names of the datasheets VS Data defines a unit for in one rules version, which it alone decides as hosts of its joiners. */
+export function vsAttachmentHosts(
+  definitions: VsDataDefinitions,
+  units: Readonly<Record<string, string>>,
+  edition: string | null,
+  nameOf: (entryId: string) => string | undefined,
+): string[] {
+  const names = [...datasheetUnits(units, edition)].flatMap(([entryId, unit]) =>
+    fielded(definitions, unit) ? (nameOf(entryId) ?? []) : [],
+  )
+  return [...new Set(names)].sort()
 }
 
 /** What each transport carries in one rules version, from VS Data's records; one whose capacity has no printed shape stays with its printed rule. */

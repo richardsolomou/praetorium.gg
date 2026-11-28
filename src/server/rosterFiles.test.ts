@@ -878,6 +878,7 @@ const withVsEnhancements: LoadedCatalogue = {
       'necrons.pantheon-of-woe/relic': 'necrons.pantheon-of-woe.demanding-leadership',
     },
     attachments: {},
+    attachmentHosts: [],
   },
 }
 

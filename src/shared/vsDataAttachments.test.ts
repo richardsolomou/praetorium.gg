@@ -103,6 +103,12 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
           'test.inquisitor': keyed('Inquisitor', ['CHARACTER']),
           'test.rangers': keyed('Rangers', ['BATTLELINE']),
           'test.hastarii': keyed('Hastarii', []),
+          'test.chaplain': keyed('Chaplain', ['BATTLELINE']),
+          'test.ogryns': keyed('Ogryns', []),
+          'test.command': keyed('Command Squad', ['COMMAND SQUAD']),
+        },
+        model: {
+          'test.chaplain.chaplain': record('Chaplain', { unit: 'test.chaplain', min: 1, max: 1, wargear: {}, keywords: ['CHARACTER'] }),
         },
         attachment: {
           'test.captain': record('Captain', { unit: 'test.captain', leads: ['test.intercessors'] }),
@@ -119,12 +125,13 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
           'test.escort': record('Escort', { unit: 'test.escort', insteadOf: [{ units: ['test.intercessors'], role: 'supports' }] }),
           'test.inquisitor': record('Inquisitor', {
             unit: 'test.inquisitor',
-            conditional: [{ role: 'leads', keywords: ['BATTLELINE'] }],
+            conditional: [{ role: 'leads', keywords: ['BATTLELINE'], excludedKeywords: ['CHARACTER'] }],
           }),
           'test.hastarii': record('Hastarii', {
             unit: 'test.hastarii',
             insteadOf: [{ units: ['test.rangers'], role: 'leads', keywords: ['CHARACTER'] }],
           }),
+          'test.ogryns': record('Ogryns', { unit: 'test.ogryns', joins: [{ keywords: ['COMMAND SQUAD'] }] }),
           'test.shocks': record('Shock Troops', {
             unit: 'test.shocks',
             capacity: { leads: 2, limits: [{ keywords: ['COMMAND SQUAD'], max: 1 }] },
@@ -145,6 +152,9 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
         inquisitor: 'test.inquisitor',
         rangers: 'test.rangers',
         hastarii: 'test.hastarii',
+        chaplain: 'test.chaplain',
+        ogryns: 'test.ogryns',
+        command: 'test.command',
       },
       detachments: {},
     },
@@ -162,6 +172,9 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
         inquisitor: 'Inquisitor',
         rangers: 'Rangers',
         hastarii: 'Hastarii',
+        chaplain: 'Chaplain',
+        ogryns: 'Ogryns',
+        command: 'Command Squad',
       })[entryId],
   )
 
@@ -186,7 +199,19 @@ describe("VS Data's attachment rules joined to the catalogue", () => {
   })
 
   it('lets a unit join a stand-in for a host it takes by keyword', () => {
-    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toEqual(['Hastarii'])
+    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toContain('Hastarii')
+  })
+
+  it('leaves out a unit one of whose models holds a keyword the condition excludes', () => {
+    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).not.toContain('Chaplain')
+  })
+
+  it("names the units holding a join's keywords as its hosts", () => {
+    expect(rules.attachments.ogryns?.joins?.[0]?.targets).toEqual(['Command Squad'])
+  })
+
+  it("names the units holding a condition's keywords as its hosts, whatever keywords the catalogue gives them", () => {
+    expect(rules.attachments.inquisitor?.conditional?.[0]?.targets).toContain('Rangers')
   })
 })
 

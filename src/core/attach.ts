@@ -1,4 +1,4 @@
-import { uniqueBy, remember } from './collections'
+import { groupBy, remember, uniqueBy } from './collections'
 import {
   type Association,
   type CatalogueIndex,
@@ -67,6 +67,8 @@ export type VsAttachment = {
   joins?: AttachmentJoin[]
   /** As a bodyguard, the attachments it takes beyond the core one leader and one support unit. */
   capacity?: VsCapacity
+  /** The catalogue's hosts VS Data does not name stay, all of them or these, where VS Data's are known wrong or unsettled. */
+  catalogueHosts?: true | string[]
 }
 
 /**
@@ -251,10 +253,11 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   const caches = cachesOf(index)
   const attachment = textAttachmentOf(definition, index)
   const vsData = vsAttachmentOf(definition, index)
-  if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
+  const hosts = vsHostsOf(index)
+  if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData, hosts))
 
   const associated = attachmentFromAssociations(definition, selection, index)
-  if (!associated) return remember(caches.merged, definition, () => withVsData(attachment, vsData))
+  if (!associated) return remember(caches.merged, definition, () => withVsData(attachment, vsData, hosts))
   return withVsData(
     {
       kind: attachment?.kind ?? associated.kind,
@@ -263,7 +266,8 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
       ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
       ...(attachment?.swap ? { swap: attachment.swap } : {}),
     },
-    vsData,
+    vsData && withUnlockedHosts(vsData, associated, attachmentFromAssociations(definition, { id: definition.id }, index)),
+    hosts,
   )
 }
 
@@ -276,20 +280,26 @@ const textAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
 const vsAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
   index.attachments?.[definition.id] ?? index.attachments?.[targetOf(definition, index.definitions).id]
 
-/** The catalogue's reading with VS Data's record laid over it: VS Data's hosts, then the catalogue's for hosts it never names. */
-function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): Attachment | null {
+const vsHostCache = new WeakMap<CatalogueIndex, ReadonlySet<string>>()
+const vsHostsOf = (index: CatalogueIndex) => remember(vsHostCache, index, () => new Set((index.attachmentHosts ?? []).map(normalizedName)))
+
+/**
+ * The catalogue's reading with VS Data's record laid over it: VS Data alone decides the hosts it defines, `hosts`, and
+ * the catalogue's reading stands for the rest, as datasheets VS Data has no unit for yet.
+ */
+function withVsData(read: Attachment | null, vsData: VsAttachment | undefined, hosts: ReadonlySet<string>): Attachment | null {
   const conditional = vsData?.conditional ?? []
   // A unit that joins others as part of them takes neither role. The catalogue's hosts VS Data never names stay, under
   // the record's exclusivity, as the leader and support readings keep theirs.
   if (vsData?.joins) {
-    const deferred = new Set(vsData.named.map(normalizedName))
+    const deferred = deferredOf(vsData, hosts)
     const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)))
     const exclusive = [...new Set(vsData.joins.flatMap((join) => join.exclusive ?? []))]
     const catalogue = kept.length ? [{ targets: kept, ...(exclusive.length ? { exclusive } : {}) }] : []
     return { kind: 'support', targets: [], joins: [...vsData.joins, ...catalogue] }
   }
   if (!vsData || (!vsData.targets.length && !conditional.length)) return read
-  const deferred = new Set(vsData.named.map(normalizedName))
+  const deferred = deferredOf(vsData, hosts)
   const granted = new Set(vsData.targets.map(normalizedName))
   // The catalogue's order first, as its datasheets print their hosts, then the hosts only VS Data gives.
   const kept = (read?.targets ?? []).filter((target) => !deferred.has(normalizedName(target)) || granted.has(normalizedName(target)))
@@ -305,6 +315,44 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined): 
 }
 
 /**
+ * Whether VS Data lets the datasheet `joinerEntryId` join a host of this name and keywords, in any army: true or false
+ * where VS Data decides, undefined where the catalogue's reading stands, as for a host VS Data has no unit for, a joiner
+ * it has no record of, or a pair `catalogueHosts` keeps. It reads entry IDs, so a list not yet built from VS Data asks it.
+ */
+export function vsDecidesHost(
+  index: CatalogueIndex,
+  joinerEntryId: string,
+  hostName: string,
+  hostKeywords?: readonly string[],
+): boolean | undefined {
+  const joiner = index.definitions.get(joinerEntryId)
+  const vsData = joiner && vsAttachmentOf(joiner, index)
+  if (!vsData || vsData.catalogueHosts === true) return undefined
+  const host = normalizedName(hostName)
+  if (!deferredOf(vsData, vsHostsOf(index)).has(host)) return undefined
+  const decided = withVsData(null, vsData, vsHostsOf(index))
+  return Boolean(decided && admitsHost(decided, hostName, hostKeywords))
+}
+
+/**
+ * VS Data's record with the hosts the unit's own selection unlocks kept as the catalogue reads them, as Murdermind lets a
+ * Chronomancer support Destroyer Cult units: VS Data's records say nothing of a unit's selections.
+ */
+function withUnlockedHosts(vsData: VsAttachment, selected: Attachment, unselected: Attachment | null): VsAttachment {
+  if (vsData.catalogueHosts === true) return vsData
+  const before = new Set((unselected?.targets ?? []).map(normalizedName))
+  const unlocked = selected.targets.filter((target) => !before.has(normalizedName(target)))
+  return unlocked.length ? { ...vsData, catalogueHosts: [...(vsData.catalogueHosts ?? []), ...unlocked] } : vsData
+}
+
+function deferredOf(vsData: VsAttachment, hosts: ReadonlySet<string>) {
+  const named = vsData.named.map(normalizedName)
+  if (vsData.catalogueHosts === true) return new Set(named)
+  const kept = new Set((vsData.catalogueHosts ?? []).map(normalizedName))
+  return new Set([...named, ...hosts].filter((host) => !kept.has(host)))
+}
+
+/**
  * The attachment a datasheet page shows: its ability text, or failing that its unselected associations, with every host
  * it takes in some army. Association targets are not shown alongside text because many name Legends and Crucible units
  * the printed datasheet does not.
@@ -314,16 +362,51 @@ export function referenceAttachmentOf(definition: Definition, index: CatalogueIn
   const attachment = textAttachmentOf(definition, index)
     ? attachmentOf(definition, index)
     : attachmentOf(definition, index, { id: definition.id })
-  if (!attachment?.conditional && !attachment?.joins) return attachment
-  return {
-    ...attachment,
-    targets: uniqueNormalizedNames([
-      ...attachment.targets,
-      ...(attachment.conditional ?? []).flatMap((condition) => condition.targets ?? []),
-      ...(attachment.joins ?? []).flatMap((join) => join.targets ?? []),
-    ]),
+  if (!attachment) return null
+  const datasheetNames = datasheetNamesOf(index)
+  const targets = uniqueNormalizedNames([
+    ...attachment.targets,
+    ...(attachment.conditional ?? []).flatMap((condition) => condition.targets ?? []),
+    ...(attachment.joins ?? []).flatMap((join) => join.targets ?? []),
+  ])
+  // Ability text prints a host in capitals and without the Legends or Crucible mark its datasheet's name carries, so each
+  // is named as its datasheet is, or as every datasheet it names the start of; a keyword host reads as units of it.
+  const keywords = new Set(attachment.keywords ?? [])
+  const named = (target: string): string[] => {
+    const name =
+      ['', ' [legends]', ' [crucible]'].map((mark) => datasheetNames.exact.get(`${normalizedName(target)}${mark}`)).find(Boolean) ??
+      datasheetNames.loose.get(looseName(target))
+    if (name) return [name]
+    const started = [...datasheetNames.exact].flatMap(([key, value]) => (key.startsWith(`${normalizedName(target)} with `) ? [value] : []))
+    if (started.length) return started.toSorted()
+    return [keywords.has(normalizedName(target)) ? `${target} units` : target]
   }
+  return { ...attachment, targets: uniqueNormalizedNames(targets.flatMap(named)) }
 }
+
+/** A name without spacing or plurals, as text prints "PLAGUE BEARERS" for Plaguebearers and "GUARDSMAN" for Guardsmen. */
+const looseName = (name: string) =>
+  normalizedName(name)
+    .split(' ')
+    .map((word) => word.replace(/men$/, 'man').replace(/ies$/, 'y').replace(/s$/, ''))
+    .join('')
+
+const datasheetNameCache = new WeakMap<CatalogueIndex, { exact: ReadonlyMap<string, string>; loose: ReadonlyMap<string, string> }>()
+const datasheetNamesOf = (index: CatalogueIndex) =>
+  remember(datasheetNameCache, index, () => {
+    const exact = new Map<string, string>()
+    for (const entries of index.datasheets.values())
+      for (const id of entries) {
+        const datasheet = index.definitions.get(id)
+        // A hidden datasheet is omitted from the reference, so a host only it answers to keeps its printed name.
+        const name = datasheet && !datasheet.hidden && nameOf(datasheet, index.definitions)
+        if (name && !exact.has(normalizedName(name))) exact.set(normalizedName(name), name)
+      }
+    // A loose name two datasheets share names neither.
+    const byLoose = groupBy([...exact.values()], looseName)
+    const loose = new Map([...byLoose].flatMap(([key, sharing]) => (sharing.length === 1 ? [[key, sharing[0]!]] : [])))
+    return { exact, loose }
+  })
 
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
   const sources = definitionAndTarget(definition, index)
