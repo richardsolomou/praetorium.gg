@@ -9,6 +9,7 @@ import { detachmentNamed } from './factionReferences'
 import { vsMfmDetachment } from './vsDataPoints'
 import { enhancementKey, isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
 import { factionContentOf } from './factionNames'
+import { reminderIn } from './textFacts'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
@@ -87,7 +88,11 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     dispositions: (detail?.dispositions ?? (option.disposition ? [option.disposition] : [])).map(
       (disposition) => rules.dispositions?.get(disposition) ?? disposition,
     ),
-    rules: detachmentRuleCards,
+    // An alert for a rule suggests when VS Data says it acts, as a datasheet ability's does.
+    rules: detachmentRuleCards.map((rule) => {
+      const reminder = rule.description ? reminderIn(rule.description, loaded.index.textFacts) : undefined
+      return reminder ? { ...rule, reminder } : rule
+    }),
     enhancements,
     upgrades,
     stratagems: detail?.stratagems ?? [],
