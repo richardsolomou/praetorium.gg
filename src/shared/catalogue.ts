@@ -182,7 +182,8 @@ const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: strin
 
 /**
  * The names of the abilities a unit holds in its list: its datasheet's own, linked rules and ability profiles alike,
- * unless `ownRules` is false, and those its other selections' profiles and the units leading it give it.
+ * unless `ownRules` is false, which keeps only the rules it links because of the list, and those its other selections'
+ * profiles and the units leading it give it.
  */
 export function contextualAbilityNamesIn(
   loaded: LoadedCatalogue,
@@ -199,9 +200,14 @@ export function contextualAbilityNamesIn(
       : context.selections[context.unitSelectionIndex]
   const definitions = selected ? definitionsInSelections([selected], [0], loaded.index) : []
   const intrinsic = definitionAndTarget(root, loaded.index)
+  const linkedIn = (selections: readonly Selection[]) =>
+    intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, selections))
+  const linked = linkedIn(context.selections)
+  // Without its own rules, a datasheet still holds a rule it links only in this list, as a Detachment switches one on.
+  const bare = ownRules ? [] : linkedIn(selected ? [selected] : [])
   return [
     ...new Set([
-      ...(ownRules ? intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)) : []),
+      ...(ownRules ? linked : linked.filter((name) => !bare.includes(name))),
       ...definitions
         .filter((definition) => ownRules || !intrinsic.some((own) => own.id === definition.id))
         .flatMap((definition) =>
