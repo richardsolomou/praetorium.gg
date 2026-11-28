@@ -70,7 +70,8 @@ const wargearPoints = (choices: UnitChoice[], vs: boolean) =>
 /**
  * Each weapon choice the selected pick offers, every option built from the current loadout the way the
  * roster builds it. An option the catalogue's evaluator refuses, including caps shared across options,
- * is left out, so every estimate is of a legal loadout with its real carriers.
+ * is left out, so every estimate is of a legal loadout with its real carriers. A VS pick's options are VS Data's,
+ * checked and fielded by VS Data, as its catalogue tree stays at the default loadout.
  */
 export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest): LoadoutSpace | null {
   const pick = data.picks[data.pickIndex]
@@ -79,35 +80,40 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
   const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate, data.detachmentIds)
   const base = pick ? build(pick) : null
   if (!pick || !base || !context) return null
-  const errors = (selection: typeof base.selection) =>
-    evaluate([selection], loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments }).errors.map(
-      (error) => `${error.entryId}:${error.message}`,
-    )
-  const known = new Set(errors(base.selection))
-  const carriers = combatCarriers(base.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
+  const definitions = base.vs && pick.vs ? vsDefinitionsOf(loaded) : null
+  const vsUnit = definitions ? vsUnitIdOf(loaded, data.catalogueId, pick.entryId) : undefined
+  const vs = definitions && vsUnit && pick.vs ? { definitions, unit: vsUnit, pick: { ...pick, vs: pick.vs } } : null
+  const errors = (built: BuiltUnit) =>
+    vs
+      ? built.vs
+        ? vsUnitProblems(vs.definitions, built.vs.unit).map((problem) => problem.message)
+        : ['unbuilt']
+      : evaluate([built.selection], loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments }).errors.map(
+          (error) => `${error.entryId}:${error.message}`,
+        )
+  const known = new Set(errors(base))
+  const carriersOf = (built: BuiltUnit) =>
+    built.vs?.carriers ?? combatCarriers(built.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments })
+  const carriers = carriersOf(base)
   const models = pick.models ?? base.size.models
   const option = (group: string, entry: string, step: LoadoutOption['step'], candidate: RosterPick | null): LoadoutOption[] => {
     if (!candidate) return [{ group, entry, step, carriers }]
     const variant = build(candidate)
-    return variant && errors(variant.selection).every((error) => known.has(error))
-      ? [
-          {
-            group,
-            entry,
-            step,
-            carriers: combatCarriers(variant.selection, loaded.index, { primaryCatalogueId: data.catalogueId, roster: detachments }),
-          },
-        ]
-      : []
+    return variant && errors(variant).every((error) => known.has(error)) ? [{ group, entry, step, carriers: carriersOf(variant) }] : []
   }
+  const choices = weaponChoices(base.choices, Boolean(vs))
+  const byKey = new Map(choices.map((choice) => [choice.key, choice]))
+  const spread = (key: string, counts: Record<string, number>) =>
+    vs
+      ? withVsEdit(vs.definitions, vs.unit, vs.pick, { choice: byKey.get(key)!, counts })
+      : { ...pick, models, spreads: { ...pick.spreads, [key]: counts } }
   const chosen = (key: string, entry: string) => {
-    const choices = { ...pick.choices }
-    if (entry) choices[key] = entry
-    else delete choices[key]
-    return { ...pick, choices }
+    if (vs) return spread(key, Object.fromEntries(byKey.get(key)!.options.map(({ id }) => [id, id === entry ? 1 : 0])))
+    const picked = { ...pick.choices }
+    if (entry) picked[key] = entry
+    else delete picked[key]
+    return { ...pick, choices: picked }
   }
-  const spread = (key: string, counts: Record<string, number>) => ({ ...pick, models, spreads: { ...pick.spreads, [key]: counts } })
-  const choices = weaponChoices(base.choices)
   const hostOf = (choice: UnitChoice) => {
     const parent = choices
       .filter((other) => choice.key.startsWith(`${other.key}/`))
@@ -149,19 +155,55 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
             option(choice.key, id, 0, id === choice.chosen ? null : chosen(choice.key, id)),
           ),
         ]
-      if (choice.uniform)
+      if (choice.uniform) {
+        // A VS Data option left untaken is its default, which a catalogue group lists as an option of its own.
+        const untaken = choice.options.every((entry) => !entry.count)
         return [
-          choice.options.flatMap((entry) =>
-            option(
-              choice.key,
-              entry.id,
-              0,
-              entry.count === choice.room
-                ? null
-                : spread(choice.key, Object.fromEntries(choice.options.map((other) => [other.id, other === entry ? choice.room : 0]))),
+          [
+            ...choice.options.flatMap((entry) =>
+              option(
+                choice.key,
+                entry.id,
+                0,
+                entry.count === choice.room
+                  ? null
+                  : spread(choice.key, Object.fromEntries(choice.options.map((other) => [other.id, other === entry ? choice.room : 0]))),
+              ),
             ),
-          ),
+            ...(vs && choice.optional
+              ? option(
+                  choice.key,
+                  '',
+                  0,
+                  untaken ? null : spread(choice.key, Object.fromEntries(choice.options.map((entry) => [entry.id, 0]))),
+                )
+              : []),
+          ],
         ]
+      }
+      // A uniform VS option with substitutes swaps its main choice for the whole squad, around the substitutes it holds,
+      // which step a model at a time.
+      const mains = vs ? choice.options.filter((entry) => entry.wholeSquad) : []
+      if (mains.length) {
+        const counts = Object.fromEntries(choice.options.map((entry) => [entry.id, entry.count]))
+        const held = mains.find((entry) => entry.count > 0)
+        return [
+          [
+            ...mains.flatMap((entry) =>
+              option(choice.key, entry.id, 0, entry === held ? null : spread(choice.key, { ...counts, [entry.id]: entry.count + 1 })),
+            ),
+            ...(choice.optional
+              ? option(
+                  choice.key,
+                  '',
+                  0,
+                  held ? spread(choice.key, { ...counts, ...Object.fromEntries(mains.map((entry) => [entry.id, 0])) }) : null,
+                )
+              : []),
+            ...steps({ ...choice, options: choice.options.filter((entry) => !entry.wholeSquad) }),
+          ],
+        ]
+      }
       const specialists = choices.flatMap((nested) => (governs(nested)?.parent === choice ? [nested] : []))
       const hosts = new Set(specialists.map((nested) => governs(nested)!.option.id))
       return [
