@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.40 (2026-11-28)
+
+### Patch Changes
+
+- 9f83fe4: [rosters] You can now take a single 3 DP detachment at Incursion.
+
 ## 0.280.39 (2026-11-28)
 
 ### Patch Changes
