@@ -20,6 +20,7 @@ import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
 import type { RosterPick, VsPick } from '../src/core/roster'
 import { wargearKey } from '../src/core/wargearNames'
+import { remember } from '../src/core/collections'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { vsDefinitionsOf, vsUnitIdOf } from '../src/shared/vsDataBuild'
 import { same } from '../src/shared/vsDataModelNames'
@@ -27,6 +28,7 @@ import { inBook } from '../src/shared/vsDataPoints'
 import { ARTICLE, vsSpelling } from '../src/shared/wargearSpellings'
 import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
 import { importCorpusLists } from './lib/importCorpusLists'
+import { vsKnownWargear } from './lib/vsDataRosters'
 
 type UnitRecord = {
   unit: string
@@ -61,7 +63,10 @@ if (command === 'record') {
   const definitions = catalogue && vsDefinitionsOf(catalogue)
   const options = legacyOptionsSchema.parse(rawOptions).units
   const allegiances = legacyIdsSchema.parse(rawUnits).allegiances ?? {}
-  const vsKeys = new Set(definitions?.all('wargear').map((wargear) => wargearKey(wargear.name).replace(ARTICLE, '')))
+  // The reviewed spellings read a BSData name against the wargear of the unit's own VS Data unit.
+  const knownWargear = new Map<string, ReadonlySet<string>>()
+  const vsKeysOf = (unit: string | undefined) =>
+    unit && definitions ? remember(knownWargear, unit, () => vsKnownWargear(definitions, unit)) : new Set<string>()
   const records: ListRecord[] = lists.map(({ listing, imported }) => {
     const priced =
       imported.catalogueId && catalogue
@@ -79,10 +84,13 @@ if (command === 'record') {
         : null
     const catalogueId = imported.catalogueId ?? ''
     const vsDetachments = new Set(imported.detachmentIds.flatMap((id) => catalogue?.vsRoster?.detachments[id] ?? []))
-    const enhancementId = (option: string) =>
-      Object.entries(catalogue?.vsRoster?.enhancements ?? {}).find(
-        ([key]) => key.endsWith(`/${option}`) && vsDetachments.has(key.slice(0, key.indexOf('/'))),
-      )?.[1]
+    // An option two of the list's Detachments file apart reads as no one VS Data Enhancement.
+    const enhancementId = (option: string) => {
+      const filed = Object.entries(catalogue?.vsRoster?.enhancements ?? {}).filter(
+        ([key]) => key.slice(key.indexOf('/') + 1) === option && vsDetachments.has(key.slice(0, key.indexOf('/'))),
+      )
+      return filed.length === 1 ? filed[0]![1] : undefined
+    }
     const allegianceOf = (pick: RosterPick) => {
       if (pick.vs) return pick.vs.allegiance ?? null
       const entry = inBook(options, catalogueId, pick.entryId)
@@ -117,7 +125,7 @@ if (command === 'record') {
         for (const piece of unit.wargear) {
           // An allegiance is no wargear, though a VS pick's roster line names it beside its wargear, as BSData names a mark.
           if (named && same(piece.name).endsWith(named)) continue
-          const key = pick.vs ? wargearKey(piece.name).replace(ARTICLE, '') : vsSpelling(piece.name, vsKeys)
+          const key = pick.vs ? wargearKey(piece.name).replace(ARTICLE, '') : vsSpelling(piece.name, vsKeysOf(vsUnit))
           wargear.set(key, (wargear.get(key) ?? 0) + piece.count)
         }
         return {
