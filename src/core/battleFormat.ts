@@ -16,6 +16,11 @@ const KOTC_LIMITS = [600] as const
  * its owner cannot rebuild.
  */
 const RETIRED_KOTC_LIMITS = [500] as const
+/**
+ * The Enhancements a King of the Colosseum roster may hold. No official source states it, so Praetorium follows Play On
+ * Tabletop's guidance to play the format's construction by the Incursion rules, which allow 2.
+ */
+export const KOTC_ENHANCEMENTS = 2
 export const DEFAULT_GAME_LIMIT = 2000
 
 /** The matched-play game sizes, smallest first; saved rosters and battle commands store these limits, so mission-pack size records never replace them. */
@@ -105,6 +110,7 @@ export const FORMAT_RULE_IDS = [
   'warlord',
   'kotc-infantry',
   'kotc-warlord',
+  'kotc-enhancements',
   'kotc-epic-heroes',
   'kotc-toughness',
   'kotc-datasheet-copies',
@@ -143,6 +149,7 @@ export function formatRules(limit: number | null, pointsBudget?: number | null, 
       { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
       { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
       { id: 'kotc-warlord', label: 'Character Warlord', hint: 'Exactly one Character unit is named as the Warlord' },
+      { id: 'kotc-enhancements', label: 'Two Enhancements', hint: `The roster holds at most ${KOTC_ENHANCEMENTS} Enhancements` },
       { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
       { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
       {

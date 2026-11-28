@@ -1,5 +1,41 @@
 # praetorium
 
+## 0.280.16 (2026-11-28)
+
+### Patch Changes
+
+- beb740b: [rosters] Regimental Attachés can join a Command Squad beside an Ogryn Bodyguard or Nork Deddog.
+- 2b6b4b4: [reference] Corsair datasheets now list the Corsair Enhancements their Detachment opens to them.
+- beb740b: [rosters] A Crucible Champion of the Chapter or Librarius Adept no longer joins a character or a unit that can fly.
+- ab75d6d: [reference] On the current rules version, a datasheet no longer lists Enhancements it can't take, such as those barred to a Monster or a Kroot Shaper, or any for a unit that can't take Enhancements at all.
+- ab75d6d: [reference] A datasheet now lists the Enhancements it can take once a Detachment makes it a Character or gives it a Mark, and those Crucible characters can take.
+- ab75d6d: [reference] Epic Hero datasheets no longer list Enhancements they can't take.
+- 63a1107: [rosters] Imported lists now read an Enhancement or upgrade the official app spells differently from New Recruit, such as Path of the Outcast's Assassins' Eye or the Ravenwing Command Squad's Supercharged Engines.
+- 63a1107: [rosters] Imported Company Heroes now keep the Furious Assault upgrade their list gives them instead of losing it.
+- 63a1107: [rosters] An imported list that names no Detachment now takes it from an Enhancement spelled as New Recruit spells it, such as Sublime Presence.
+- dfefcd3: [rosters] An imported list that groups a Command Squad, its troops and an Ogryn Bodyguard without naming the bodyguard attaches each unit where it can join.
+- 63a1107: [rosters] Imported lists in another language now read an upgrade by its translated name, such as the Spanish Ojo de asesino.
+- 6c733af: [rosters] A list that spells a unit's wargear as the official app does, such as a Corsair Voidscarred's Channeller Stones, imports with the model that carries it instead of an extra one.
+- 5f41862: [rosters] King of the Colosseum lists are now limited to 2 Enhancements, as at Incursion.
+- beb740b: [rosters] An Exalted Champion, Jokaero Weaponsmith or Imperial Space Marine can lead a unit beside another character.
+- beb740b: [rosters] An Ogryn Bodyguard, Nork Deddog or Regimental Attachés left unattached no longer shows an error.
+- 33b5b08: [rosters] Cryptothralls, Canoptek Tomb Crawlers and Servitors join a unit their Cryptek or Enginseer is attached to, one of each kind.
+- 33b5b08: [rosters] Legends and Crucible characters can join the units their datasheets list.
+- 33b5b08: [rosters] Characters can lead the units whose datasheets let them stand in for a unit the character leads, such as an Assault Squad, Command Squad, Bike Squad or Relic Terminator Squad, Hastarii for a Tech-Priest Enginseer, and Secutarii or Crusaders for an Inquisitor.
+- 33b5b08: [rosters] A D-Cannon, Shadow Weaver or Vibro Cannon Platform can join Guardian Defenders, one platform per unit.
+- 81556a0: [rosters] The unit size stepper now shows the size a unit was changed to, after a reload too, so it can be changed back.
+
+## 0.280.15 (2026-11-28)
+
+### Patch Changes
+
+- 1f6767b: [rosters] An alert set for a Detachment rule now suggests when that rule acts, as an ability's alert does, instead of starting with no time chosen.
+- 7bddc22: [rosters] An Enhancement that a rules version's points leave out of its Detachment now costs the field manual's points instead of the catalogue's.
+- 5960191: [simulator] Canoptek Tomb Crawlers fire both twin gauss reapers in the simulator.
+- f59352c: [rosters] 140 more datasheets, among them the Leman Russ tanks, Chaos Predators, Greater Daemons, the Assassins and the C'tan Shards, are now built as the official app prints them, with its sizes, weapon counts and wargear.
+- 195bc9a: [rosters] A unit built from VS Data now has its models' keywords too, so a squad led by a Character counts as one for attachments, reserves, keyword rules and roster limits such as the allied CHARACTER cap.
+- 5960191: [simulator] A unit built from VS Data now attacks with every weapon it carries, including weapons its datasheet spells differently, such as Twin Power Fists or The Bloody Twins.
+
 ## 0.280.14 (2026-11-28)
 
 ### Patch Changes

@@ -14,7 +14,7 @@ import { useSettled } from '../../useSettled'
 import { useStableValue } from '../../useStableValue'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
-import { pickEditor, usePicks } from '../rosters/builder/usePicks'
+import { draftModels, pickEditor, usePicks } from '../rosters/builder/usePicks'
 import { attachedHost, attachedUnit, attachmentHost, withoutUnit } from '../../../core/attachedUnits'
 import { restoreWeaponPreferences, storeWeaponPreferences, type PreferenceMember, type StoredWeaponPreferences } from './combatPreferences'
 
@@ -157,7 +157,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   })
   const battleUnit = roster?.battle?.units[pickIndex]
   const currentHealth = health[healthKey(pickIndex)] ?? battleUnit
-  const models = currentHealth?.models ?? pick?.models ?? unit?.size.models ?? 0
+  const models = currentHealth?.models ?? (pick && draftModels(pick, currentUnit ? unit : undefined)) ?? unit?.size.models ?? 0
   const damage = currentHealth?.damage ?? 0
   const allocationKey = JSON.stringify([identity, models, sheets.data?.carriers])
   const liveUnit =
