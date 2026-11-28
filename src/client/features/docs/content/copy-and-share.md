@@ -24,7 +24,7 @@ Once other players have seen a private or unlisted list, Praetorium offers to sh
 
 **Lend to a friend** lets a friend view the list, field it in their battles and seal it for a tournament or hidden-list game, without editing it. Your notes stay yours, and they can **Return it** at any time.
 
-**Archive** hides a list. **Delete** removes it for good. Copies in battles and tournaments are kept either way.
+**Archive** hides a list, and army data updates stop notifying you about it. **Delete** removes it for good. Copies in battles and tournaments are kept either way.
 
 Locking, **Make its own roster** and changing several lists at once all need a connection.
 
