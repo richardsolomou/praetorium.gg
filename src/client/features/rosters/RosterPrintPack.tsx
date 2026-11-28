@@ -120,8 +120,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         const printed = new Map(groups.map(({ host }, at) => [host.key, { name: host.name, key: host.key, number: at + 1 }]))
         for (const unit of fielded) {
           if (!unit.embarkedIn) continue
-          const transport = printed.get(keys.get(unit.embarkedIn)!)
-          if (transport) embarks.set(keys.get(unit.key)!, transport)
+          const unitKey = keys.get(unit.key)
+          const transportKey = keys.get(unit.embarkedIn)
+          if (unitKey === undefined || transportKey === undefined) continue
+          const transport = printed.get(transportKey)
+          if (transport) embarks.set(unitKey, transport)
         }
       }
       signal.throwIfAborted()

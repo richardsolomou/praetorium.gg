@@ -40,11 +40,11 @@ for (const { faction, detachment, unit, group, name, label } of [
 ]) {
   test(`${unit} prints ${name} and its summary with its datasheet`, async ({ page }) => {
     await page.addInitScript(
-      ({ unit, name }) => {
+      ({ unit: unitName, name: specialName }) => {
         window.print = () => {
-          const datasheet = document.querySelector(`[data-print-datasheet="${unit}"]`)
+          const datasheet = document.querySelector(`[data-print-datasheet="${unitName}"]`)
           document.documentElement.dataset.printedSummary =
-            datasheet?.querySelector(`[data-print-special="${name}"] [data-rule-summary]`)?.textContent ?? ''
+            datasheet?.querySelector(`[data-print-special="${specialName}"] [data-rule-summary]`)?.textContent ?? ''
         }
       },
       { unit, name },
