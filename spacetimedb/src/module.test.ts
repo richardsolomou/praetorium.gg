@@ -4858,6 +4858,13 @@ describe('roster points notices', () => {
     expect(marks(h, 'new', 1015)).toMatchObject([{ revision: 'new', points: 1015 }])
   })
 
+  it('compares nothing for a list archived after the run read it', () => {
+    const h = setup()
+    marks(h, 'old', 1000)
+    module.setRosterArchived(h.procedure(h.operator), { id: 'owner-list', userId: 'owner', archived: true, now: BigInt(NOW + 1) })
+    expect(marks(h, 'new', 1015)).toEqual([])
+  })
+
   it('forgets a list’s total with the list', () => {
     const h = setup()
     marks(h, 'old', 1000)

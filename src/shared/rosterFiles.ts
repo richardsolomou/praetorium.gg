@@ -42,7 +42,7 @@ import {
   pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
 } from '../core/battle'
-import { catalogueFactionName, factionDisplayName } from './factionNames'
+import { catalogueFactionName, factionDisplayName, vsFactionOf } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import { frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
@@ -67,6 +67,7 @@ import {
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { ARTICLE, SPELLINGS } from './wargearSpellings'
+import { type ImportVsMaps, withImportedVsPicks } from './importedVsPicks'
 import { datacardOf } from './datasheetJoin'
 import { keywordsIn } from './catalogue'
 import { fieldManualDetachment, isUpgrade } from './mfm'
@@ -75,7 +76,7 @@ import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } fr
 import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
 import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
-import type { RosterPick } from '../core/roster'
+import type { RosterPick, VsPick } from '../core/roster'
 
 /** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
 export type RosterTextFormat =
@@ -164,15 +165,16 @@ export function importRosterFaction(file: string) {
 }
 
 /** The faction a text's units belong to, for a text whose stated faction no book answers to, as one translated by the official app. */
-export function importRosterUnitFaction(file: string, loaded: LoadedCatalogue) {
+export function importRosterUnitFaction(file: string, loaded: LoadedCatalogue, names: ImportNames = NO_IMPORT_NAMES) {
   const parsed = parsedImport(file)?.parsed
-  return parsed ? unitFaction(parsed, loaded) : null
+  return parsed ? unitFaction(parsed, loaded, { ...NO_IMPORT_NAMES, ...names }) : null
 }
 
-const unitFaction = (parsed: TextRoster, loaded: LoadedCatalogue) => {
+const unitFaction = (parsed: TextRoster, loaded: LoadedCatalogue, names: ImportNames) => {
   const id = factionOfDatasheets(
     parsed.units.map((unit) => unit.name),
     loaded,
+    names,
   )
   return loaded.factions.find((faction) => faction.id === id) ?? null
 }
@@ -181,8 +183,26 @@ export function importRosterCatalogueId(file: string) {
   return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
-/** Whether a text's faction names this book, by its own name, a faction keyword such as "Heretic Astartes", or a translation of either. */
-export function matchesImportFaction(stated: string, name: string, translations: CatalogueTranslations = NO_TRANSLATIONS) {
+/** What a text's faction is matched against: a book's catalogue name, and the VS Data faction it plays where it has one. */
+export type ImportFactionNames = { name: string; vsFaction?: { name: string } | null }
+
+/**
+ * Whether a text's faction names this book: any name of the VS Data faction it plays, as "Heretic Astartes" and "Chaos Space
+ * Marines", or a translation of one, read from the whole text or its last part, as New Recruit prints "Chaos - Chaos Space
+ * Marines". The catalogue's own name, which New Recruit prints and the community translates, and a keyword it stands for,
+ * still read too, as does a book whose VS Data faction is its parent's, as an earlier rules version's Salamanders book.
+ */
+export function matchesImportFaction(stated: string, book: ImportFactionNames, translations: CatalogueTranslations = NO_TRANSLATIONS) {
+  if (matchesCatalogueName(stated, book.name, translations)) return true
+  if (!book.vsFaction) return false
+  const wanted = new Set([stated, stated.split(' - ').at(-1)!].map(unaccented))
+  // A faction's names are grouped together in the translations, and the community's translate each of them.
+  return translationsOf(book.vsFaction.name, translations)
+    .flatMap((name) => translationsOf(name, translations))
+    .some((name) => wanted.has(unaccented(name)))
+}
+
+function matchesCatalogueName(stated: string, name: string, translations: CatalogueTranslations) {
   const wanted = new Set([stated, catalogueFactionName(stated)].map(unaccented))
   const leaf = name.split(' - ').at(-1) ?? ''
   return [...translationsOf(name, translations), ...translationsOf(leaf, translations)].some((candidate) =>
@@ -202,10 +222,11 @@ export function importRosterFile(
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
+  vsMaps?: ImportVsMaps,
 ) {
   importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed)
+  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed, vsMaps)
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -245,7 +266,10 @@ export function matchParsedRoster(
   return importTextRoster(parsed, loaded, factionNames, { translations, removed, names: { ...NO_IMPORT_NAMES, ...names }, dataBuild })
 }
 
-/** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
+/**
+ * A list already read into army text, from a pasted export or another app's own format, matched and priced. With
+ * `vsMaps`, which only the server holds, a unit the builder adds by VS Data comes in as a VS pick.
+ */
 export function importParsedRoster(
   parsed: TextRoster,
   format: RosterTextFormat,
@@ -254,6 +278,7 @@ export function importParsedRoster(
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
+  vsMaps?: ImportVsMaps,
 ) {
   const result = matchParsedRoster(parsed, loaded, {
     factionNames,
@@ -277,8 +302,12 @@ export function importParsedRoster(
         )
       : null
   const priced = price(result.units)
-  const units = priced ? asBuilt(result.units, priced, price) : result.units
-  const currentPoints = priced?.points ?? null
+  const built = priced ? asBuilt(result.units, priced, price) : result.units
+  const units: ((typeof built)[number] & { vs?: VsPick })[] =
+    priced && vsMaps && loaded && result.catalogueId
+      ? withImportedVsPicks(built, { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds }, loaded, vsMaps, priced, price)
+      : built
+  const currentPoints = (units === built ? priced : price(units))?.points ?? null
   return {
     ...result,
     units,
@@ -442,11 +471,14 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
   const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
-  const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
+  const stated = loaded?.factions.find((candidate) =>
+    matchesImportFaction(parsed.faction, { name: candidate.name, vsFaction: vsFactionOf(loaded, candidate.id) }, translations),
+  )
   // A list can state a chapter's parent faction, whose units then name the chapter.
   const names = parsed.units.map((unit) => unit.name)
-  const chapterId = loaded && stated ? chapterOfDatasheets(names, stated.id, loaded) : null
-  const faction = loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded))
+  const chapterId = loaded && stated ? chapterOfDatasheets(names, stated.id, loaded, appNames) : null
+  const faction =
+    loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded, appNames))
   if (!loaded || !faction) {
     return {
       name: title,
@@ -710,20 +742,25 @@ function note(found: Map<number, Map<string, string>>, unit: number, choices: re
   found.set(unit, named)
 }
 
-type Crowned = { toggles?: Record<string, number> }
+type Crowned = { toggles?: Record<string, number>; vs?: VsPick }
 
 /**
  * Marks a Warlord on a list that names none: the one unit that can be or, given `errors`, the one leaving the list fewest,
  * first listed on a tie, since a list that placed at a tournament had one even where the text it was published as leaves
- * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way.
+ * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way. A VS pick
+ * holds it on the model `vsWarlord` names.
  */
-export function assumeWarlord(picks: readonly Crowned[], errors?: () => number) {
-  if (picks.some((pick) => Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
+export function assumeWarlord<T extends Crowned>(picks: readonly T[], errors?: () => number, vsWarlord?: (pick: T) => string | undefined) {
+  if (picks.some((pick) => pick.vs?.warlord || Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
   const candidates = picks.filter((pick) => Object.keys(pick.toggles ?? {}).length)
   if (!candidates.length || (candidates.length > 1 && !errors)) return
-  const crown = (pick: Crowned, count: number) => {
+  const crown = (pick: T, count: number) => {
     const [key] = Object.keys(pick.toggles!)
     pick.toggles = { ...pick.toggles, [key!]: count }
+    if (!pick.vs) return
+    const { warlord: _warlord, ...vs } = pick.vs
+    const model = count ? vsWarlord?.(pick) : undefined
+    pick.vs = model ? { ...vs, warlord: model } : vs
   }
   let best = candidates[0]!
   let fewest = Number.POSITIVE_INFINITY

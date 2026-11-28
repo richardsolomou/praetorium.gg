@@ -5,6 +5,7 @@ import { rosterArchiveSchema, rosterIdSchema } from '../contracts/schemas'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { resultOf } from './accountToolResult'
 import { app } from './app'
+import { factionSlugOf } from '../shared/factionNames'
 import { rosterActions } from './rosterActions'
 
 // More owned datasheets than this come back as faction totals, so one answer stays readable.
@@ -89,11 +90,12 @@ export function registerRosterAccountTools(server: AgentTools, userId: string | 
       resultOf(async () => {
         const instance = app()
         const service = instance.service.rosterService
-        const [counts, progress, countsAs, units] = await Promise.all([
+        const [counts, progress, countsAs, units, factions] = await Promise.all([
           service.collectionCounts(owner()),
           service.collectionProgress(owner()),
           service.collectionCountsAs(owner()),
           instance.combatUnitsFor(),
+          instance.factionsFor(),
         ])
         const names = new Map(units.flatMap((shelf) => shelf.units.map((unit) => [unit.id, unit.name] as const)))
         const entries = Object.entries(counts).map(([entryId, models]) => ({
@@ -101,7 +103,7 @@ export function registerRosterAccountTools(server: AgentTools, userId: string | 
           models,
           ...boundedProgress(models, progress[entryId] ?? { built: 0, painted: 0 }),
         }))
-        const wanted = faction?.toLowerCase()
+        const wanted = faction && factionSlugOf(faction, factions?.factions ?? []).toLowerCase()
         const groups = groupCollection(entries, units).filter(
           (group) =>
             !wanted ||

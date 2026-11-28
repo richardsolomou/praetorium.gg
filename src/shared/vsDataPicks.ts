@@ -8,6 +8,9 @@ import native from './vsNativeUnits.json' with { type: 'json' }
 /** Datasheets the builder offers what the catalogue does, by `scripts/vsDataChoiceParity.ts`, or differs only where VS Data follows the app. */
 const NATIVE: ReadonlySet<string> = new Set(native)
 
+/** Whether the builder adds a VS Data unit as a VS pick. */
+export const isVsNative = (unit: string) => NATIVE.has(unit)
+
 /**
  * The pick a newly added unit starts as, by VS Data IDs, for a datasheet the builder fields by VS Data: as its datasheet
  * first fields it in the list's book and Detachments, on the current rules version. Any other starts as the catalogue builds it.
@@ -21,7 +24,7 @@ export function vsFirstPickOf(
   if (catalogueEditionId(list.catalogueId)) return undefined
   const definitions = vsDefinitionsOf(loaded)
   const unit = vsUnitIdOf(loaded, list.catalogueId, entryId)
-  if (!definitions || !unit || !NATIVE.has(unit)) return undefined
+  if (!definitions || !unit || !isVsNative(unit)) return undefined
   const roster = {
     faction: loaded.vsRoster?.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)] ?? '',
     detachments: list.detachmentIds.flatMap((id) => loaded.vsRoster?.detachments[id] ?? []),

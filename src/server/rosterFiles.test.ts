@@ -2977,8 +2977,19 @@ describe('import faction names', () => {
     ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
     ['Imperial Agents', 'Imperium - Agents of the Imperium'],
   ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
-    expect(matchesImportFaction(keyword, catalogue)).toBe(true)
+    expect(matchesImportFaction(keyword, { name: catalogue })).toBe(true)
   })
+
+  it.each(['Chaos Daemons', 'Chaos - Chaos Daemons', 'Daemons du Chaos'])(
+    'reads %s by the names of the VS Data faction the book plays',
+    (stated) => {
+      const translations = new Map([
+        ['Legiones Daemonica', ['Chaos Daemons']],
+        ['Chaos Daemons', ['Legiones Daemonica', 'Daemons du Chaos']],
+      ])
+      expect(matchesImportFaction(stated, { name: 'Chaos - Daemons', vsFaction: { name: 'Legiones Daemonica' } }, translations)).toBe(true)
+    },
+  )
 })
 
 describe('a list another app read into army text', () => {
@@ -3406,5 +3417,11 @@ describe('groupHosts', () => {
         'lieutenant',
       ),
     ).toBe('intercessors')
+  })
+
+  it('is held on the model a VS pick names', () => {
+    const units = [{ toggles: { crown: 0 }, vs: { models: {}, options: {} } }]
+    assumeWarlord(units, undefined, () => 'captain')
+    expect(units[0]!.vs).toEqual({ models: {}, options: {}, warlord: 'captain' })
   })
 })

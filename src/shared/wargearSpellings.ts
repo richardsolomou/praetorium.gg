@@ -1,3 +1,5 @@
+import type { VsDataDefinitions } from '../core/vsDataConstruction'
+import type { VsRosterUnit } from '../core/vsDataRoster'
 import { wargearKey } from '../core/wargearNames'
 
 /** Reviewed spellings: wargear as VS Data names it, by BSData's name, both as `wargearKey`s, read where the unit's VS Data wargear holds VS Data's and not BSData's. */
@@ -76,4 +78,48 @@ export const vsSpelling = (name: string, vsKeys: ReadonlySet<string>) => vsKeySp
 export function vsKeySpelling(bsdataKey: string, vsKeys: ReadonlySet<string>) {
   const key = bsdataKey.replace(ARTICLE, '')
   return vsKeys.has(key) ? key : ([SPELLINGS[key] ?? []].flat().find((spelling) => vsKeys.has(spelling)) ?? key)
+}
+
+const add = (bag: Map<string, number>, key: string, n: number) => {
+  const next = (bag.get(key) ?? 0) + n
+  if (next) bag.set(key, next)
+  else bag.delete(key)
+}
+
+/** A wargear ID as the named items it holds. */
+export function leaves(definitions: VsDataDefinitions, id: string, n: number, into: Map<string, number>) {
+  const inner = definitions.get('wargear', id)?.data.includes
+  if (inner && Object.keys(inner).length) for (const [part, m] of Object.entries(inner)) leaves(definitions, part, n * m, into)
+  else add(into, wargearKey(definitions.get('wargear', id)?.name ?? id).replace(ARTICLE, ''), n)
+}
+
+/** The named items a VS Data unit carries: its models' and its own wargear, changed by the options it takes. */
+export function vsWargear(definitions: VsDataDefinitions, read: VsRosterUnit) {
+  const bag = new Map<string, number>()
+  const counts = read.models ?? {}
+  for (const model of definitions.modelsOf(read.unit))
+    for (const [id, n] of Object.entries(model.data.wargear)) leaves(definitions, id, n * (counts[model.id] ?? model.data.min), bag)
+  for (const [id, n] of Object.entries(definitions.get('unit', read.unit)?.data.wargear ?? {})) leaves(definitions, id, n, bag)
+  for (const [optionId, chosen] of Object.entries(read.options ?? {})) {
+    const replaces = definitions.get('roster-option', optionId)?.data.replaces ?? {}
+    for (const [choice, n] of Object.entries(chosen)) {
+      leaves(definitions, choice, n, bag)
+      for (const [id, m] of Object.entries(replaces)) leaves(definitions, id, -m * n, bag)
+    }
+  }
+  return bag
+}
+
+/** Every named item a VS Data unit can carry, which the reviewed spellings read BSData's names against. */
+export function vsKnownWargear(definitions: VsDataDefinitions, unit: string) {
+  const known = new Set(
+    vsWargear(definitions, { unit, models: Object.fromEntries(definitions.modelsOf(unit).map((model) => [model.id, 1])) }).keys(),
+  )
+  for (const option of definitions.optionsOf(unit))
+    for (const choice of option.data.choices) {
+      const into = new Map<string, number>()
+      leaves(definitions, choice, 1, into)
+      for (const name of into.keys()) known.add(name)
+    }
+  return known
 }

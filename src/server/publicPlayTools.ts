@@ -7,6 +7,7 @@ import { agentBattle, facet, myBattlesSchema } from './accountMcp'
 import { reportAfter, reportPage, REPORT_PAGING } from './battleTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
+import { withFactionSlugs } from '../shared/factionNames'
 import { CombatRefusal, detachmentId } from './combatTools'
 import { activeReferenceCorpus } from './referenceApi'
 import { referenceFaction } from './referenceService'
@@ -67,10 +68,11 @@ export function registerPublicPlayTools(server: AgentTools) {
     async ({ before, filter, order }) => {
       const instance = app()
       const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
+      const read = filter && withFactionSlugs(filter, factions)
       const { battles, nextCursor } = await instance.service.battleFeedService.publicBattles(
         null,
         rules,
-        { limit: BATTLES_PAGE, before, filter, order },
+        { limit: BATTLES_PAGE, before, filter: read, order },
         factions,
       )
       return structured({ battles: battles.map((battle) => agentBattle(battle, null)), nextCursor })

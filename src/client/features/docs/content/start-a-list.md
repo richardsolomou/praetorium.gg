@@ -10,7 +10,7 @@ Choose **Build an army** on the home page, or **New roster** on [Rosters](/roste
 
 The new roster is named from its army. Change it in **List name** at the top of the builder.
 
-If something's missing, the dialog says so, such as **Choose a detachment.**
+**Create roster** stays greyed until the setup is complete. A detachment you can't add to the ones you've chosen stays in the list, greyed out, and tapping it says why.
 
 ![The Create roster dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create roster dialog')
 
@@ -22,7 +22,7 @@ The counter shows **DP used** against your allowance: 2 DP at Incursion and 3 DP
 
 ## Your own points limit
 
-The box beside the battle size takes a points limit from 500 to 10,000. Leave it empty for the size's full points. It changes only the points ceiling, and the named size still sets every other limit. A tournament can set its own total for every roster, and King of the Colosseum has a fixed total.
+The **Points limit** box beside the battle size takes a limit from 500 to 10,000. Leave it empty for the size's full points. It changes only the points ceiling, and the named size still sets every other limit. A tournament can set its own total for every roster, and King of the Colosseum has a fixed total.
 
 ## Without an account
 

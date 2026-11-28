@@ -1,5 +1,6 @@
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../core/catalogueHistory'
 import { app } from './app'
+import { factionByVsName } from '../shared/factionNames'
 import { factionHistory, indexedUpdate, listedHistory } from './catalogueChangeLog'
 import { historyAnchor, updateId } from './catalogueHistory'
 
@@ -14,13 +15,17 @@ const CHANGE_LOG_PAGE = 20
  * the next, across every faction or for the one a slug names. A cursor naming no page this history
  * has starts again from the newest.
  */
-export async function changeLogPage({ before, faction }: { before?: string; faction?: string }) {
+export async function changeLogPage({ before, faction: named }: { before?: string; faction?: string }) {
   const cursor = before ? decodeHistoryCursor(before) : null
+  // An agent can name the faction by its VS Data faction's keyword name or ID, as "Asuryani" for Aeldari.
+  const factions = named ? ((await app().factionsFor())?.factions ?? []) : []
+  const faction = named && (factions.some(({ slug }) => slug === named) ? named : (factionByVsName(named, factions)?.slug ?? named))
   const history = await installedHistory()
   const canonical = history.length ? await app().canonicalCatalogueFor(faction) : null
   const scoped = faction ? (canonical ? factionHistory(history, canonical, faction) : []) : history
   const page = historyPage(scoped, CHANGE_LOG_PAGE, cursor ?? undefined)
   return {
+    faction,
     updates: page.entries.map((entry) => indexedUpdate(entry, canonical)),
     older: page.next ? encodeHistoryCursor(page.next) : null,
   }
