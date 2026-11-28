@@ -12,6 +12,7 @@ import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
 import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
 import { vsTransportsIndex } from '../shared/vsDataAttachments'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
+import { shareRecords } from './sharedJson'
 
 /** The frozen map from each BSData datasheet, or `<book>/<datasheet>`, to its VS Data unit (`catalogue/legacy-ids/units.json`). */
 export const legacyUnitIds = legacyIdsSchema.parse(rawUnits).ids
@@ -76,7 +77,9 @@ function constructionIn(
   if (!entry) return null
   const file = path.join(root, 'summaries', `${entry.base ? (entry.summaries ?? entry.edition.id) : entry.edition.id}.construction.json`)
   if (!fs.existsSync(file)) return null
-  return { entry, construction: vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))) }
+  const construction = vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
+  for (const records of Object.values(construction.definitions)) shareRecords(records)
+  return { entry, construction }
 }
 
 /** A rules version's roster definitions and points: what VS Data's checker reads of a list and what a VS pick is built and priced from. */
