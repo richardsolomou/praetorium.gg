@@ -986,6 +986,7 @@ const abilitySignature = (ability: Datasheet['abilities'][number]) =>
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
 type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
 
+// The Detachments' rules are read from the catalogue until VS Data links a Detachment to them (richardsolomou/vs-data#233).
 function weaponAbilitiesFromDetachments(
   selections: readonly Selection[],
   unitSelectionIndex: number | undefined,
