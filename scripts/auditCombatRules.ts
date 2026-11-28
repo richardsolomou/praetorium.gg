@@ -1,8 +1,9 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { parseArgs } from 'node:util'
-import { compileCombatRule } from '../src/core/combatRuleCompiler'
-import { combatRuleChoices, combatRuleRoles, type CombatRule } from '../src/core/combatRules'
+import { combatReadingFor } from '../src/core/combatReading'
+import { combatRuleChoices, type CombatRule } from '../src/core/combatRules'
+import { combatFactsIn } from '../src/shared/textFacts'
 import { datasheetIn } from '../src/shared/catalogue'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
 import { combatWeaponKeywordInventory, unselectedCombatRules } from './lib/combatRuleInventory'
@@ -14,7 +15,7 @@ import { snapshotWords } from '../src/server/sourceTexts'
 const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { type: 'string' } } })
 const directory = path.resolve(catalogueDataDirectory())
 const { catalogue: loaded, rules } = loadSnapshotWithRules(directory)
-// The snapshot publishes rules text as tokens, which compile to nothing until read back into words.
+// The snapshot publishes rules text as tokens; the words are read back only for the judge to read.
 const words = snapshotWords(directory)
 const entries = new Map<string, InventoryRule>()
 function add(name: string, published: string | null, source: string, scope: CombatRule['scope']) {
@@ -26,14 +27,15 @@ function add(name: string, published: string | null, source: string, scope: Comb
     if (!existing.sources.includes(source)) existing.sources.push(source)
     if (existing.scopes.includes(scope)) return
   }
-  const rule: CombatRule = { id: key, name, description, source, scope, models: 1 }
-  const compiled = compileCombatRule(rule)
-  const choices = combatRuleChoices(rule)
-  const roles = compiled
-    ? [...new Set(choices.flatMap((choice) => choice.effects.map((effect) => effect.role)))]
-    : combatRuleRoles(description)
-  const calculated = choices.some((choice) => choice.effects.length)
+  // What the simulator calculates is the reading the catalogue recorded for the text's VS Data record at this placement.
+  const placed: CombatRule = { id: key, name, description, source, scope, models: 1 }
+  const facts = combatFactsIn(published, loaded.index.textFacts)
+  const reading = facts === undefined ? null : combatReadingFor(facts, placed)
+  const compiled = reading?.compiled ?? null
+  const choices = reading ? combatRuleChoices({ ...placed, reading }) : []
   const calculatedRoles = [...new Set(choices.flatMap((choice) => choice.effects.map((effect) => effect.role)))]
+  const roles = compiled ? calculatedRoles : (reading?.roles ?? [])
+  const calculated = choices.some((choice) => choice.effects.length)
   entries.set(key, {
     name,
     description,
@@ -79,9 +81,9 @@ const report = {
   summary: {
     descriptions: rows.length,
     combat: combat.length,
-    recognizedWording: calculated.length,
+    calculated: calculated.length,
     noDamageEffect: rows.filter((row) => row.status === 'no-damage-effect').length,
-    unsupportedWording: combat.length - calculated.length,
+    notCalculated: combat.length - calculated.length,
     weaponKeywordVariants: weaponKeywords.length,
     unsupportedWeaponKeywordVariants: weaponKeywords.filter((row) => !row.supported).length,
   },
