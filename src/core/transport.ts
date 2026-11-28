@@ -77,6 +77,8 @@ const list = (printed: string) => printed.replaceAll('/', ', ')
 export type PrintedTransport = {
   main: Pool
   instead: Pool | null
+  /** The allowances riding beside `instead` in that other load, as an Orion carries a DREADNOUGHT and 6 infantry. */
+  insteadWith?: Pool[]
   conditions: (Pool & { wargear: string })[]
   pools: Pool[]
   alternatives: string[]
@@ -95,6 +97,7 @@ const poolSchema = z.object({
 export const printedTransportSchema = z.object({
   main: poolSchema,
   instead: poolSchema.nullable(),
+  insteadWith: z.array(poolSchema).max(20).optional(),
   conditions: z.array(poolSchema.extend({ wargear: printedText })).max(20),
   pools: z.array(poolSchema).max(20),
   alternatives: z.array(printedText).max(20),
@@ -164,12 +167,13 @@ export function printedTransport(printed: string | undefined): PrintedTransport 
 
 /**
  * VS Data's typed transport capacity in the shape a printed rule is read into, so a battle log carries either alike;
- * null where it has no such shape: more than one alternative load of several allowances, or allowances wargear replaces.
+ * null where it has no such shape: more than two loads, or allowances wargear replaces.
  */
 export function vsTransport(capacity: TransportCapacity): PrintedTransport | null {
   const [first, second, ...more] = capacity.loads
   const [main, ...pools] = first ?? []
-  if (!main || more.length || (second && second.length !== 1) || capacity.whenEquipped?.length) return null
+  const [instead, ...insteadWith] = second ?? []
+  if (!main || more.length || (second && !instead) || capacity.whenEquipped?.length) return null
   const pool = ({ limit, count, selectors, maxWounds }: TransportPool): Pool => ({
     capacity: limit,
     carries: selectors.join(', '),
@@ -178,7 +182,8 @@ export function vsTransport(capacity: TransportCapacity): PrintedTransport | nul
   })
   return {
     main: pool(main),
-    instead: second ? pool(second[0]!) : null,
+    instead: instead ? pool(instead) : null,
+    ...(insteadWith.length ? { insteadWith: insteadWith.map(pool) } : {}),
     conditions: [],
     pools: pools.map(pool),
     alternatives: [],
@@ -192,6 +197,11 @@ export function vsTransport(capacity: TransportCapacity): PrintedTransport | nul
       size,
     })),
   }
+}
+
+/** VS Data's capacity with the loads wargear gives in the printed rule, where VS Data records none, as a Tidewall Shieldline's defence platform. */
+export function withPrintedWargear(capacity: PrintedTransport, printed: PrintedTransport | null | undefined): PrintedTransport {
+  return printed?.conditions.length && !capacity.conditions.length ? { ...capacity, conditions: printed.conditions } : capacity
 }
 
 /**
@@ -211,7 +221,10 @@ export function transportRule(
   )
   if (selected.length > 1) return null
   const first = selected[0] ?? main
-  const loads = [[{ ...first, carries: [first.carries, ...alternatives].join(' or ') }, ...pools], ...(instead ? [[instead]] : [])]
+  const loads = [
+    [{ ...first, carries: [first.carries, ...alternatives].join(' or ') }, ...pools],
+    ...(instead ? [[instead, ...(read.insteadWith ?? [])]] : []),
+  ]
   return loads.flat().every((pool) => Number.isSafeInteger(pool.capacity) && pool.capacity > 0) ? { loads, excluded, space } : null
 }
 
