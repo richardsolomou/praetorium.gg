@@ -1,4 +1,4 @@
-import { type BattleSize, detachmentLimit, detachmentPointBudget, enforces, type FormatRuleId } from '../../core/battle'
+import { type BattleSize, detachmentLimit, detachmentPointBudget, detachmentPointsError, type FormatRuleId } from '../../core/battle'
 import { routeSlug } from '../../core/slug'
 import { countLabel } from '../text'
 
@@ -100,15 +100,9 @@ export function detachmentRefusal(
   const conflict = detachmentConflict(detachment, selected)
   if (conflict) return { kind: 'conflict', reason: conflict }
   const allowance = detachmentPointBudget(limit, sizes)
-  if (allowance !== null && detachment.points != null && enforces(waived, 'detachment-points')) {
-    const left = allowance - selected.reduce((total, other) => total + (other.points ?? 0), 0)
-    if (detachment.points > left)
-      return {
-        kind: 'points',
-        reason: selected.length
-          ? `Needs ${detachment.points} DP, ${Math.max(left, 0)} left`
-          : `Needs ${detachment.points} DP, ${allowance} at this size`,
-      }
-  }
-  return null
+  if (allowance === null) return null
+  const error = detachmentPointsError([...selected, detachment], allowance, waived)
+  if (!error) return null
+  const left = Math.max(allowance - selected.reduce((total, other) => total + (other.points ?? 0), 0), 0)
+  return { kind: 'points', reason: detachment.points ? `Needs ${detachment.points} DP, ${left} left` : error }
 }
