@@ -23,7 +23,14 @@ export const definitions = vsDataDefinitions({
         faction: 'host',
         keywords: ['INFANTRY'],
         sizes: [5, 10],
-        allegiances: [{ choices: ['host.vanguard.red', 'host.vanguard.blue'], detachment: 'host.vanguard', required: true }],
+        allegiances: [
+          {
+            choices: ['host.vanguard.red', 'host.vanguard.blue'],
+            detachment: 'host.vanguard',
+            required: true,
+            requires: { 'host.vanguard.red': 'host.cannon' },
+          },
+        ],
       }),
       'host.captain': record('Captain', { faction: 'host', keywords: ['INFANTRY', 'CHARACTER'], sizes: [1] }),
       'host.command': record('Command Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),

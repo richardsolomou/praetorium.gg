@@ -172,16 +172,17 @@ test('weapon swaps keep fixed profiles stable while saving', async ({ page }) =>
     await page.setViewportSize({ width, height: 900 })
     if (width === 390) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.locator('[data-unit="Tomb Blades"]').getByRole('button', { name: 'Tomb Blades', exact: true }).click()
-    await expect(loadout.getByRole('heading', { name: 'Equipped melee weapons 3', exact: true })).toBeVisible()
-    const initialHeadings = await loadout
-      .locator('h2')
-      .evaluateAll((headings) => headings.map((heading) => heading.textContent ?? '').filter((text) => text.startsWith('Equipped ')))
+    // The close combat weapon every Tomb Blade keeps is the fixed profile a swap must not disturb.
+    await expect(loadout.getByRole('listitem', { name: 'Close combat weapon', exact: true })).toContainText(/^Close combat weapon\s*3/)
+    const initialProfiles = await loadout
+      .locator('li')
+      .evaluateAll((items) => items.map((item) => item.textContent ?? '').filter((text) => text.startsWith('Close combat weapon')))
     await loadout.evaluate((pane) => {
       const frames: string[][] = []
       Object.assign(window, { weaponSummaryFrames: frames })
       new MutationObserver(() => {
         frames.push(
-          [...pane.querySelectorAll('h2')].map((heading) => heading.textContent ?? '').filter((text) => text.startsWith('Equipped ')),
+          [...pane.querySelectorAll('li')].map((item) => item.textContent ?? '').filter((text) => text.startsWith('Close combat weapon')),
         )
       }).observe(pane, { childList: true, subtree: true, characterData: true })
     })
@@ -208,7 +209,7 @@ test('weapon swaps keep fixed profiles stable while saving', async ({ page }) =>
     await expectNoHorizontalOverflow(loadout)
     const frames = await page.evaluate(() => (window as unknown as { weaponSummaryFrames: string[][] }).weaponSummaryFrames)
     expect(frames.length).toBeGreaterThan(0)
-    expect(frames.every((headings) => headings.join(',') === initialHeadings.join(','))).toBe(true)
+    expect(frames.every((profiles) => profiles.join(',') === initialProfiles.join(','))).toBe(true)
     await page.unrouteAll({ behavior: 'wait' })
   }
 })
@@ -412,9 +413,9 @@ test('an enhancement adds to the bearer and to the unit around it', async ({ pag
 })
 
 /**
- * Two sources name the same weapon: the catalogue prints a staff of light as two
- * rows, and the rules source spells the same two as "Staff of light (Ranged)" and
- * "(Melee)". A character carrying the staff shows it once.
+ * Two sources name the same weapon: VS Data gives a staff of light two profiles, and
+ * the rules source spells the same two as "Staff of light (Ranged)" and "(Melee)". A
+ * character carrying the staff shows it once.
  */
 test('a weapon both sources name is drawn once', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -426,20 +427,14 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (const title of ['Equipped ranged weapons 1', 'Equipped melee weapons 1']) {
-    await expect(
-      loadout
-        .getByRole('heading', { name: title, exact: true })
-        .locator('..')
-        .getByRole('heading', { name: 'Staff of light', exact: true }),
-    ).toHaveCount(1)
-  }
-  await expect(loadout.getByRole('button', { name: 'Select Staff of light' })).toHaveCount(1)
-  await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
-  // The catalogue's own two rows: one to shoot with, one to fight with, each read at
+  const staff = loadout.getByRole('listitem', { name: 'Staff of light', exact: true })
+  await expect(staff).toHaveCount(1)
+  // One weapon with two profiles: one to shoot with, one to fight with, each read at
   // the profile so the fighting one has no range or ballistic skill.
-  await expect(loadout.getByText('Melee"')).toHaveCount(0)
-  await expect(loadout.getByText('WS', { exact: true })).not.toHaveCount(0)
+  await expect(staff.getByRole('heading', { name: 'Staff of light', exact: true })).toHaveCount(2)
+  await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
+  await expect(staff.getByText('Melee"')).toHaveCount(0)
+  await expect(staff.getByText('WS', { exact: true })).toHaveCount(1)
   await screenshot(page, 'lokhust-lord-staff.png', { fullPage: true })
 })
 

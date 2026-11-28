@@ -6,20 +6,10 @@ import { boundedBytes } from '../src/server/boundedBody.ts'
 import { forEachConcurrently } from '../src/shared/forEachConcurrently.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { WEB_ASSET_NAME, WEB_ASSET_TYPES as TYPES } from './lib/bucketAssets.ts'
 
 const CACHE = 'public, max-age=31536000, immutable'
 const CONCURRENT_REQUESTS = 32
-const TYPES: Record<string, string> = {
-  '.bin': 'application/octet-stream',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.wasm': 'application/wasm',
-}
 const MAX_BYTES = 10_000_000
 
 const bytes = (response: Response) => boundedBytes(response, MAX_BYTES, 'Web asset is too large')
@@ -85,7 +75,7 @@ export async function publishWebAssets(
   for (const directory of directories) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.name.endsWith('.map')) continue
-      if (!entry.isFile() || !/^[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/.test(entry.name) || !TYPES[path.extname(entry.name)])
+      if (!entry.isFile() || !WEB_ASSET_NAME.test(entry.name) || !TYPES[path.extname(entry.name)])
         throw new Error(`Unsupported web asset: ${entry.name}`)
       const file = path.join(directory, entry.name)
       const stat = await lstat(file)

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { type CatalogueIndex, nameOf, resolve } from '../src/core/catalogue'
 import type { Selection } from '../src/core/evaluate'
-import { buildUnit, type BuiltUnit } from '../src/core/roster'
+import { buildUnit, type CatalogueUnit } from '../src/core/roster'
 import { isUnitCompositionChoice, type UnitChoice } from '../src/core/unitChoices'
 import { wargearOf } from '../src/core/wargear'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
@@ -286,7 +286,7 @@ const reach = (changes: readonly ReadonlyMap<string, number>[], sign: number) =>
 }
 
 /** What a BSData-built unit carries, as named items in VS Data's spelling, leaving out Enhancements it holds. */
-function bsdataBag(built: BuiltUnit, index: CatalogueIndex, vsKeys: ReadonlySet<string>, enhancementIds: ReadonlySet<string>) {
+function bsdataBag(built: CatalogueUnit, index: CatalogueIndex, vsKeys: ReadonlySet<string>, enhancementIds: ReadonlySet<string>) {
   const enhancement = (id: string) => {
     const definition = enhancementIds.has(id) ? index.definitions.get(id) : undefined
     return Boolean(definition) && !vsKeys.has(vsSpelling(nameOf(definition!, index.definitions), vsKeys))
@@ -353,7 +353,7 @@ const tally = { datasheets: 0, mapped: 0, noChange: 0, allegiances: 0, unmatched
 /** How many choices a choice can be read beneath: a squad's loadout, then the weapons it opens. */
 const DEPTH = 2
 /** Every size BSData fields a unit at. */
-const sizesOf = (built: BuiltUnit) =>
+const sizesOf = (built: CatalogueUnit) =>
   built.size.options ?? Array.from({ length: built.size.max - built.size.min + 1 }, (_, at) => built.size.min + at)
 /** A choice taking nothing, as a floor pick leaves an optional pintle weapon off. */
 const NOTHING: Option = { id: '', name: '', count: 0, min: 0, max: 1 }
@@ -374,7 +374,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
     }
     tally.datasheets++
     const vsKeys = vsKeysOf(release, unit)
-    const bagOf = (built: BuiltUnit) => bsdataBag(built, index, vsKeys, enhancementIds)
+    const bagOf = (built: CatalogueUnit) => bsdataBag(built, index, vsKeys, enhancementIds)
     /** Whether an option is a model, named for the loadout it carries, as Plague Marine w/ meltagun. */
     const isModel = (id: string) => {
       const definition = index.definitions.get(id)
@@ -528,7 +528,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
     // A choice is read against the unit it is made on, at the size it is made at: the first fielding, or for a choice
     // another opens, the unit with that one taken, whose selections it may take back.
     const visit = (
-      from: BuiltUnit,
+      from: CatalogueUnit,
       state: State,
       made: Readonly<Record<string, Counts>>,
       depth: number,
@@ -663,7 +663,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
       if (sized) visit(sized, { choices: {}, spreads: {} }, made0, 0)
     }
     // Every key a pick can hold is mapped or listed: those of each size, and of one choice made at each, however made.
-    const reached = (built: BuiltUnit | null) => {
+    const reached = (built: CatalogueUnit | null) => {
       for (const choice of built?.choices ?? [])
         for (const option of choice.options) if (!enhancementIds.has(option.id) && option.max > 0) seen.add(`${choice.key}|${option.id}`)
     }
