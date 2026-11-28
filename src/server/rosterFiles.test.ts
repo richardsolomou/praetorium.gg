@@ -16,7 +16,7 @@ import {
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import type { LoadedRules } from '../shared/rules'
-import { importNamesOf, type ImportNames } from '../shared/importNames'
+import { importNamesOf, NO_IMPORT_NAMES, type ImportNames } from '../shared/importNames'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -1827,7 +1827,7 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
         },
       },
       { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
-      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map() },
+      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map(), entryNames: new Map() },
     )
     const imported = importRosterFile(
       {
@@ -2008,7 +2008,7 @@ Exported with BattleBase, Data Version: v20260812`
         },
       },
     ]
-    expect(unmatchedDetachmentReason('Pantheon of Doom', 'mfm-1-6~necrons', loaded, removedNamesOf(history))).toBe(
+    expect(unmatchedDetachmentReason('Pantheon of Doom', 'mfm-1-6~necrons', loaded, NO_IMPORT_NAMES, removedNamesOf(history))).toBe(
       'removed in the 30 Sept 2026 data update',
     )
   })

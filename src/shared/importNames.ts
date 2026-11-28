@@ -15,6 +15,8 @@ export type ImportNames = {
   datasheetNames: ReadonlyMap<string, readonly string[]>
   /** The names BSData gave each Detachment, by stored ID. */
   detachmentNames: ReadonlyMap<string, readonly string[]>
+  /** The names BSData gave every other entry a list can name, as a model, a piece of wargear or an Enhancement, by its ID. */
+  entryNames: ReadonlyMap<string, readonly string[]>
 }
 
 export const NO_IMPORT_NAMES: ImportNames = {
@@ -23,6 +25,7 @@ export const NO_IMPORT_NAMES: ImportNames = {
   detachments: new Map(),
   datasheetNames: new Map(),
   detachmentNames: new Map(),
+  entryNames: new Map(),
 }
 
 /** The names BSData gave a stored ID in the loaded rules version, which an earlier version keeps under its own key. */
@@ -58,6 +61,7 @@ export type LegacyImportIds = {
   detachments: Readonly<Record<string, string>>
   datasheetNames: ReadonlyMap<string, readonly string[]>
   detachmentNames: ReadonlyMap<string, readonly string[]>
+  entryNames: ReadonlyMap<string, readonly string[]>
 }
 
 /** Each VS Data ID's stored IDs in one rules version, whose own `<rules version>~<ID>` keys stand for that ID there. */
@@ -99,5 +103,12 @@ export function importNamesOf(
     const group = [...new Set([...spelled, ...stored.flatMap((id) => legacy.detachmentNames.get(id) ?? [])])]
     for (const id of stored) detachments.set(id, group)
   }
-  return { datasheets, pieces, detachments, datasheetNames: legacy.datasheetNames, detachmentNames: legacy.detachmentNames }
+  return {
+    datasheets,
+    pieces,
+    detachments,
+    datasheetNames: legacy.datasheetNames,
+    detachmentNames: legacy.detachmentNames,
+    entryNames: legacy.entryNames,
+  }
 }

@@ -11,6 +11,7 @@ import { battlebaseNames } from '../battlebaseData'
 import { newRecruitShare } from '../newRecruit'
 import { fixedWindowRateLimit } from '../rateLimit'
 import { importParsedList } from '../rosterImport'
+import { legacyImportIds, legacyModels } from '../legacyNames'
 import { inTurn, mutationRpc } from '../rpc'
 
 const rateLimit = fixedWindowRateLimit('too many roster searches', 10)
@@ -53,8 +54,11 @@ export const findImportableRosters = createServerFn({ method: 'POST' })
           }),
         }
       }
-      // Entry ids are the same in every rules version, so the current catalogue names them all.
+      // Entry ids are the same in every rules version, so the names BSData gave them in the current one, frozen, name them
+      // all; the catalogue names one added since.
       const known = (id: string) => {
+        const name = (legacyImportIds.datasheetNames.get(id) ?? legacyImportIds.entryNames.get(id))?.at(-1)
+        if (name !== undefined) return { name, model: legacyModels.has(id) }
         const definition = loaded.index.definitions.get(id)
         return (
           definition && { name: nameOf(definition, loaded.index.definitions), model: resolve(definition, loaded.index).type === 'model' }

@@ -40,6 +40,7 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
+import { legacyImportIds } from '../../src/server/legacyNames'
 import { readVsDataRelease, vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
 import { spellingGroups } from '../../src/shared/importNames'
 import { completeSteps } from '../../src/shared/steps'
@@ -178,14 +179,14 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.
     if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
   }
-  // Pasted army text in another language is read on the device too, so the names it may state travel with the download;
-  // translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
+  // Pasted army text in another language is read on the device too, so the names it may state travel with the download:
+  // every name BSData gave an entry, frozen, which New Recruit's translations are keyed by. Translated descriptions stay
+  // behind, as do entries BSData names with a notice of several sentences.
   const stateable = new Set([
-    ...[...catalogue.index.definitions.values()].flatMap((definition) =>
-      definition.name && !/[.!?]\s/.test(definition.name) ? [definition.name] : [],
+    ...[legacyImportIds.datasheetNames, legacyImportIds.detachmentNames, legacyImportIds.entryNames].flatMap((frozen) =>
+      [...frozen.values()].flat().filter((name) => !/[.!?]\s/.test(name)),
     ),
     ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
-    ...[...catalogue.detachments.values()].flatMap((detachments) => detachments.options.map((option) => option.name)),
     ...(rules.dispositions?.values() ?? []),
     // The official app's names are all names, but its English can differ from the catalogue's, as "Imperium’s Sword".
     ...spellingGroups(readVsDataRelease(directory)?.names).flat(),

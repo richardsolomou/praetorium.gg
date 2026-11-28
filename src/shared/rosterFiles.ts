@@ -518,7 +518,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       parsed.units.flatMap((unit) =>
         unit.selections.flatMap((selection) => {
           const [, name] = selection.name.match(/^Enhancements?:\s*(.+)$/i) ?? []
-          return enhancementDetachment(upgradeName(name ?? '').trim(), loaded, faction.id) ?? []
+          return enhancementDetachment(upgradeName(name ?? '').trim(), loaded, faction.id, appNames) ?? []
         }),
       ),
     ),
@@ -530,7 +530,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       : enhancementDetachments()
   const unknown: UnmatchedName[] = parts
     .filter((part) => !known(part))
-    .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded, removed) }))
+    .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded, appNames, removed) }))
   for (const line of unread)
     if (line !== namedDetachment) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)
@@ -606,7 +606,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
         ? variants[0]!
         : { entryId: guessed ?? null, unit: listed }
     if (!entryId) {
-      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded, removed) })
+      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded, appNames, removed) })
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
@@ -1576,7 +1576,9 @@ function textRosterPick(
     )
     .map((name) => {
       const label = labels.get(name) ?? name
-      const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds, removed })
+      const reason = placed.has(name)
+        ? DROPPED_REASON
+        : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds, names: appNames, removed })
       return { name: label, reason }
     })
   // A lone line nothing in the catalogue answers to is the player's note, not wargear the unit lost.
