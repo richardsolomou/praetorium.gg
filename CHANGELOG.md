@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.280.37 (2026-11-28)
+
+### Patch Changes
+
+- 9d03d8c: [rosters] Havocs, Death Guard Helbrutes, the Ta'unar, Seraphim and Achilles Ridgerunners are now built as the official app prints them, with its sizes, weapon counts and wargear.
+- e1c91e2: [rosters] The Corvus Blackstar is now built as the official app prints it, with its keywords and wargear.
+- 9d03d8c: [rosters] Chaos Havocs, a Death Guard Helbrute, the Ta'unar and the Reaver, Warlord and Warbringer Nemesis Titans start on the loadout their datasheets print, in the builder and the combat simulator.
+- e1c91e2: [rosters] Skitarii Rangers and Skitarii Vanguard are now built as the official app prints them, taking one data-tether or omnispex in all.
+
 ## 0.280.36 (2026-11-28)
 
 ### Patch Changes
