@@ -282,7 +282,29 @@ describe('the enhancements an army may hold', () => {
     expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
   })
 
-  it('is two at King of the Colosseum, said once where VS Data records no such size', () => {
+  // The army limit's errors and King of the Colosseum's own Enhancement rule, whatever else either raises.
+  const enhancementMessages = (errors: readonly { entryId: string; message: string }[] = []) =>
+    errors.flatMap((error) =>
+      error.entryId === 'enhancements' || (error.entryId === 'kotc' && error.message.includes('Enhancements')) ? [error.message] : [],
+    )
+
+  it('is two at King of the Colosseum, said once where VS Data cannot place the list', () => {
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 600,
+        units: Array.from({ length: 5 }, (_, at) => ({ entryId: `lord-${at}` })),
+      },
+      loaded,
+      rulesWithout,
+    )
+    expect(enhancementMessages(priced?.errors)).toEqual(['allows at most 2 Enhancements, has 5'])
+  })
+
+  it('is two at King of the Colosseum where VS Data places the list but records no such size', () => {
     const size = (name: string, points: number, enhancements: number) => ({ name, data: { formatVersion: 2, points, enhancements } })
     const vsRoster = vsRosterData(
       {
@@ -313,9 +335,7 @@ describe('the enhancements an army may hold', () => {
       { ...loaded, vsRoster },
       rulesWithout,
     )
-    expect(priced?.errors.flatMap((error) => (/enhancements/i.test(error.message) ? [error.message] : []))).toEqual([
-      'allows at most 2 Enhancements, has 3',
-    ])
+    expect(enhancementMessages(priced?.errors)).toEqual(['allows at most 2 Enhancements, has 3'])
   })
 })
 
