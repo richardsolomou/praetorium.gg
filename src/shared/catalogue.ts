@@ -205,7 +205,9 @@ export function contextualAbilityNamesIn(
       ...definitions
         .filter((definition) => ownRules || !intrinsic.some((own) => own.id === definition.id))
         .flatMap((definition) =>
-          definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index, root.absentAbilities)),
+          definitionAndTarget(definition, loaded.index).flatMap((source) =>
+            abilityProfileNames(source, loaded.index, root.absentAbilities),
+          ),
         ),
       ...grantedAbilitiesInAttachedUnit(
         context.selections,
