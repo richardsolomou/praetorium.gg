@@ -23,15 +23,15 @@ import { datasheetsOf } from '../src/shared/catalogueIndex'
 
 const directory = path.resolve(process.argv[2] ?? 'catalogue-data')
 const version = process.argv[3]
-const entry = version ? readCatalogueComposition(directory)?.editions.find((candidate) => candidate.edition.id === version) : undefined
-if (version && !entry) throw new Error(`${directory} has no rules version ${version}`)
-const loaded = entry
-  ? loadCatalogue(editionDirectory(directory, entry), entry.edition, { snapshotDirectory: directory })
+const configured = version ? readCatalogueComposition(directory)?.editions.find((candidate) => candidate.edition.id === version) : undefined
+if (version && !configured) throw new Error(`${directory} has no rules version ${version}`)
+const loaded = configured
+  ? loadCatalogue(editionDirectory(directory, configured), configured.edition, { snapshotDirectory: directory })
   : loadCatalogue(directory)
 if (!loaded?.index.attachments) throw new Error(`${directory} has no VS Data attachments for ${version ?? 'the current rules version'}`)
 const index = loaded.index
 const catalogueOnly: CatalogueIndex = { ...index, attachments: undefined }
-const printedOnly = { ...loaded, vsProfiles: { ...loaded.vsProfiles, transports: {} } }
+const printedOnly = loaded.vsProfiles ? { ...loaded, vsProfiles: { ...loaded.vsProfiles, transports: {} } } : loaded
 const kind = (name: string) => nonMatchedPlayKind(name) ?? 'matched'
 
 type Pairs = { lost: string[]; added: string[]; conditional: string[]; roleChanged: string[] }
