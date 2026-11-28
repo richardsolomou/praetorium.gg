@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.9 (2026-11-28)
+
+### Patch Changes
+
+- 45f715c: [reference] Missions, deployments, terrain layouts and force dispositions now credit the source their rules data comes from.
+
 ## 0.280.8 (2026-11-28)
 
 ### Patch Changes
