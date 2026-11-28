@@ -12,8 +12,7 @@ export const KEYWORD_TAG_CLASS =
   'chip inline-flex min-h-6 items-center justify-center border-parchment/50 bg-parchment/10 py-0.5 leading-none text-parchment'
 
 /** A granted ability's name with the asterisk its condition gives it. */
-export const conditionalName = (name: string, condition: string | undefined) =>
-  condition ? `${name.replace(/\*$/, '')}*` : name
+export const conditionalName = (name: string, condition: string | undefined) => (condition ? `${name.replace(/\*$/, '')}*` : name)
 
 export function Keyword({
   name,

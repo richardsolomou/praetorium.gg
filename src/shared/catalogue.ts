@@ -1346,9 +1346,7 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
 function withGrantsOverLinks(own: Datasheet['abilities'], granted: Datasheet['abilities']): Datasheet['abilities'] {
   const name = (ability: Datasheet['abilities'][number]) => ability.name.trim().toLowerCase()
   const linked = new Map(own.filter((ability) => ability.kind === 'core' && !ability.source).map((ability) => [name(ability), ability]))
-  const replaced = new Set(
-    granted.flatMap((ability) => (name(ability).endsWith('*') && linked.has(name(ability)) ? [name(ability)] : [])),
-  )
+  const replaced = new Set(granted.flatMap((ability) => (name(ability).endsWith('*') && linked.has(name(ability)) ? [name(ability)] : [])))
   return [
     ...own.filter((ability) => ability.kind !== 'core' || ability.source || !replaced.has(name(ability))),
     ...granted.flatMap((ability) => {
