@@ -48,6 +48,7 @@ function run(directory: string, since: string | undefined, out: string | undefin
     format: imported.format,
     catalogue: imported.catalogueName,
     units: imported.units.length,
+    vsPicks: imported.units.filter((unit) => unit.vs).length,
     unknown: imported.unknown,
     unplaced: imported.unplaced,
     reportedPoints: imported.reportedPoints,
@@ -72,7 +73,9 @@ function run(directory: string, since: string | undefined, out: string | undefin
   }
   const isClean = (result: (typeof results)[number]) => result.units > 0 && !result.unknown.length && !result.unplaced.length
   const clean = results.filter(isClean).length
-  console.log(`${results.length} lists, ${clean} clean, ${results.filter((result) => !result.units).length} unread`)
+  const vsPicks = results.reduce((total, result) => total + result.vsPicks, 0)
+  const units = results.reduce((total, result) => total + result.units, 0)
+  console.log(`${results.length} lists, ${clean} clean, ${results.filter((result) => !result.units).length} unread; ${vsPicks} of ${units} units by VS Data IDs`)
   const newest = Math.max(0, ...results.map((result) => result.dataVersion ?? 0))
   const current = results.filter((result) => result.dataVersion === newest)
   if (newest) console.log(`${current.length} on the official app's newest data (v${newest}), ${current.filter(isClean).length} clean`)
