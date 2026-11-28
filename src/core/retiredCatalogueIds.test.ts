@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { RosterPick } from './roster'
 import { migrateStoredRoster } from './savedRosterMigrations'
 import {
   currentCatalogueId,
@@ -53,8 +54,11 @@ describe('retired catalogue ids', () => {
   it('keeps the retained rules version a pick by VS Data IDs was saved in when its list converts', () => {
     const vs = { models: { 'space-marines.marneus-calgar.marneus-calgar': 1 }, options: {} }
     expect(
-      picksForRulesVersion([{ entryId: calgar.retired, vs }], ultramarines.current, `legacy-profiles~${ultramarines.retired}`)[0]
-        ?.rulesVersion,
+      picksForRulesVersion<RosterPick>(
+        [{ entryId: calgar.retired, vs }],
+        ultramarines.current,
+        `legacy-profiles~${ultramarines.retired}`,
+      )[0]?.rulesVersion,
     ).toBe('legacy-profiles')
   })
 
