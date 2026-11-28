@@ -53,7 +53,7 @@ export function vsOwnSelections(loaded: LoadedCatalogue, entryId: string, vs: Vs
 }
 
 /** The VS Data IDs a list of `catalogueId` with `detachmentIds` reads as, the IDs VS Data does not know left out. */
-function vsListOf(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: readonly string[]) {
+export function vsListOf(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: readonly string[]) {
   const data = loaded.vsRoster
   return {
     faction: data?.books[catalogueId.slice(catalogueId.indexOf('~') + 1)],

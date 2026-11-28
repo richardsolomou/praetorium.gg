@@ -55,6 +55,13 @@ export const legacyOptionsSchema = z.object({
   ),
 })
 
+/** The BSData game system and points cost type a `.ros` file names, which Yellowscribe picks its 11th edition reader by. */
+export const legacyBattleScribeSchema = z.object({
+  format: z.literal('praetorium.legacy-battlescribe.v1'),
+  gameSystem: z.object({ id: z.string(), name: z.string() }),
+  pointsTypeId: z.string(),
+})
+
 export const legacyIds = (raw: unknown) => {
   const ids = new Map(Object.entries(legacyIdsSchema.parse(raw).ids))
   return (id: string) => ids.get(id) ?? id
