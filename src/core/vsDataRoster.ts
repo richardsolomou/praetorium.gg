@@ -445,6 +445,23 @@ export function vsUnitAllowance(
   return { limit, unlockedBy: binding.every((candidate) => candidate.unlockedBy) ? binding[0]!.unlockedBy : null }
 }
 
+/**
+ * Whether the unit's faction limits it by its own name in a keyword the unit does not hold exactly, as when a release
+ * spells the name's apostrophe differently in the two: `checkVsRoster` compares keywords exactly, so it cannot hold the
+ * unit to that limit, and neither can `vsUnitAllowance`.
+ */
+export function vsNameLimitUnheld(definitions: VsDataDefinitions, roster: VsRoster, unit: string): boolean {
+  const record = definitions.get('unit', unit)
+  if (!record) return false
+  const name = sameName(record.name)
+  const held = countedKeywordsOf(definitions, roster, { unit, size: record.data.sizes[0] })
+  return (definitions.get('faction', roster.faction)?.data.unitLimits ?? []).some(
+    (limit) => limit.keywords.some((keyword) => sameName(keyword) === name) && !holdsAll(held, limit.keywords),
+  )
+}
+
+const sameName = (text: string) => text.toUpperCase().replaceAll('’', "'")
+
 const keywordNames = (keywords: readonly string[]) =>
   keywords.map((keyword) => keyword.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' ')
 
