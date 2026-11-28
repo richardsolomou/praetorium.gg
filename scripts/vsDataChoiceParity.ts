@@ -63,7 +63,17 @@ const priceOf = (catalogueId: string, pick: RosterPick, detachmentIds: string[] 
     ?.units[0]
 const price = (catalogueId: string, entryId: string, detachmentIds: string[], models?: number) =>
   priceOf(catalogueId, { entryId, ...(models ? { models } : {}) }, detachmentIds)
-const keywordsOf = (unit: Priced | undefined) => (unit?.keywords ?? []).map(same).toSorted().join()
+/**
+ * BSData categories its own checks read that no datasheet prints, which VS Data carries as allies, Detachments and
+ * allegiances instead: they say nothing about the datasheet a player sees.
+ */
+const legalityCategory = (keyword: string) => /^allies/.test(keyword) || ['shadowlegion', 'undivided', 'reconaugury'].includes(keyword)
+const keywordsOf = (unit: Priced | undefined) =>
+  (unit?.keywords ?? [])
+    .map(same)
+    .filter((keyword) => !legalityCategory(keyword))
+    .toSorted()
+    .join()
 
 /** Differences where VS Data follows the app, which leave a datasheet VS-native. */
 const LISTED_SIZES = 'sizes the field manual lists'
