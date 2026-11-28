@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { transportLoadOf } from './battleUnits'
+import { frozenUnits } from './rosterSnapshot'
 import { type Passenger, printedTransport, transportLoad, transportRule, vsTransport, withPrintedWargear } from './transport'
 
 const RHINO =
@@ -290,19 +292,53 @@ describe("VS Data's typed transport capacity", () => {
     ).toMatchObject([{ used: 1 }, { used: 5 }])
   })
 
-  it('keeps the load wargear gives a transport where VS Data records none', () => {
-    const printed = printedTransport(
-      'This model has a transport capacity of 11 T’AU EMPIRE INFANTRY models. If this model is equipped with a Tidewall defence platform, it has a transport capacity of 22 T’AU INFANTRY models instead.',
-    )
-    const shieldline = withPrintedWargear(
+  describe('a Tidewall Shieldline with its defence platform', () => {
+    const capacity = withPrintedWargear(
       vsTransport({ loads: [[{ limit: 11, count: 'models', selectors: ['T’AU EMPIRE INFANTRY'] }]] })!,
-      printed,
+      printedTransport(
+        'This model has a transport capacity of 11 T’AU EMPIRE INFANTRY models. If this model is equipped with a Tidewall defence platform, it has a transport capacity of 22 T’AU INFANTRY models instead.',
+      ),
     )
-    expect(
-      transportLoad(transportRule(shieldline, [{ name: 'Tidewall Defence Platform', count: 1 }])!, [
-        { name: 'Strike Team', alive: 20, keywords: ["Faction: T'au Empire", 'Infantry'] },
-      ]),
-    ).toMatchObject([{ used: 20 }])
+    const [shieldline] = frozenUnits(
+      [{ entryId: 'shieldline' }],
+      [
+        {
+          key: 0,
+          entryId: 'shieldline',
+          name: 'Tidewall Shieldline',
+          points: 105,
+          group: 'fortification',
+          keywords: ['Fortification', 'Transport'],
+          toggles: [],
+          size: { models: 2, resizable: false },
+          modelLines: [
+            { name: 'Tidewall Defence Platform', models: 1, wargear: [] },
+            { name: 'Tidewall Shieldline', models: 1, wargear: [] },
+          ],
+          attachment: null,
+          wargear: [],
+          enhancements: [],
+          upgrades: [],
+          formationOptions: [],
+          prebattleRules: [],
+          transport: true,
+        },
+      ],
+      [{ entryId: 'shieldline', transportCapacity: capacity }],
+    )
+    const strikeTeams = [1, 2].map((at) => ({ name: `Strike Team ${at}`, alive: 10, keywords: ["Faction: T'au Empire", 'Infantry'] }))
+
+    it('carries 22 models', () => {
+      expect(transportLoadOf(shieldline, strikeTeams)).toMatchObject([{ used: 20 }])
+    })
+
+    it('carries 11 once the platform is destroyed', () => {
+      const lines = [
+        { alive: 0, damage: 0 },
+        { alive: 1, damage: 0 },
+      ]
+      expect(transportLoadOf({ ...shieldline!, lines }, strikeTeams)).toMatchObject({ code: 'transport-full' })
+    })
   })
 
   it('leaves a capacity wargear changes to the printed rule', () => {
