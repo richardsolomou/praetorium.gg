@@ -1232,6 +1232,34 @@ it("takes VS Data's role over the catalogue's", () => {
   expect(attachmentOf(index.definitions.get('priest')!, index)?.kind).toBe('leader')
 })
 
+describe('a joiner VS Data has a record for', () => {
+  const captain = (vsData: Record<string, unknown>) => {
+    const index = {
+      ...indexOf({
+        sharedSelectionEntries: [
+          {
+            id: 'captain',
+            name: 'Captain',
+            type: 'model',
+            profiles: [ability('Leader', 'This model can be attached to the following units:\n■ TACTICAL SQUAD\n■ ASSAULT SQUAD')],
+          },
+        ],
+      }),
+      attachments: { captain: { kind: 'leader' as const, targets: ['Intercessor Squad'], named: ['Intercessor Squad'], ...vsData } },
+      attachmentHosts: ['Intercessor Squad', 'Assault Squad'],
+    }
+    return attachmentOf(index.definitions.get('captain')!, index)?.targets
+  }
+
+  it("leaves out a host VS Data defines but does not name for it, and keeps the catalogue's others", () => {
+    expect(captain({})).toEqual(['TACTICAL SQUAD', 'Intercessor Squad'])
+  })
+
+  it("keeps the catalogue's hosts for a joiner whose VS Data hosts are not settled", () => {
+    expect(captain({ catalogueHosts: true })).toEqual(['TACTICAL SQUAD', 'ASSAULT SQUAD', 'Intercessor Squad'])
+  })
+})
+
 describe("VS Data's attachment rules", () => {
   const unit = (id: string, name: string) => ({ id, name, type: 'unit' as const })
   const index = {
