@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { vsDataChecks, vsRosterData, vsDataErrors, vsDataWithoutDetachments, vsPickErrors, type CheckedUnit } from './vsDataLegality'
+import {
+  vsDataChecks,
+  vsDataDetachmentsOffering,
+  vsDataUnheld,
+  vsRosterData,
+  vsDataErrors,
+  vsDataWithoutDetachments,
+  vsPickErrors,
+  type CheckedUnit,
+} from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const data = vsRosterData(
@@ -10,7 +19,13 @@ const data = vsRosterData(
     points: [],
     definitions: {
       faction: {
-        host: record('Host', { allies: [{ units: ['other.scout'], points: [{ battleSize: 'small', max: 100 }] }] }),
+        host: record('Host', {
+          unitLimits: [{ keywords: ['WARDEN’S CHOSEN'], max: 1 }],
+          allies: [
+            { units: ['other.scout'], points: [{ battleSize: 'small', max: 100 }] },
+            { units: ['other.warden', 'host.seer'], detachments: ['host.vigil'] },
+          ],
+        }),
         other: record('Other', {}),
         titan: record('Titan', {}),
         engines: record('Engines', { withoutDetachments: { warlords: [], dispositions: ['pack.take-and-hold'] } }),
@@ -19,6 +34,7 @@ const data = vsRosterData(
       'battle-size': { small: record('Small', { points: 1000, enhancements: 1 }) },
       detachment: {
         'host.guard': record('Guard', { faction: 'host', group: 'SHIELD HOST' }),
+        'host.vigil': record('Vigil', { faction: 'host' }),
         'host.watch': record('Watch', { faction: 'host', group: 'SHIELD HOST' }),
         'other.raid': record('Raid', { faction: 'other' }),
       },
@@ -41,6 +57,9 @@ const data = vsRosterData(
           uniformOptions: [['host.squad.trooper-carbines', 'host.squad.sergeant-carbine']],
         }),
         'other.agent': record('Agent', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
+        'other.warden': record('Warden', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
+        'host.seer': record('Seer', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
+        'host.chosen': record("Warden's Chosen", { faction: 'host', keywords: ['CHARACTER', "WARDEN'S CHOSEN"], sizes: [1] }),
         'other.scout': record('Scout', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
       },
       'roster-option': {
@@ -108,7 +127,7 @@ const data = vsRosterData(
   },
   {
     books: { 'bs-host': 'host', 'bs-titan': 'titan', 'bs-engines': 'engines', 'bs-relics': 'relics' },
-    detachments: { 'bs-guard': 'host.guard', 'bs-watch': 'host.watch', 'bs-raid': 'other.raid' },
+    detachments: { 'bs-guard': 'host.guard', 'bs-vigil': 'host.vigil', 'bs-watch': 'host.watch', 'bs-raid': 'other.raid' },
     units: {
       'bs-mob': 'host.mob',
       'bs-lord': 'host.lord',
@@ -118,6 +137,9 @@ const data = vsRosterData(
       'bs-squad': 'host.squad',
       'bs-agent': 'other.agent',
       'bs-scout': 'other.scout',
+      'bs-warden': 'other.warden',
+      'bs-seer': 'host.seer',
+      'bs-chosen': 'host.chosen',
     },
     enhancements: {
       'host.guard/bs-crown': 'host.guard.crown',
@@ -135,6 +157,9 @@ const data = vsRosterData(
       'bs-squad': 'Squad',
       'bs-agent': 'Agent [Crucible]',
       'bs-scout': 'Scout',
+      'bs-warden': 'Warden',
+      'bs-seer': 'Seer',
+      'bs-chosen': "Warden's Chosen",
     })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
@@ -336,5 +361,29 @@ describe('vsDataChecks', () => {
 describe('vsDataWithoutDetachments', () => {
   it('names the force dispositions of a faction that takes no Detachment', () => {
     expect(vsDataWithoutDetachments(data, 'bs-engines')).toEqual(['take-and-hold'])
+  })
+})
+
+describe('vsDataDetachmentsOffering', () => {
+  const offering = (entryId: string, detachmentIds: string[]) =>
+    vsDataDetachmentsOffering(data, { catalogueId: 'bs-host', detachmentIds }, { entryId, name: entryId })
+
+  it('names the Detachment whose ally entry offers an ally the list’s own do not', () => {
+    expect(offering('bs-warden', ['bs-guard'])).toEqual(['host.vigil'])
+  })
+
+  it('names it for a unit of the army’s own faction that an ally entry binds', () => {
+    expect(offering('bs-seer', ['bs-guard'])).toEqual(['host.vigil'])
+  })
+
+  it('is null once the list takes that Detachment', () => {
+    expect(offering('bs-warden', ['bs-vigil'])).toBeNull()
+  })
+})
+
+describe('vsDataUnheld', () => {
+  it('leaves a unit its faction limits by name unheld where the unit spells the keyword with another apostrophe', () => {
+    const chosen = unit({ entryId: 'bs-chosen' })
+    expect(vsDataUnheld(data, { catalogueId: 'bs-host', detachmentIds: ['bs-guard'] }, [chosen])).toEqual(new Set([chosen.key]))
   })
 })

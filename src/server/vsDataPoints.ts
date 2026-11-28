@@ -10,8 +10,9 @@ import { type VsDataConstruction, vsDataConstructionSchema, vsDataDefinitions } 
 import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsDataPoints'
 import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
 import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
-import { vsLinksIndex } from '../shared/vsDataAttachments'
+import { vsTransportsIndex } from '../shared/vsDataAttachments'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
+import { shareRecords } from './sharedJson'
 
 /** The frozen map from each BSData datasheet, or `<book>/<datasheet>`, to its VS Data unit (`catalogue/legacy-ids/units.json`). */
 export const legacyUnitIds = legacyIdsSchema.parse(rawUnits).ids
@@ -53,7 +54,10 @@ export function vsProfilesIn(
   const definitions = vsDataDefinitions(found.construction)
   const edition = found.entry.base ? null : found.entry.edition.id
   const name = (entryId: string) => nameIn(index, entryId)
-  return { ...vsProfilesIndex(definitions, ids.units, edition, glossary, name), ...vsLinksIndex(definitions, ids, edition, name) }
+  return {
+    ...vsProfilesIndex(definitions, ids.units, edition, glossary, name),
+    transports: vsTransportsIndex(definitions, ids.units, edition),
+  }
 }
 
 const nameIn = (index: CatalogueIndex, entryId: string) => {
@@ -73,7 +77,9 @@ function constructionIn(
   if (!entry) return null
   const file = path.join(root, 'summaries', `${entry.base ? (entry.summaries ?? entry.edition.id) : entry.edition.id}.construction.json`)
   if (!fs.existsSync(file)) return null
-  return { entry, construction: vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))) }
+  const construction = vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
+  for (const records of Object.values(construction.definitions)) shareRecords(records)
+  return { entry, construction }
 }
 
 /** A rules version's roster definitions and points: what VS Data's checker reads of a list and what a VS pick is built and priced from. */

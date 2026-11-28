@@ -5,13 +5,15 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { chromium } from '@playwright/test'
+import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from './seedPreview'
 
 /**
- * The application server's live heap and resident memory once it reports ready and after a player opens each kind of
- * reference page, started as a preview container starts it: `scripts/nodeServer.ts` in production mode, seeding the
- * preview, preparing its live catalogue from a published snapshot (`--snapshot`, standing in for the snapshot store),
- * and with the heap a preview's container gives Node (`--heap`, in MiB, which a 3 GiB preview sets to 2048). `--budget <MiB>` fails the run when the live heap at any step exceeds
- * it, so a change that grows what the server holds is caught before a deploy. It borrows `just dev`'s SpacetimeDB.
+ * The application server's live heap and resident memory once it reports ready, after a player opens each kind of
+ * reference page, and after the preview player opens a roster builder, started as a preview container starts it:
+ * `scripts/nodeServer.ts` in production mode, seeding the preview, preparing its live catalogue from a published
+ * snapshot (`--snapshot`, standing in for the snapshot store), and with the heap a preview's container gives Node
+ * (`--heap`, in MiB, which a 3 GiB preview sets to 2048). `--budget <MiB>` fails the run when the live heap at any step
+ * exceeds it, so a change that grows what the server holds is caught before a deploy. It borrows `just dev`'s SpacetimeDB.
  *
  *   pnpm build && pnpm exec tsx scripts/measureServingMemory.ts --snapshot catalogue-data [--checkout .] [--heap 2048] [--budget 1500]
  */
@@ -149,6 +151,18 @@ try {
       await page.waitForLoadState('networkidle')
       await record(step)
     }
+    // The form submits natively if filled before hydration, so it waits for the page to settle first.
+    await page.goto(`${origin}/sign-in`)
+    await page.waitForLoadState('networkidle')
+    await page.getByLabel('Email').fill(PREVIEW_EMAIL)
+    await page.getByLabel('Password').fill(PREVIEW_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await page.waitForURL((url) => url.pathname !== '/sign-in')
+    await page.goto(`${origin}/rosters`)
+    await page.goto(`${origin}${await page.locator('a[href^="/rosters/preview-"]').first().getAttribute('href')}`)
+    // A list keeps a live connection open, so the page never goes idle.
+    await page.getByLabel('List name').waitFor()
+    await record('roster builder')
   } finally {
     await browser.close()
   }

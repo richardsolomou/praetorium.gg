@@ -3,6 +3,8 @@ import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsData
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
+import type { VsAttachment } from '../core/attach'
+import { vsAttachmentsIndex } from './vsDataAttachments'
 import { datasheetOf, idsIn, inBook, type VsDataIds } from './vsDataPoints'
 
 /**
@@ -16,6 +18,8 @@ export type VsRosterData = {
   detachments: Record<string, string>
   units: Record<string, string | null>
   enhancements: Record<string, string>
+  /** Who each datasheet may join in this rules version, from VS Data's attachment records, so every rules version's lists are judged by their own. */
+  attachments: Record<string, VsAttachment>
 }
 
 export function vsRosterData(
@@ -37,6 +41,7 @@ export function vsRosterData(
     detachments: Object.fromEntries(idsIn(ids.detachments, edition)),
     units,
     enhancements: Object.fromEntries(idsIn(ids.enhancements, edition)),
+    attachments: vsAttachmentsIndex(definitions, ids, edition, nameOf),
   }
 }
 
@@ -70,6 +75,61 @@ function vsDataPlacement(data: VsRosterData | undefined, list: { catalogueId: st
   return { ...placed, detachments }
 }
 
+/** A keyword as a name reads, so a limit naming a unit is found whichever apostrophe either spells it with. */
+const asName = (text: string) => text.toUpperCase().replaceAll('’', "'")
+/** Faction keyword limits no unit VS Data defines could count, as one naming alternatives it reads as all of them. */
+const unholdableLimits = new WeakMap<object, Set<object>>()
+
+/**
+ * The list's units (by `CheckedUnit.key`) that VS Data's own limits cannot hold, so the catalogue's copy limits and rules
+ * stand for them. Keywords count as VS Data's checker counts them, spelled exactly, so an apostrophe spelled differently
+ * on the unit and in the limit still leaves the unit unheld.
+ * - A unit its faction limits by its own name, which VS Data's unit does not carry. Marneus Calgar's goes once the
+ *   release with richardsolomou/vs-data#226 is pinned; the Emperor's Champion's once the release after it spells his
+ *   keyword as the Black Templars limit does.
+ * - A unit holding a keyword of a faction limit no unit can count, as Commissar Graves beside Commissar Graves on Foot
+ *   or Commander Farsight beside an Ethereal. It goes once `vsDataRoster.ts` reads the alternative limits
+ *   richardsolomou/vs-data#227 adds.
+ */
+export function vsDataUnheld(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  units: readonly Pick<CheckedUnit, 'key' | 'entryId' | 'name' | 'vs'>[],
+): Set<number> {
+  const placed = vsDataPlacement(data, list)
+  if (!data || !placed) return new Set()
+  const { definitions } = placed
+  const limits = placed.record?.unitLimits ?? []
+  const unholdable = remember(
+    unholdableLimits,
+    limits,
+    () =>
+      new Set<object>(
+        limits.filter(
+          (limit) =>
+            !definitions.all('unit').some((unit) => {
+              const held = new Set(unit.data.keywords ?? [])
+              return limit.keywords.every((wanted) => held.has(wanted))
+            }),
+        ),
+      ),
+  )
+  return new Set(
+    units.flatMap((unit) => {
+      const record = definitions.get('unit', unit.vs?.unit ?? vsDataChecks(data, list.catalogueId, unit) ?? '')
+      if (!record) return []
+      const name = asName(record.name)
+      const held = new Set(record.data.keywords ?? [])
+      const unheld = limits.some(
+        (limit) =>
+          limit.keywords.some((wanted) => asName(wanted) === name && !held.has(wanted)) ||
+          (unholdable.has(limit) && limit.keywords.some((wanted) => held.has(wanted))),
+      )
+      return unheld ? [unit.key] : []
+    }),
+  )
+}
+
 /**
  * The list's units (by `CheckedUnit.key`) that VS Data's checker counts towards an ally points limit at the list's battle
  * size: each joins the first ally entry offering it under one of the list's Detachments, as `checkVsRoster` reads it.
@@ -93,6 +153,26 @@ export function vsDataAllyLimited(
       return entry?.points?.some((row) => row.battleSize === battleSize) ? [unit.key] : []
     }),
   )
+}
+
+/**
+ * The VS Data Detachments whose ally entries offer a datasheet the list's own Detachments don't, as Deathwatch Support
+ * offers Deathwatch to a chapter; null where the list's Detachments offer it or none would, and undefined where VS Data
+ * cannot place the list or doesn't read the datasheet, which leaves the answer to the catalogue.
+ */
+export function vsDataDetachmentsOffering(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  unit: Pick<CheckedUnit, 'entryId' | 'name'>,
+): string[] | null | undefined {
+  const placed = vsDataPlacement(data, list)
+  const id = placed ? vsDataChecks(data, list.catalogueId, unit) : undefined
+  if (!placed || !id) return undefined
+  // As `checkVsRoster` reads it, an ally entry binds even a unit of the army's own faction, as Yvraine in an Aeldari army.
+  const offering = (placed.record?.allies ?? []).filter((ally) => ally.units.includes(id))
+  if (offering.some((ally) => !ally.detachments || ally.detachments.some((d) => placed.detachments.includes(d)))) return null
+  const detachments = [...new Set(offering.flatMap((ally) => ally.detachments ?? []))]
+  return detachments.length ? detachments : null
 }
 
 /** Whether VS Data's checker reads the list as a whole, as `vsDataErrors` does wherever it is not null. */
@@ -415,12 +495,24 @@ export function vsDataEnhancementOptions(data: VsRosterData | undefined, detachm
   )
 }
 
+const alliedByCache = new WeakMap<VsDataDefinitions, Map<string, string[]>>()
+
+/** The factions whose ally entries name each unit. */
+const alliedBy = (definitions: VsDataDefinitions) =>
+  remember(alliedByCache, definitions, () => {
+    const named = new Map<string, string[]>()
+    for (const faction of definitions.all('faction'))
+      for (const ally of faction.data.allies ?? []) for (const unit of ally.units) named.set(unit, [...(named.get(unit) ?? []), faction.id])
+    return named
+  })
+
 /**
  * The VS Data unit a list's datasheet is checked as, or undefined where the catalogue checks it: a datasheet VS Data
  * defines no unit for, or one it files under a faction the army neither is nor allies with where that may only mean VS
- * Data cannot name it there. That is a Warhammer Legends or Crucible datasheet, which the app's ally lists cannot name,
- * as a fortification, an Aeldari Legends hero or a Crucible Deathwatch Agent; and a unit of a faction that takes no
- * Detachment, as a Titan, which a book can link where its faction's ally lists do not name it.
+ * Data cannot name it there. That is a Warhammer Legends or Crucible datasheet, as a fortification or an Aeldari
+ * Legends hero, unless the army's ally entries offer its faction and leave out a unit another faction's entry names,
+ * which shows the omission is meant, as Deathwatch's Agents entry leaves out the Legends kill teams; and a unit of a
+ * faction that takes no Detachment, as a Titan, which a book can link where its faction's ally lists do not name it.
  */
 export function vsDataChecks(
   data: VsRosterData | undefined,
@@ -435,9 +527,14 @@ export function vsDataChecks(
   const faction = data.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
   const army = faction ? definitions.get('faction', faction)?.data : undefined
   const own = new Set([faction, army?.parent])
+  const allies = army?.allies ?? []
+  const left = () =>
+    allies.some((ally) => ally.units.some((allied) => definitions.get('unit', allied)?.data.faction === filed.faction)) &&
+    (alliedBy(definitions).get(id) ?? []).some((other) => other !== faction)
   const unnamed =
-    filed.legends || isNonMatchedPlayName(unit.name) || Boolean(definitions.get('faction', filed.faction)?.data.withoutDetachments)
-  const offered = own.has(filed.faction) || (army?.allies ?? []).some((ally) => ally.units.includes(id))
+    ((filed.legends || isNonMatchedPlayName(unit.name)) && !left()) ||
+    Boolean(definitions.get('faction', filed.faction)?.data.withoutDetachments)
+  const offered = own.has(filed.faction) || allies.some((ally) => ally.units.includes(id))
   return unnamed && !offered ? undefined : id
 }
 

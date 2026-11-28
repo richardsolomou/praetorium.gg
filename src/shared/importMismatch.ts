@@ -20,7 +20,7 @@ import type { VsRosterData } from './vsDataLegality'
 import { factionDisplayName } from './factionNames'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { editionFamilyId } from '../core/catalogueEdition'
-import { frozenNames, storedNames, type ImportNames } from './importNames'
+import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, storedNames, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 
 /** What each faction's data updates removed and never brought back, by name: an older list can still name it. */
@@ -88,7 +88,7 @@ export function unmatchedDatasheetReason(
   names: ImportNames,
   removed: RemovedNames = NO_REMOVALS,
 ): string {
-  const faction = factionOf(loaded, catalogueId)
+  const faction = factionOf(loaded, catalogueId, names)
   const other = otherFaction(stated, catalogueId, loaded, names)
   if (other) return `a ${other} datasheet, not ${faction}`
   const gone = removedReason(stated, 'datasheet', catalogueId, removed)
@@ -155,19 +155,24 @@ export function squadSizeReason(size: UnitSize): string {
 export const attachmentReason = (target: string, imported: boolean) =>
   imported ? `every ${target} in this list is already led` : `this list has no ${target}`
 
-const factionOf = (loaded: LoadedCatalogue, catalogueId: string) =>
-  factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? catalogueId)
+/** A book's name in a reason: its newest frozen name, or the catalogue's where the rules carry none. */
+const factionOf = (loaded: LoadedCatalogue, catalogueId: string, names: ImportNames = NO_IMPORT_NAMES) =>
+  factionDisplayName(
+    frozenBookNames(names.bookNames, catalogueId, () => [loaded.index.catalogues.get(catalogueId)?.name ?? catalogueId]).at(-1) ??
+      catalogueId,
+  )
 
 /**
  * The factions whose datasheets hold this name, when they are not the one being
  * imported into. Two are named where two have it, because a Plague Marine bought from
- * the wrong book is as likely to belong to either.
+ * the wrong book is as likely to belong to either. Books holding it under a name BSData gave it answer first, since a
+ * VS Data name can also reach the Legends copy a book holds of another faction's unit.
  */
 function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue, names: ImportNames): string | null {
-  const elsewhere = [...(datasheetFactions(loaded, names).get(normalized(stated)) ?? [])]
-    .filter((id) => id !== catalogueId)
-    .map((id) => factionOf(loaded, id))
-    .filter(Boolean)
+  const holding = (spellings: ImportNames) =>
+    (datasheetFactions(loaded, spellings).get(normalized(stated)) ?? []).filter((id) => id !== catalogueId)
+  const named = holding({ ...names, datasheets: NO_IMPORT_NAMES.datasheets })
+  const elsewhere = (named.length ? named : holding(names)).map((id) => factionOf(loaded, id, names)).filter(Boolean)
   return elsewhere.length ? elsewhere.slice(0, 2).join(' or ') : null
 }
 
