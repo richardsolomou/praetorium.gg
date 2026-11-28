@@ -63,7 +63,13 @@ const priceOf = (catalogueId: string, pick: RosterPick, detachmentIds: string[] 
     ?.units[0]
 const price = (catalogueId: string, entryId: string, detachmentIds: string[], models?: number) =>
   priceOf(catalogueId, { entryId, ...(models ? { models } : {}) }, detachmentIds)
-const keywordsOf = (unit: Priced | undefined) => (unit?.keywords ?? []).map(same).toSorted().join()
+/**
+ * BSData categories its own checks read that no datasheet prints, which VS Data carries as allies, Detachments and
+ * allegiances instead: they say nothing about the datasheet a player sees.
+ */
+const legalityCategory = (keyword: string) => /^allies/.test(keyword) || ['shadowlegion', 'undivided', 'reconaugury'].includes(keyword)
+const keywordsOf = (unit: Priced | undefined) =>
+  [...new Set((unit?.keywords ?? []).map(same).filter((keyword) => !legalityCategory(keyword)))].toSorted().join()
 
 /** Differences where VS Data follows the app, which leave a datasheet VS-native. */
 const LISTED_SIZES = 'sizes the field manual lists'
@@ -84,7 +90,8 @@ function distance(one: string, other: string) {
 
 /**
  * Differences settled against the rules version's app build, where VS Data's reading stands: a check, the datasheets by
- * name (any book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded.
+ * name (any book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded
+ * (the K1 and K2 settlements of the VS Data gaps).
  */
 const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
   {
@@ -105,6 +112,33 @@ const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
     detail:
       /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: only BSData talismanofburningblood only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
     why: 'VS Data follows the app: the Standard needs ANCIENT, Shadow Legion admits no Daemon Prince, Pactbound psykers bear no Khorne mark, Cabal of Chaos follows the allegiance taken, and these Detachment upgrades take non-Characters',
+  },
+  {
+    check: 'wargear counts',
+    units:
+      /^(Chaos Predator.*|Forgefiend|Maulerfiend|Hell Blade|Foetid Bloat-Drone|Plagueburst Crawler|Venerable Dreadnought|Baal Predator|Stormfang Gunship|Contemptor-Achillus Dreadnought|Corvus Blackstar|Stormraven Gunship|Leman Russ.*|Macharius.*|Malcador.*|Rogal Dorn.*|Arkurian Stormhammer|Dominus Armoured Siege Bombard|Gorgon Heavy Transport|Stormblade|Valkyrie|Valkyrie Sky Talon|Vendetta Gunship|Vulture Gunship|Acastus Knight Porphyrion|Astraeus|Crimson Hunter|Razorwing Jetfighter|Voidraven Bomber|Monolith|Seraptek Heavy Construct|Tesseract Ark|AX-1-0 Tiger Shark|Devilfish|Hammerhead Gunship|Sky Ray Gunship|Tiger Shark|Tx42 Piranha|Cerberus|Falchion|Mastodon|Typhon|Sicaran|Mortifiers|Lifta Wagon)$/,
+    detail: /.*/,
+    why: 'the app prints a multi-weapon choice, as "2 heavy bolters", that the BSData reach counts as one selection',
+  },
+  {
+    check: 'sizes',
+    units:
+      /^(Chaos Spawn|Canis Rex|Webway Gate|Wall of Martyrs Defence Line|Accursed Cultists|Shadow Spectres|Neurogaunts|Beast Snagga Boyz|Squighog Boyz)$/,
+    detail: /.*/,
+    why: 'VS Data takes the unit composition the app or the PDF prints',
+  },
+  {
+    check: 'wargear',
+    units:
+      /^(Captain in Gravis Armour|Azrael|Commissar Graves|Hemlock Wraithfighter|Hornet|Karandras|Death Jester|Shadowseer|Solitaire|Troupe Master|Macharius Omega|Commander Shadowsun|Soul Grinder|Canis Rex|The Twin Lance|Daemonifuge|Lady Malys|Goliath Truck|Hybrid Metamorphs|Tesseract Vault|Dimachaeron)$/,
+    detail: /.*/,
+    why: 'the app prints this wargear one-sided, or spells it as VS Data does',
+  },
+  {
+    check: 'allegiance',
+    units: /^Soul Grinder$/,
+    detail: /.*/,
+    why: 'the app prints one Soul Grinder datasheet per god, each with its own allegiance',
   },
 ]
 const RULED_SUFFIX = ' (ruled for VS Data)'
