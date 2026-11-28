@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
 import { unitsIn } from '../shared/cataloguePicker'
 import { detachmentsOf } from '../shared/catalogueIndex'
-import { vsRosterData } from '../shared/vsDataLegality'
+import { vsDataErrors, vsRosterData } from '../shared/vsDataLegality'
 import { offeredDetachments, vsDataRefusedUnits } from '../shared/vsDataOffers'
 import { points, shelfOf, system } from './catalogue.fixtures'
 
@@ -29,17 +29,18 @@ const vsRoster = vsRosterData(
         'host.banned': record('Banned', unitIn('host')),
         'other.friend': record('Friend', unitIn('other')),
         'other.stranger': record('Stranger', unitIn('other')),
+        'other.relic': record('Relic', { ...unitIn('other'), legends: true }),
       },
     },
   },
   {
     books: { cat: 'host', 'cat-1': 'engines' },
     detachments: { guard: 'host.guard', raid: 'other.raid', lost: 'host.lost' },
-    units: { mob: 'host.mob', banned: 'host.banned', friend: 'other.friend', stranger: 'other.stranger' },
+    units: { mob: 'host.mob', banned: 'host.banned', friend: 'other.friend', stranger: 'other.stranger', relic: 'other.relic' },
     enhancements: {},
   },
   null,
-  (id) => ({ mob: 'Mob', banned: 'Banned', friend: 'Friend', stranger: 'Stranger' })[id],
+  (id) => ({ mob: 'Mob', banned: 'Banned', friend: 'Friend', stranger: 'Stranger', relic: 'Relic [Legends]' })[id],
 )
 const datasheet = (id: string, name: string) => ({ id, name, type: 'unit' as const, costs: points(10) })
 const book: Partial<Catalogue> = {
@@ -48,6 +49,7 @@ const book: Partial<Catalogue> = {
     datasheet('banned', 'Banned'),
     datasheet('friend', 'Friend'),
     datasheet('stranger', 'Stranger'),
+    datasheet('relic', 'Relic [Legends]'),
   ],
   sharedSelectionEntries: [
     {
@@ -91,6 +93,18 @@ describe('the units a book offers under VS Data', () => {
 
   it('leaves out a datasheet the faction excludes', () => {
     expect(offered.map((unit) => unit.name)).not.toContain('Banned')
+  })
+
+  it('leaves out a Legends datasheet of a faction an ally entry offers but leaves it out of', () => {
+    expect(unitsIn(loaded, 'cat', '', { nonMatchedPlay: true }).map((unit) => unit.name)).not.toContain('Relic [Legends]')
+  })
+
+  it('refuses a held Legends datasheet of a faction an ally entry offers but leaves it out of', () => {
+    expect(
+      vsDataErrors(vsRoster, { catalogueId: 'cat', detachmentIds: ['guard'], limit: 1000 }, [
+        { key: 0, entryId: 'relic', name: 'Relic [Legends]', size: { models: 1, min: 1, max: 1 }, toggles: [], choices: [] },
+      ]),
+    ).toContainEqual({ entryId: 'relic', entryName: 'Relic [Legends]', message: 'cannot be taken by this army' })
   })
 
   it('offers an ally entry’s datasheet as allied', () => {

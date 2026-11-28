@@ -418,9 +418,10 @@ export function vsDataEnhancementOptions(data: VsRosterData | undefined, detachm
 /**
  * The VS Data unit a list's datasheet is checked as, or undefined where the catalogue checks it: a datasheet VS Data
  * defines no unit for, or one it files under a faction the army neither is nor allies with where that may only mean VS
- * Data cannot name it there. That is a Warhammer Legends or Crucible datasheet, which the app's ally lists cannot name,
- * as a fortification, an Aeldari Legends hero or a Crucible Deathwatch Agent; and a unit of a faction that takes no
- * Detachment, as a Titan, which a book can link where its faction's ally lists do not name it.
+ * Data cannot name it there. That is a Warhammer Legends or Crucible datasheet of a faction no ally entry of the army
+ * offers, as a fortification or an Aeldari Legends hero (where an entry offers the faction, leaving one out refuses it,
+ * as Deathwatch's Agents entry leaves out the Legends kill teams); and a unit of a faction that takes no Detachment, as
+ * a Titan, which a book can link where its faction's ally lists do not name it.
  */
 export function vsDataChecks(
   data: VsRosterData | undefined,
@@ -435,9 +436,12 @@ export function vsDataChecks(
   const faction = data.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
   const army = faction ? definitions.get('faction', faction)?.data : undefined
   const own = new Set([faction, army?.parent])
+  const allies = army?.allies ?? []
+  const alliesFaction = allies.some((ally) => ally.units.some((allied) => definitions.get('unit', allied)?.data.faction === filed.faction))
   const unnamed =
-    filed.legends || isNonMatchedPlayName(unit.name) || Boolean(definitions.get('faction', filed.faction)?.data.withoutDetachments)
-  const offered = own.has(filed.faction) || (army?.allies ?? []).some((ally) => ally.units.includes(id))
+    ((filed.legends || isNonMatchedPlayName(unit.name)) && !alliesFaction) ||
+    Boolean(definitions.get('faction', filed.faction)?.data.withoutDetachments)
+  const offered = own.has(filed.faction) || allies.some((ally) => ally.units.includes(id))
   return unnamed && !offered ? undefined : id
 }
 
