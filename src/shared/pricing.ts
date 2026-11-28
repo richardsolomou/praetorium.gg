@@ -267,7 +267,7 @@ function vsPicksOf(
   return {
     checked: new Set(vs.map((unit) => catalogueTreeOf(unit))),
     priced: new Set(vs.flatMap((unit) => (vsPrices.has(unit.key) ? [catalogueTreeOf(unit)] : []))),
-    ownLimits: new Set(vs.flatMap((unit) => (ownLimits(unit) ? [unit.selection] : []))),
+    ownLimits: new Set(vs.flatMap((unit) => (ownLimits(unit) ? [catalogueTreeOf(unit)] : []))),
   }
 }
 
