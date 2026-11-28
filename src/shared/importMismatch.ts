@@ -164,13 +164,14 @@ const factionOf = (loaded: LoadedCatalogue, catalogueId: string, names: ImportNa
 /**
  * The factions whose datasheets hold this name, when they are not the one being
  * imported into. Two are named where two have it, because a Plague Marine bought from
- * the wrong book is as likely to belong to either.
+ * the wrong book is as likely to belong to either. Books holding it under a name BSData gave it answer first, since a
+ * VS Data name can also reach the Legends copy a book holds of another faction's unit.
  */
 function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalogue, names: ImportNames): string | null {
-  const elsewhere = [...(datasheetFactions(loaded, names).get(normalized(stated)) ?? [])]
-    .filter((id) => id !== catalogueId)
-    .map((id) => factionOf(loaded, id, names))
-    .filter(Boolean)
+  const holding = (spellings: ImportNames) =>
+    (datasheetFactions(loaded, spellings).get(normalized(stated)) ?? []).filter((id) => id !== catalogueId)
+  const named = holding({ ...names, datasheets: NO_IMPORT_NAMES.datasheets })
+  const elsewhere = (named.length ? named : holding(names)).map((id) => factionOf(loaded, id, names)).filter(Boolean)
   return elsewhere.length ? elsewhere.slice(0, 2).join(' or ') : null
 }
 
