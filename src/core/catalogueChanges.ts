@@ -19,6 +19,8 @@ type PointsRow = {
   keyword: string | null
   faction: string | null
   detachment: string | null
+  /** The army keyword of another army the unit is taken into at this cost. */
+  allied?: string
   /** The copies of the datasheet a row prices, such as "Your 3rd + Unit Costs". */
   copies?: string
 }
@@ -189,15 +191,16 @@ function copiesLabel(copies: string | undefined) {
   return tier ? `${tier[1]}${tier[2] ? `–${tier[2]}` : (tier[3] ?? '')} unit` : copies
 }
 
-const rowIdentity = (row: PointsRow) => key(row.models, row.keyword, row.faction, row.detachment, row.copies ?? null)
+const rowIdentity = (row: PointsRow) => key(row.models, row.keyword, row.faction, row.detachment, row.allied ?? null, row.copies ?? null)
 const rowCondition = (row: PointsRow) =>
-  [row.keyword, row.faction, row.detachment, copiesLabel(row.copies)].filter(Boolean).join(', ') || null
+  [row.keyword, row.faction, row.detachment, row.allied ? `as ${row.allied}` : null, copiesLabel(row.copies)].filter(Boolean).join(', ') ||
+  null
 
 function datasheetChanges(before: Datasheet, after: Datasheet): CatalogueChange[] {
   const old = rowsOf(before)
   const next = rowsOf(after)
   const singleUnconditional = (rows: readonly PointsRow[]) =>
-    rows.length === 1 && !rows[0]!.keyword && !rows[0]!.faction && !rows[0]!.detachment && !rows[0]!.copies
+    rows.length === 1 && !rows[0]!.keyword && !rows[0]!.faction && !rows[0]!.detachment && !rows[0]!.allied && !rows[0]!.copies
   if (singleUnconditional(old) && singleUnconditional(next)) {
     old[0] = { ...old[0]!, models: '' }
     next[0] = { ...next[0]!, models: '' }

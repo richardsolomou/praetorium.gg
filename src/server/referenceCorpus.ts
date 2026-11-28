@@ -1,4 +1,5 @@
 import { stratagemWindowsLabel } from '../core/reminders'
+import { costConditions } from '../core/datasheet'
 import { hash } from 'node:crypto'
 import { currentMissionId } from '../core/legacyIds'
 import { awardsOnce } from '../core/scoring'
@@ -657,9 +658,7 @@ function datasheetDocument(files: CorpusFiles, sheet: CanonicalDatasheet, factio
         url,
         'points',
         'Points',
-        sheet.costs.map((cost) =>
-          [cost.models, 'models', cost.cost, 'points', cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).join(' '),
-        ),
+        sheet.costs.map((cost) => [cost.models, 'models', cost.cost, 'points', ...costConditions(cost)].join(' ')),
       ),
       section(files, url, 'relationships', 'Attachments', relationships),
     ]),

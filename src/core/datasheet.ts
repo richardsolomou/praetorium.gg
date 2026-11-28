@@ -51,7 +51,16 @@ export type Datasheet = {
   modelCount?: string
   /** What `transport` states, for rules that cannot read its text. */
   transportCapacity?: PrintedTransport
-  costs: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null; copies?: string }[]
+  costs: {
+    models: string
+    cost: string
+    keyword: string | null
+    faction: string | null
+    detachment: string | null
+    /** The army keyword of another army the unit is taken into at this cost, as Imperium is for an Assassin. */
+    allied?: string
+    copies?: string
+  }[]
   attachments: DatasheetRelationship[]
   leaders: DatasheetRelationship[]
   supporters: DatasheetRelationship[]
@@ -87,3 +96,11 @@ export type StructuredDatasheetProfile = Omit<Datasheet['profiles'][number], 'va
   kind: DatasheetProfileKind
   values: StructuredDatasheetCharacteristic[]
 }
+
+type CostRow = Datasheet['costs'][number]
+
+/** What a points row applies under, as a page prints it: a keyword, army, Detachment, army it is taken into, or copies. */
+export const costConditions = (cost: CostRow) =>
+  [cost.keyword, cost.faction, cost.detachment, cost.allied ? `as ${cost.allied}` : null, cost.copies].filter(
+    (condition): condition is string => Boolean(condition),
+  )

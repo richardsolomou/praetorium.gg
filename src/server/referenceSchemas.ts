@@ -109,6 +109,7 @@ export const unitSummarySchema = z.object({
       keyword: z.string().optional(),
       faction: z.string().optional(),
       detachment: z.string().optional(),
+      allied: z.string().optional(),
       copies: z.string().optional(),
     }),
   ),

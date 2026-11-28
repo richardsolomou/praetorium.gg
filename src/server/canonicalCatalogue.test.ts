@@ -93,6 +93,39 @@ describe('canonical catalogue', () => {
       provenance: { sources: ['points'], strategy: 'single-source' },
     })
   })
+  it("prints VS Data's rows for other armies and Detachments labelled with them, beside its own list's price", () => {
+    const loaded = catalogue()
+    loaded.vsPoints = {
+      books: { cat: 'agents' },
+      factions: { agents: { name: 'Agents of the Imperium' } },
+      units: {
+        squad: {
+          faction: 'agents',
+          tiers: [
+            {
+              copies: { from: 1 },
+              costs: [
+                { models: 1, points: 55, composition: 'in an army of Agents' },
+                { models: 1, points: 65, composition: 'as Imperium' },
+                { models: 1, points: 75, composition: 'in the Veiled Blade Detachment' },
+              ],
+            },
+          ],
+          wargear: [],
+        },
+      },
+      detachments: { 'veiled-blade': { faction: 'agents', name: 'Veiled Blade', dp: 1, enhancements: [] } },
+    }
+    const sheet = compileCanonicalCatalogue(loaded, revisions).datasheets[0]
+    expect({ points: sheet?.points, costs: sheet?.costs }).toEqual({
+      points: 55,
+      costs: [
+        { models: '1', cost: '55', keyword: null, faction: 'Agents of the Imperium', detachment: null },
+        { models: '1', cost: '65', keyword: null, faction: null, detachment: null, allied: 'Imperium' },
+        { models: '1', cost: '75', keyword: null, faction: null, detachment: 'Veiled Blade' },
+      ],
+    })
+  })
   it('compiles upstream labels into one typed datasheet with provenance', () => {
     const compiled = compileCanonicalCatalogue(catalogue(), revisions)
 

@@ -256,6 +256,7 @@ export function referenceOpenApi(request: Request) {
                   keyword: nullable({ type: 'string' }),
                   faction: nullable({ type: 'string' }),
                   detachment: nullable({ type: 'string' }),
+                  allied: { type: 'string' },
                 },
                 ['models', 'cost', 'keyword', 'faction', 'detachment'],
               ),

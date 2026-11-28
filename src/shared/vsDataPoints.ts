@@ -1,5 +1,5 @@
 import type { PointsCost, VsDataDefinitions } from '../core/vsDataConstruction'
-import { circumstance, costRowFor, pointsAt } from '../core/vsDataPoints'
+import { circumstance, costRowFor, pointsAt, sameName } from '../core/vsDataPoints'
 import type { MfmUnit } from './mfm'
 
 type Tier = { copies: { from: number; to?: number }; costs: { models: number; points: number; composition?: string }[] }
@@ -184,6 +184,37 @@ export function vsMfmUnit(
     })),
     wargear: unit.wargear,
   }
+}
+
+/**
+ * A datasheet's VS Data cost rows as its page prints them, for a list of the book `catalogueId`: every size of every
+ * copy tier, its `copies` as that tier's range, and a row for one army, Detachment or army it is taken into labelled
+ * with VS Data's name for it.
+ */
+export function vsCostRows(index: VsPointsIndex | undefined, catalogueId: string, entryId: string) {
+  const unit = inBook(index?.units, catalogueId, entryId)
+  if (!index || !unit) return null
+  const army = (name: string) =>
+    Object.entries(index.factions).find(([id, faction]) => sameName(id.replaceAll('-', ' '), name) || sameName(faction.name, name))?.[1]
+      .name ?? name
+  const detachment = (name: string) => Object.values(index.detachments).find((entry) => sameName(entry.name, name))?.name ?? name
+  const labelled = (composition = '') => {
+    const inDetachment = /^in the (.+) Detachment$/.exec(composition)
+    if (inDetachment) return { faction: null, detachment: detachment(inDetachment[1]!) }
+    if (composition.startsWith('in an army of ')) return { faction: army(composition.slice('in an army of '.length)), detachment: null }
+    return { faction: null, detachment: null, ...(composition.startsWith('as ') ? { allied: composition.slice('as '.length) } : {}) }
+  }
+  const rows = unit.tiers.flatMap((tier) =>
+    tier.costs.map((cost) => ({
+      models: String(cost.models),
+      cost: String(cost.points),
+      keyword: null,
+      ...labelled(cost.composition),
+      ...(tier.copies.from === 1 && tier.copies.to === undefined ? {} : { copies: rangeOf(tier.copies) }),
+    })),
+  )
+  // A size priced by the mix of models it holds prints once, as the one price `vsPointsIndex` keeps it for.
+  return [...new Map(rows.map((row) => [JSON.stringify(row), row])).values()]
 }
 
 /** A Detachment's VS Data points and Enhancements in the field manual's shape. */

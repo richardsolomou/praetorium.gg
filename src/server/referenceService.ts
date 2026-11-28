@@ -262,11 +262,12 @@ function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: Canoni
     // Composition is often withheld rules text, which would publish as empty strings.
     composition: (sheet?.composition ?? []).map(publishedFacts).filter(Boolean),
     // Most costs apply to any list, so a condition is named only where one applies.
-    costs: (sheet?.costs ?? []).map(({ keyword, faction, detachment, ...cost }) => ({
+    costs: (sheet?.costs ?? []).map(({ keyword, faction, detachment, allied, ...cost }) => ({
       ...cost,
       ...(keyword ? { keyword } : {}),
       ...(faction ? { faction } : {}),
       ...(detachment ? { detachment } : {}),
+      ...(allied ? { allied } : {}),
     })),
     canLead: names(sheet?.attachments.filter((relationship) => relationship.kind === 'leader') ?? []),
     canSupport: names(sheet?.attachments.filter((relationship) => relationship.kind === 'support') ?? []),
