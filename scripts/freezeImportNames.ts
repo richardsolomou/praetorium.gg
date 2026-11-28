@@ -5,12 +5,15 @@ import { nameOf, resolve } from '../src/core/catalogue'
 import { legacyEntryNamesSchema, legacyNamesSchema } from '../src/server/legacyNames'
 import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
+import { readsAsRulesSentence } from './lib/rulesSentence'
 
 /**
  * Adds to `catalogue/legacy-ids/` the names every rules version of a catalogue snapshot gives each book, datasheet,
  * Detachment and other entry (model, wargear, upgrade, Enhancement), by the ID a saved roster or a New Recruit list holds,
  * and which entries are models: New Recruit prints these spellings, which imports read once the catalogue no longer
- * carries them. The files are append-only: a name or model they hold is never removed.
+ * carries them. The files are append-only: a key, name or model they hold is never removed, except an entry name the
+ * snapshot shows is a rules sentence (`readsAsRulesSentence`) and no profile of the entry carries, which is an instruction
+ * or a notice, not a name a list prints; its key stays.
  *
  *   pnpm exec tsx scripts/freezeImportNames.ts <catalogue directory>
  */
@@ -27,6 +30,7 @@ const sections = () =>
   Object.fromEntries(SECTIONS.map((section) => [section, new Map<string, Set<string>>()])) as Record<Section, Map<string, Set<string>>>
 const found = sections()
 const models = new Set<string>()
+const sentences = new Set<string>()
 const add = (section: Map<string, Set<string>>, id: string, name: string) => section.set(id, (section.get(id) ?? new Set()).add(name))
 const editions = composition.editions.toSorted((left, right) => Number(right.base === true) - Number(left.base === true))
 for (const entry of editions) {
@@ -44,7 +48,10 @@ for (const entry of editions) {
   for (const { options } of loaded.detachments.values()) for (const option of options) add(named.detachments, option.id, option.name)
   // A New Recruit list names every entry by its ID; a datasheet's names are its own section's.
   for (const [id, definition] of definitions) {
-    if (!named.datasheets.has(id)) add(named.entries, id, nameOf(definition, definitions))
+    const name = nameOf(definition, definitions)
+    const profiled = resolve(definition, loaded.index).profiles?.some((profile) => profile.name?.toLowerCase() === name.toLowerCase())
+    if (readsAsRulesSentence(name) && !profiled) sentences.add(name)
+    else if (!named.datasheets.has(id)) add(named.entries, id, name)
     // Entry IDs are the same in every rules version, so the base one says which are models.
     if (entry.base && resolve(definition, loaded.index).type === 'model') models.add(id)
   }
@@ -82,5 +89,9 @@ const file = path.join(folder, 'entry-names.json')
 const frozen = legacyEntryNamesSchema.parse(
   fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { format: 'praetorium.legacy-entry-names.v1', names: {}, models: [] },
 )
-const names = withAdded(frozen.names, found.entries)
+// An ID keeps its key with no names, as the maps never lose a key.
+const names = withAdded(
+  Object.fromEntries(Object.entries(frozen.names).map(([id, spelled]) => [id, spelled.filter((name) => !sentences.has(name))])),
+  found.entries,
+)
 write(file, { ...frozen, names, models: [...new Set([...frozen.models, ...models])].toSorted() }, Object.keys(names).length, 'entries')
