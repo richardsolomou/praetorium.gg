@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.28 (2026-11-28)
+
+### Patch Changes
+
+- 2b93664: [app] Pages opened just after an update no longer wait minutes to finish loading.
+
 ## 0.280.27 (2026-11-28)
 
 ### Patch Changes
