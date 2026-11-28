@@ -141,9 +141,9 @@ export const combatSchema = z.object({
     woundReroll: reroll,
     lethal: z.boolean(),
     commandReroll: z.enum(['attacks', 'hit', 'wound', 'save', 'damage']).optional(),
-    /** One hit, wound or damage roll each that the attacker's rules let it re-roll this phase, spent like the Command Re-roll. */
+    /** One hit, wound, damage or save roll each that either unit's rules let it re-roll this phase, spent like the Command Re-roll. */
     singleRerolls: z
-      .array(z.enum(['hit', 'wound', 'damage']))
+      .array(z.enum(['hit', 'wound', 'damage', 'save']))
       .max(12)
       .optional(),
   }),
@@ -456,7 +456,7 @@ function rerollSpace({ options, weapons }: Pick<CombatInput, 'options' | 'weapon
 type RerollSpace = ReturnType<typeof rerollSpace>
 
 const SAVE_COMMAND_REROLL_REFUSAL =
-  'A Command Re-roll on a save roll is not calculated when failed saves differ in what they need, since which one to re-roll is a choice.'
+  'A re-roll of one save roll is not calculated when failed saves differ in what they need, since which one to re-roll is a choice.'
 
 const logFactorials = [0]
 function binomial(count: number, chance: number): Weights {

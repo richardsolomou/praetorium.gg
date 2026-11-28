@@ -3,7 +3,15 @@ import { combatSchema } from './combat'
 import type { CombatAttacker } from './combatScenario'
 import { combatTarget } from './combatProfiles'
 import type { CombatCarrier } from './combatLoadout'
-import { combatRuleDefences, effectModels, withBearerEffects, type ActiveCombatRule, type CombatRuleEffect } from './combatRules'
+import {
+  combatRuleDefences,
+  combatRuleProjected,
+  effectModels,
+  withBearerEffects,
+  type ActiveCombatRule,
+  type CombatRuleEffect,
+} from './combatRules'
+import { datasheetCharacteristicKind } from './datasheetStructure'
 
 export type CombatMember = Omit<CombatAttacker, 'companions'> & {
   startingModels?: number
@@ -128,6 +136,7 @@ const GROUP_DEFENCES = [
   'save',
   'improveSave',
   'toughness',
+  'wounds',
   'feelNoPain',
   'psychicFeelNoPain',
   'mortalFeelNoPain',
@@ -140,11 +149,12 @@ function limitedDefences(member: CombatMember) {
   const effects = new Map<CombatRuleEffect, string>()
   let carriers: readonly CombatCarrier[] = member.carriers
   const fielded = member.carriers.filter((carrier) => carrier.models > 0 && !carrier.unitWide)
-  const rules = (member.rules ?? []).map((rule) => ({
+  const rules = withoutProjectedWounds(member).map((rule) => ({
     ...rule,
     effects: rule.effects.flatMap((effect) => {
       const models =
-        effect.role === 'defender' && GROUP_DEFENCES.some((field) => effect[field] !== undefined)
+        effect.role === 'defender' &&
+        (GROUP_DEFENCES.some((field) => effect[field] !== undefined) || effect.unitStat?.kind === 'toughness' || effect.unitStat?.kind === 'wounds')
           ? effectModels(effect, rule, member)
           : undefined
       if (!models) return [effect]
@@ -182,4 +192,24 @@ function limitedDefences(member: CombatMember) {
     }),
   }))
   return { rules, carriers, marks, effects }
+}
+
+/** A member's rules without the Wounds changes the catalogue already counts in its models' Wounds characteristic. */
+function withoutProjectedWounds(member: CombatMember): readonly ActiveCombatRule[] {
+  const modifiers = member.sheet.profiles.flatMap((profile) =>
+    profile.values.flatMap((value) => (datasheetCharacteristicKind(value.name) === 'wounds' ? (value.modifiers ?? []) : [])),
+  )
+  return (member.rules ?? []).map((rule) =>
+    combatRuleProjected(rule, modifiers)
+      ? {
+          ...rule,
+          effects: rule.effects.flatMap((effect) => {
+            const { wounds: _wounds, unitStat, ...rest } = effect
+            if (effect.wounds === undefined && unitStat?.kind !== 'wounds') return [effect]
+            const kept = unitStat && unitStat.kind !== 'wounds' ? { ...rest, unitStat } : rest
+            return Object.keys(kept).some((field) => field !== 'role' && field !== 'phases' && field !== 'bearerOnly') ? [kept] : []
+          }),
+        }
+      : rule,
+  )
 }

@@ -54,12 +54,19 @@ it('reads a reminder’s turn as Praetorium names it', () => {
   expect(facts.reminder).toEqual({ timings: [{ moment: 'phase-start', phase: 'shooting', turn: 'opponent-turn' }] })
 })
 
-it('calculates no mortal wounds VS Data places outside the attacks', () => {
+it('reads a rule with mortal wounds VS Data places outside the attacks as not calculated', () => {
   const mortals = { timing: 'outside-attacks', rolls: 1, outcomes: [{ min: 4, max: 6, damage: { dice: 1, sides: 3, bonus: 0 } }] }
   const facts = textFactsOfVsData(
     combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['ranged'], mortalWounds: mortals }] }], default: 1 }),
   )
-  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects).toEqual([])
+  expect(facts.combat!.leaves[0]!.compiled).toBeNull()
+})
+
+it('reads a rule whose models regain wounds as not calculated', () => {
+  const facts = textFactsOfVsData(
+    combat({ choices: [{ conditions: [], effects: [{ role: 'defender', attacks: ['ranged', 'melee'], regainWounds: 1 }] }], default: 1 }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled).toBeNull()
 })
 
 it('reads an Order allowance that holds only while leading', () => {
@@ -81,12 +88,12 @@ it('rolls mortal wounds once per point of Toughness where VS Data says so', () =
   expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.mortalWounds).toMatchObject({ perToughness: true, limit: 6 })
 })
 
-it('leaves out a single save re-roll the simulator cannot give a rule', () => {
-  const rolls = { singleRerolls: ['hit', 'save'] }
+it('gives the defender its single save re-roll', () => {
+  const rolls = { singleRerolls: ['save'] }
   const facts = textFactsOfVsData(
-    combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['ranged'], rolls }] }], default: 1 }),
+    combat({ choices: [{ conditions: [], effects: [{ role: 'defender', attacks: ['ranged'], rolls }] }], default: 1 }),
   )
-  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.options).toEqual({ singleRerolls: ['hit'] })
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.options).toEqual({ singleRerolls: ['save'] })
 })
 
 it('gives a keyword a rule grants as an ability of that name', () => {
@@ -196,10 +203,10 @@ it('answers a keyword question VS Data spells with a typographic apostrophe', ()
   expect(combatReadingFor(facts, rule)!.compiled).not.toBeNull()
 })
 
-it('reads a rule whose effect makes the attacks lose a weapon ability as not calculated', () => {
-  const lost = { role: 'attacker', attacks: ['ranged'], lostWeaponAbility: 'BLAST' }
+it('reads a weapon ability the attacks lose', () => {
+  const lost = { role: 'attacker', attacks: ['ranged'], lostWeaponAbility: 'LETHAL HITS' }
   const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [lost] }], default: 1, roles: ['attacker'] })).combat!
-  expect(facts.leaves[facts.readings['unit:0:1']![0] as number]!.compiled).toBeNull()
+  expect(facts.leaves[0]!.compiled!.choices[0]!.effects[0]!.lostKeyword).toBe('Lethal Hits')
 })
 
 it('shows no invulnerable save on the datasheet when it holds against ranged attacks alone', () => {
