@@ -185,11 +185,17 @@ const sheetCache = new WeakMap<LoadedCatalogue, Map<string, Datasheet | null>>()
 const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
   cachedIn(walkCache, loaded, `${catalogueId}:${entryId}`, () => walk(loaded, catalogueId, entryId))
 
+/**
+ * The names of the abilities a unit holds in its list: its datasheet's own, linked rules and ability profiles alike,
+ * unless `ownRules` is false, which keeps only the rules it links because of the list, and those its other selections'
+ * profiles and the units leading it give it.
+ */
 export function contextualAbilityNamesIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
   context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex' | 'companions' | 'keywordIds' | 'rosterKeywordIds'>,
+  { ownRules = true } = {},
 ): string[] {
   const root = loaded.index.definitions.get(entryId)
   if (!root) return []
@@ -199,12 +205,21 @@ export function contextualAbilityNamesIn(
       : context.selections[context.unitSelectionIndex]
   const definitions = selected ? definitionsInSelections([selected], [0], loaded.index) : []
   const intrinsic = definitionAndTarget(root, loaded.index)
+  const linkedIn = (selections: readonly Selection[]) =>
+    intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, selections))
+  const linked = linkedIn(context.selections)
+  // Without its own rules, a datasheet still holds a rule it links only in this list, as a Detachment switches one on.
+  const bare = ownRules ? [] : linkedIn(selected ? [selected] : [])
   return [
     ...new Set([
-      ...intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)),
-      ...definitions.flatMap((definition) =>
-        definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index, root.absentAbilities)),
-      ),
+      ...(ownRules ? linked : linked.filter((name) => !bare.includes(name))),
+      ...definitions
+        .filter((definition) => ownRules || !intrinsic.some((own) => own.id === definition.id))
+        .flatMap((definition) =>
+          definitionAndTarget(definition, loaded.index).flatMap((source) =>
+            abilityProfileNames(source, loaded.index, root.absentAbilities),
+          ),
+        ),
       ...grantedAbilitiesInAttachedUnit(
         context.selections,
         context.unitSelectionIndex,

@@ -71,6 +71,7 @@ import {
   vsDataWithoutDetachments,
   vsPickErrors,
 } from './vsDataLegality'
+import { vsCoreAbilitiesOf } from './vsDataCoreAbilities'
 import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
@@ -1094,14 +1095,17 @@ function calculateRoster(
         const companionSelectionIndex = companion ? selectionIndex.get(catalogueTreeOf(companion)) : undefined
         return companionSelectionIndex !== undefined && companion !== unit ? [companionSelectionIndex] : []
       })
+      const abilityContext = {
+        selections,
+        unitSelectionIndex,
+        companions,
+        keywordIds: unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex),
+        rosterKeywordIds: keywordMatrixFor(catalogueId),
+      }
+      const own = vsCoreAbilitiesOf(loaded, catalogueId, unit.entryId)
       const deployment = deploymentRules(
-        contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, {
-          selections,
-          unitSelectionIndex,
-          companions,
-          keywordIds: unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex),
-          rosterKeywordIds: keywordMatrixFor(catalogueId),
-        }),
+        contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, abilityContext),
+        own && { own, granted: contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, abilityContext, { ownRules: false }) },
       )
       // A unit already holding the ability has nothing to gain from the pick.
       const grantPicks = grantPicksFor(unitKeywords).filter(
