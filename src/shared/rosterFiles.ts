@@ -47,6 +47,7 @@ import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslatio
 import { frozenBookNames, frozenNames, NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import { inBook } from './vsDataPoints'
 import {
+  appSpellingsOf,
   datasheetName,
   exportRuleset,
   vsDatasheetName,
@@ -110,8 +111,15 @@ export type RosterTextFormat =
 let lastRead: { file: string; found: ReturnType<typeof readImport> } | undefined
 
 function parsedImport(file: string) {
-  if (lastRead?.file !== file) lastRead = { file, found: readImport(file) }
+  if (lastRead?.file !== file) lastRead = { file, found: spelledBy(readImport(file)) }
   return lastRead.found
+}
+
+/** A list whose footer gives the official app's data version, as the app's and Warscribe's do, or that Praetorium wrote, as spelled in the app's names. */
+function spelledBy(found: ReturnType<typeof readImport>) {
+  return found && (found.parsed.dataVersion !== undefined || found.format === 'praetorium')
+    ? { ...found, parsed: { ...found.parsed, spelling: 'app' as const } }
+    : found
 }
 
 /**
@@ -443,7 +451,14 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames; dataBuild?: number }
+type Spellings = {
+  translations: CatalogueTranslations
+  removed: RemovedNames
+  names: ImportNames
+  dataBuild?: number
+  /** Reads wargear in the official app's spellings before the catalogue's, for a list the app's names spell. */
+  appFirst?: boolean
+}
 
 /**
  * Where each unit of a group that does not say which is its bodyguard goes: to the one other unit it can join, or of
@@ -635,7 +650,7 @@ function importTextRoster(
       detachmentIds,
       detachmentSelections,
       loaded,
-      spellings,
+      { ...spellings, appFirst: parsed.spelling === 'app' },
     )
     const allegiance = guessed
       ? [
@@ -1045,7 +1060,7 @@ function textRosterPick(
   detachmentIds: readonly string[],
   roster: readonly Selection[],
   loaded: LoadedCatalogue,
-  { translations, removed, names: appNames }: Spellings,
+  { translations, removed, names: appNames, appFirst }: Spellings,
 ) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
@@ -1055,8 +1070,7 @@ function textRosterPick(
   const respelled = respelledNames(entryId, loaded.index)
   // The official app prints some wargear as VS Data spells it, as a Corsair Voidscarred's "Channeller Stones" for the
   // catalogue's "Channeler stones": the one of this unit's names the reviewed spellings give that spelling. A spelling
-  // that is only the name in another number, as Termagants' "Termagant spinefists", is left unread, since reading it
-  // changes how the squad divides.
+  // that is only the name in another number, as Termagants' "Termagant spinefists", is left to `appSpelled` below.
   const vsSpelled = (label: string) => {
     const key = wargearKey(label).replace(ARTICLE, '')
     const names = [...new Set(respelled.values())].filter(
@@ -1149,10 +1163,24 @@ function textRosterPick(
       .find(Boolean)
   // A name only the card knows reads as its English one, so a French "Chef de Meute de Cavalerie sur Loups Tonnerre" is
   // the "Thunderwolf Cavalry Pack Leader" its datasheet titles.
+  // What the text export writes for each of the unit's wargear, which an app-spelled list reads first and any list reads
+  // last, so either spelling imports: an app export's "Bolt pistol*" is the catalogue's "Bolt pistol".
+  const appSpellings = appSpellingsOf(
+    loaded,
+    catalogueId,
+    entryId,
+    new Set([...respelled.values()].filter((name): name is string => name !== null)),
+  )
+  const appSpelled = (label: string, enhancement: boolean) => {
+    const name = appSpellings.get(normalized(label))
+    return name ? (resolved(name, enhancement) ?? name) : undefined
+  }
   const nameFor = (label: string, enhancement = false) =>
+    (appFirst ? appSpelled(label, enhancement) : undefined) ??
     resolved(label, enhancement) ??
     translated(label, enhancement) ??
     printed(label, enhancement) ??
+    appSpelled(label, enhancement) ??
     normalized(printedAs(label)[0]?.[0] ?? vsSpelled(label) ?? label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
@@ -2239,7 +2267,7 @@ function vsNamedUnit<T extends ExportPrice['units'][number]>(unit: T, loaded: Lo
       .filter((choice) => choice.kind)
       .flatMap((choice) =>
         choice.options.flatMap((option) => {
-          const name = option.count > 0 && option.vsDataId ? vsEnhancementName(loaded, option.vsDataId, option.name) : undefined
+          const name = option.count > 0 && option.vsDataId ? vsEnhancementName(loaded, option.vsDataId) : undefined
           // The list names an upgrade under its own heading, as the catalogue's upgrade names are written.
           return name ? [[option.name, choice.kind === 'upgrade' ? withoutUpgrade(name) : name] as const] : []
         }),

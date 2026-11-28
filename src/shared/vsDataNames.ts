@@ -3,10 +3,11 @@ import { nameOf } from '../core/catalogue'
 import { remember } from '../core/collections'
 import { legacyIdsSchema } from '../core/legacyIds'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { wargearKey } from '../core/wargearNames'
 import { normalized } from './importMismatch'
-import { withoutUpgrade } from './mfm'
 import { vsDefinitionsOf } from './vsDataBuild'
 import { datasheetOf, idsIn, inBook } from './vsDataPoints'
+import { vsSpelling } from './wargearSpellings'
 
 // The English names VS Data gives what a list stores, the official app's, by the IDs the list holds read through the
 // rules version's frozen maps; each is undefined where VS Data has no record for the ID.
@@ -68,15 +69,12 @@ export function vsDetachmentName(loaded: LoadedCatalogue, detachmentId: string) 
   return id ? vsDefinitionsOf(loaded)?.get('detachment', id)?.name : undefined
 }
 
-/** An Enhancement as VS Data writes `name`, where the two are one spelling but for case, quotes and dashes, as wargear is named. */
-export function vsEnhancementName(loaded: LoadedCatalogue, enhancementId: string, name: string) {
-  const own = vsDefinitionsOf(loaded)?.get('enhancement', enhancementId)?.name
-  return own && normalized(withoutUpgrade(own)) === normalized(withoutUpgrade(name)) ? own : undefined
-}
+export const vsEnhancementName = (loaded: LoadedCatalogue, enhancementId: string) =>
+  vsDefinitionsOf(loaded)?.get('enhancement', enhancementId)?.name
 
 /**
- * Names a datasheet's wargear as VS Data writes it on the datasheet's unit where the two are one spelling but for case,
- * quotes and dashes; any other spelling keeps the name it was given, since imports do not yet read every app spelling back.
+ * Names a datasheet's wargear as VS Data names it on the datasheet's unit, matched through the reviewed spellings; a
+ * piece the unit's VS Data wargear does not hold keeps the name it was given. Imports read it back (`appSpellingsOf`).
  */
 export function vsWargearNames(loaded: LoadedCatalogue, catalogueId: string, entryId: string): (name: string) => string {
   const definitions = vsDefinitionsOf(loaded)
@@ -90,9 +88,26 @@ export function vsWargearNames(loaded: LoadedCatalogue, catalogueId: string, ent
   const byKey = new Map<string, string>()
   for (const id of ids) {
     const name = definitions.get('wargear', id)?.name
-    if (name && !byKey.has(normalized(name))) byKey.set(normalized(name), name)
+    if (name && !byKey.has(wargearKey(name))) byKey.set(wargearKey(name), name)
   }
-  return (name) => byKey.get(normalized(name)) ?? name
+  const keys = new Set(byKey.keys())
+  return (name) => byKey.get(vsSpelling(name, keys)) ?? name
+}
+
+/**
+ * The catalogue name each of `names`, a datasheet's wargear, reads as from the name `vsWargearNames` gives it, by that
+ * name normalized; a name two of them would be given reads as neither, and one of them already has reads as that one.
+ */
+export function appSpellingsOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, names: Iterable<string>) {
+  const named = vsWargearNames(loaded, catalogueId, entryId)
+  const own = new Set([...names].map(normalized))
+  const found = new Map<string, string | null>()
+  for (const name of own) {
+    const key = normalized(named(name))
+    if (own.has(key)) continue
+    found.set(key, found.has(key) && found.get(key) !== name ? null : name)
+  }
+  return found
 }
 
 /** The ruleset an export names: the list's VS Data faction where it is that book alone, under its rules version where that is not the base one; else the book's ID. */
