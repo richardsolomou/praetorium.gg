@@ -87,9 +87,8 @@ const unholdableLimits = new WeakMap<object, Set<object>>()
  * The list's units (by `CheckedUnit.key`) that VS Data's own limits cannot hold, so the catalogue's copy limits and rules
  * stand for them. Keywords count as VS Data's checker counts them, spelled exactly, so an apostrophe spelled differently
  * on the unit and in the limit still leaves the unit unheld.
- * - A unit its faction limits by its own name, which VS Data's unit does not carry. Marneus Calgar's goes once the
- *   release with richardsolomou/vs-data#226 is pinned; the Emperor's Champion's once the release after it spells his
- *   keyword as the Black Templars limit does.
+ * - A unit its faction limits by its own name, which VS Data's unit does not carry, as the Emperor's Champion until VS
+ *   Data spells his keyword as the Black Templars limit does (richardsolomou/vs-data#226).
  * - A unit holding a keyword of a faction limit no unit can count, as Commissar Graves beside Commissar Graves on Foot
  *   or Commander Farsight beside an Ethereal. It goes once `vsDataRoster.ts` reads the alternative limits
  *   richardsolomou/vs-data#227 adds.

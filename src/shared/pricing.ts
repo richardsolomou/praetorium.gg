@@ -797,8 +797,8 @@ function calculateRoster(
   const vsChecked = vsDataCheck(loaded.vsRoster, data, checkedUnits)
   const vsData = vsChecked?.errors ?? null
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
-  // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
-  // the catalogue's total counts every unit.
+  // chapter or the Unaligned Forces fortifications. Where it also counts a datasheet VS Data's limit doesn't list, as a
+  // Crucible daemon, both messages show, and only the catalogue's total counts every unit.
   const keyOf = new Map(picked.map((unit) => [catalogueTreeOf(unit), unit.key]))
   // A pick costs what the list pays for it; anything else in a force, what the catalogue charges.
   const pointsOf = (selection: Selection) => {

@@ -11,6 +11,8 @@ const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const blackTemplars = '36d3-36bc-68dd-40ac'
 const assaultBrethren = '549e-86b2-b786-c802'
 const emperorsChampion = 'ce18-4cb9-c844-c869'
+const ultramarines = '4029-9237-e8db-af55'
+const marneusCalgar = '984d-c25b-86dd-9970'
 
 describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('the Emperor’s Champion fielded by VS Data', () => {
   let loaded: LoadedCatalogue
@@ -25,5 +27,24 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('the Empero
     const pick = { entryId: emperorsChampion, vs: vsFirstPickOf(loaded, list, emperorsChampion) }
     const { errors } = calculateRosterPrice({ ...list, disposition: null, limit: 2000, units: [pick, pick] }, loaded, rules)!
     expect(errors.map((error) => `${error.entryName}: ${error.message}`)).toContain("Emperor's Champion: allows at most 1, has 2")
+  })
+})
+
+describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Marneus Calgar fielded by VS Data', () => {
+  let loaded: LoadedCatalogue
+  let rules: LoadedRules | null
+
+  beforeAll(() => {
+    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+  })
+
+  it('is held by VS Data’s limit on his name keyword alone', () => {
+    const list = { catalogueId: ultramarines, detachmentIds: [assaultBrethren] }
+    const pick = { entryId: marneusCalgar, vs: vsFirstPickOf(loaded, list, marneusCalgar) }
+    const { errors } = calculateRosterPrice({ ...list, disposition: null, limit: 2000, units: [pick, pick] }, loaded, rules)!
+    expect(errors.flatMap((error) => (error.entryName === 'Marneus Calgar' ? [error.message] : []))).toEqual([
+      'is limited to 1 per roster',
+      'a roster holds at most 1 MARNEUS CALGAR units',
+    ])
   })
 })
