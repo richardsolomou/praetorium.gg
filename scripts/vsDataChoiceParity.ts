@@ -154,8 +154,8 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
   {
     check: 'wargear counts',
     units: /^Seraphim Squad$/,
-    detail: /^ministorum-hand-flamer:/,
-    why: 'the app (build 995) gives Seraphim 8 hand flamers at 10 models',
+    detail: /^(ministorum-hand-flamer|inferno-pistol):/,
+    why: 'the app (build 995) gives Seraphim 8 hand flamers or inferno pistols at 10 models',
   },
   {
     check: 'wargear counts',
@@ -206,6 +206,25 @@ const RULED: { check: string; units: RegExp | ReadonlySet<string>; detail: RegEx
     units: /^black-templars\.emperors-champion$/,
     detail: /.*/,
     why: 'the Emperor’s Champion’s own BSData entry prints VS Data’s keywords; only its Anointed copy differs',
+  },
+  {
+    check: 'wargear counts',
+    units: /^death-guard\.helbrute$/,
+    detail: /^heavy-flamer:/,
+    why: 'the card gives a Death Guard Helbrute with two fists up to 2 heavy flamers',
+  },
+  {
+    check: 'wargear counts',
+    units: /^tau-empire\.taunar-supremacy-armour$/,
+    detail: /^nexus-missile-launcher:/,
+    why: 'the card gives the Ta’unar 2 nexus missile launchers',
+  },
+  {
+    check: 'datasheet',
+    units: /^genestealer-cults\.achilles-ridgerunners$/,
+    detail:
+      /^characteristics or abilities differ with genestealer-cults\.achilles-ridgerunners\.spotter with genestealer-cults\.achilles-ridgerunners\.survey-augur, which loses Survey Augur$/,
+    why: 'the card lets any number of Ridgerunners take each swap, which the catalogue’s one group cannot hold together',
   },
   {
     check: 'sizes',
@@ -301,7 +320,10 @@ function bsdataReach(unit: Priced, vsKeys: ReadonlySet<string>, allegiances: Rea
   return reach
 }
 
-/** The VS Data unit's reach. */
+/**
+ * The VS Data unit's reach, from its first fielding and from no choice taken: a choice the first fielding makes, as the
+ * two lascannons a Havoc squad starts with, gives its carriers back to the other choices when the player lets it go.
+ */
 function vsReach(picked: VsRosterUnit) {
   const reach = reached()
   const keysOf = (id: string) => {
@@ -309,13 +331,15 @@ function vsReach(picked: VsRosterUnit) {
     leaves(definitions, id, 1, found)
     return found
   }
-  const held = new Set([...carried(definitions, picked)].flatMap(([id, n]) => (n > 0 ? [...keysOf(id).keys()] : [])))
-  for (const key of held) reach.names.add(key)
-  for (const option of vsUnitOptions(definitions, picked))
-    for (const choice of option.choices)
-      for (const [key, k] of keysOf(choice.id))
-        if (held.has(key)) reach.names.add(key)
-        else offer(reach, key, k * choice.most)
+  for (const unit of [picked, { ...picked, options: {} }]) {
+    const held = new Set([...carried(definitions, unit)].flatMap(([id, n]) => (n > 0 ? [...keysOf(id).keys()] : [])))
+    for (const key of held) reach.names.add(key)
+    for (const option of vsUnitOptions(definitions, unit))
+      for (const choice of option.choices)
+        for (const [key, k] of keysOf(choice.id))
+          if (held.has(key)) reach.names.add(key)
+          else offer(reach, key, k * choice.most)
+  }
   return reach
 }
 
