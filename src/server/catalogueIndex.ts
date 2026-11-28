@@ -9,7 +9,7 @@ import {
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
-import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import { textOfFactsKey, type TextFacts, type TextFactsByKey } from '../core/textFacts'
 import { vsDataTextFacts } from './vsDataEffects'
 import { combatOfVsDataOrWords } from '../shared/vsDataEffects'
 import { combatRuleRoles } from '../core/combatRules'
@@ -136,12 +136,16 @@ export function* loadCatalogueSteps(
   const shown = texts.withTwins(twins)
   holding = shown
   const shownCards = withoutTwinSearch(datacards)
-  const readFacts = new Map<string, TextFacts>()
+  const readFacts = new Map<string, TextFacts | undefined>()
   const factsOf = (key: string) => {
-    const facts = withLegality(effects!.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))
+    // A text's facts for one rule or profile holding it are recorded only where its holders read differently.
+    const text = textOfFactsKey(key)
+    const read = effects!.get(key)
+    if (!read && text !== key) return undefined
+    const facts = withLegality(read ?? NO_FACTS, shown.fact(text) ?? cardFacts?.get(text))
     const vsData = facts.combat
     const roles = () => {
-      const said = shown.said(key) ?? cards.textWords?.(key)
+      const said = shown.said(text) ?? cards.textWords?.(text)
       return said === undefined ? [] : combatRuleRoles(said)
     }
     let combat: TextFacts['combat']

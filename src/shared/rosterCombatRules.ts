@@ -343,8 +343,9 @@ function rosterCombatRules(
   ]
   const supportKeywords = [sheet.keywords]
   const models = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models
-  const recordedCombat = (description: string) => combatFactsIn(description, loaded.index.textFacts)
-  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>) => {
+  const recordedCombat = (description: string, holder?: string) => combatFactsIn(description, loaded.index.textFacts, holder)
+  /** `holder` is the datasheet rule or profile the description is, which identical words on another datasheet may not read alike. */
+  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>, holder?: string) => {
     const placed: CombatRule = {
       ...rule,
       appliedDefences: (['save', 'invulnerable-save', 'toughness'] as const).filter(
@@ -359,7 +360,7 @@ function rosterCombatRules(
     }
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
-    const recorded = recordedCombat(rule.description)
+    const recorded = recordedCombat(rule.description, holder)
     // A token without combat facts does something unknown, which the simulator lists as not calculated.
     if (recorded === undefined && hasTextTokens(rule.description)) {
       candidates.push({ ...placed, keywords: sheet.keywords })
@@ -391,6 +392,7 @@ function rosterCombatRules(
           ),
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
+      ability.id,
     )
   }
   for (const { unit, source } of others) {
@@ -407,6 +409,7 @@ function rosterCombatRules(
           ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
         },
         { origin: 'support', attached: attached.includes(unit.pickIndex) },
+        ability.id,
       )
     }
   }

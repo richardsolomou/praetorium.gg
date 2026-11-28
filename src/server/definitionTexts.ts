@@ -1,7 +1,7 @@
 import type { CatalogueFile } from '../core/catalogue'
 import { datasheetCharacteristicKind, datasheetProfileKind, weaponShaped } from '../core/datasheetStructure'
 import { resolvedText, textKey, textToken, textTokensIn } from '../core/sourceText'
-import type { TextFacts } from '../core/textFacts'
+import { heldFactsKey, type TextFacts } from '../core/textFacts'
 import { remember } from '../core/collections'
 import { paragraphsOf } from '../shared/datacards'
 import type { DefinitionTexts, LoadedCatalogue } from '../shared/catalogueIndex'
@@ -235,10 +235,9 @@ function withRulesTokens(file: CatalogueFile, textTypes: ReadonlySet<string>, sw
  * sentence, so only references to known rules travel.
  */
 export function downloadedDefinitionFacts(loaded: LoadedCatalogue) {
-  const keys = new Set([
-    ...loaded.definitions!.facts().keys(),
-    ...(loaded.datacards.textFacts ? [...loaded.datacards.textFacts.keys()] : []),
-  ])
+  const texts = [...loaded.definitions!.facts().keys(), ...(loaded.datacards.textFacts ? [...loaded.datacards.textFacts.keys()] : [])]
+  const held = texts.flatMap((key) => (loaded.definitions!.holders?.(key) ?? []).map((holder) => heldFactsKey(key, holder.id)))
+  const keys = new Set([...texts, ...held])
   return new Map(
     [...keys].flatMap((key) => {
       const facts = loaded.index.textFacts?.get(key)
