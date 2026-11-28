@@ -18,6 +18,17 @@ it('bolds the keywords a transport carries, as BSData prints them', () => {
   ])
 })
 
+it('counts one model of an allowance in the singular', () => {
+  expect(
+    unitTransport({
+      sizes: [],
+      models: [],
+      options: [],
+      transport: { loads: [[{ count: 'models', limit: 1, selectors: ['DREADNOUGHT'] }]] },
+    })[0],
+  ).toEqual([{ text: 'Carries 1 ' }, { text: 'DREADNOUGHT', bold: true }, { text: ' model.' }])
+})
+
 it('lists the limits on an option’s choices under what the option allows', () => {
   expect(
     unitOption({
