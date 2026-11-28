@@ -2,7 +2,10 @@ import type { PointsCost, VsDataDefinitions } from '../core/vsDataConstruction'
 import { circumstance, costRowFor, pointsAt } from '../core/vsDataPoints'
 import type { MfmUnit } from './mfm'
 
-type Tier = { copies: { from: number; to?: number }; costs: { models: number; points: number; composition?: string }[] }
+type Tier = {
+  copies: { from: number; to?: number }
+  costs: { models: number; points: number; composition?: string; mix?: Readonly<Record<string, number>> }[]
+}
 
 /**
  * A rules version's VS Data prices, by the BSData IDs its saved lists hold: each datasheet VS Data defines with the
@@ -87,21 +90,36 @@ export function vsPointsIndex(
       copies: tier.copies,
       costs: tier.costs.flatMap((cost) => {
         const points = priced(cost.points)
-        return points === null ? [] : [{ models: cost.models, points, ...(cost.composition ? { composition: cost.composition } : {}) }]
+        return points === null
+          ? []
+          : [
+              {
+                models: cost.models,
+                points,
+                ...(cost.composition ? { composition: cost.composition } : {}),
+                ...(cost.mix ? { mix: cost.mix } : {}),
+              },
+            ]
       }),
     }))
     const wargear = (row.wargear ?? []).flatMap((item) => {
       const points = priced(item.points)
       return points === null ? [] : [{ item: definitions.get('wargear', item.item)?.name ?? item.item, points }]
     })
-    // A size priced by its mix of models, which the field manual's shape cannot say, leaves the datasheet to it.
+    // A size priced by a mix of models no `mix` names, which the field manual's shape cannot say, leaves the datasheet to
+    // it; one whose rows give their mixes leaves only that size unpriced, for a pick read by its size alone.
     if (
       tiers.some((tier) =>
         tier.costs.some(
           (cost) =>
             !circumstance(cost.composition) &&
             tier.costs.some(
-              (other) => other !== cost && other.models === cost.models && !circumstance(other.composition) && other.points !== cost.points,
+              (other) =>
+                other !== cost &&
+                other.models === cost.models &&
+                !circumstance(other.composition) &&
+                other.points !== cost.points &&
+                !(cost.mix && other.mix),
             ),
         ),
       )

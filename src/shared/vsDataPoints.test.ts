@@ -14,6 +14,7 @@ const definitions = vsDataDefinitions({
       'host.tank': record('Tank', { faction: 'host', keywords: [], sizes: [1] }),
       'host.relic-tank': record('Relic Tank', { faction: 'host', keywords: [], sizes: [1], legends: true }),
       'host.pack': record('Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
+      'host.mixed-pack': record('Mixed Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
     },
   },
   points: [
@@ -53,6 +54,20 @@ const definitions = vsDataDefinitions({
                 },
               ],
             },
+            {
+              id: 'host.mixed-pack',
+              name: 'Mixed Pack',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { models: 3, points: 60 },
+                    { models: 6, points: 115, mix: { 'host.mixed-pack.hunter': 3, 'host.mixed-pack.hound': 3 } },
+                    { models: 6, points: 170, mix: { 'host.mixed-pack.hunter': 6 } },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -64,6 +79,7 @@ const names: Record<string, string> = {
   'bs-relic': 'Relic Tank [Legends]',
   'bs-banner': 'Banner',
   'bs-pack': 'Pack',
+  'bs-mixed-pack': 'Mixed Pack',
   'bs-shared': 'Shared Tank',
   'bs-gone': 'Gone Tank',
 }
@@ -76,6 +92,7 @@ const index = vsPointsIndex(
       'bs-tank': 'host.tank',
       'bs-relic': 'host.relic-tank',
       'bs-pack': 'host.pack',
+      'bs-mixed-pack': 'host.mixed-pack',
       'bs-shared': 'host.tank',
       'bs-other/bs-shared': 'host.relic-tank',
       'bs-gone': 'host.tank',
@@ -116,6 +133,10 @@ describe('vsMfmUnit', () => {
 
   it('leaves a datasheet whose price at a size turns on its mix of models to the field manual', () => {
     expect(vsMfmUnit(index, 'bs-host', 'bs-pack')).toBeNull()
+  })
+
+  it('prices a datasheet whose mixed size gives each row’s mix from VS Data at its other sizes', () => {
+    expect(vsMfmUnit(index, 'bs-host', 'bs-mixed-pack')?.pricing[0]?.costs).toEqual([{ models: 3, points: 60 }])
   })
 
   it('prices a Warhammer Legends datasheet from VS Data', () => {
