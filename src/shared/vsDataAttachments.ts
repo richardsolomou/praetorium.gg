@@ -6,22 +6,27 @@ import { idsIn, type VsDataIds } from './vsDataPoints'
 
 const ROLE = { leads: 'leader', supports: 'support' } as const
 
+const AGENTS_LEGENDS_SQUADS = [
+  'imperial-agents.deathwatch-terminator-squad',
+  'imperial-agents.fortis-kill-team',
+  'imperial-agents.indomitor-kill-team',
+  'imperial-agents.spectrus-kill-team',
+]
+
 /**
- * Joiners whose VS Data hosts are known wrong or still unsettled, which keep the catalogue's hosts VS Data does not name:
- * the Regimental Attachés' join and the Crisis Commander's misprinted host until richardsolomou/vs-data#228 releases,
- * the Deathwatch leaders until richardsolomou/vs-data#ISSUE settles their hosts, and the Crucible Node and Prime
- * Organisms' Raveners, which only the catalogue gives, until richardsolomou/vs-data#ISSUE settles them.
+ * Joiners whose VS Data hosts are known wrong or unsettled, which keep the catalogue's reading of every host VS Data does
+ * not name, or of these: the Regimental Attachés' join, the Crisis Commander's misprinted host and the Watch Masters'
+ * Legends squads until richardsolomou/vs-data#228 releases, and the Crucible Node and Prime Organisms' Raveners, which
+ * only the catalogue gives, until richardsolomou/vs-data#ISSUE settles them.
  */
-const CATALOGUE_HOSTS = new Set([
-  'astra-militarum.regimental-attaches',
-  'tau-empire.commander-in-crisis-battlesuit',
-  'imperial-agents.watch-master',
-  'imperial-agents.watch-captain-artemis',
-  'imperial-agents.inquisitor-eisenhorn',
-  'imperial-agents.inquisitor-in-terminator-armour',
-  'tyranids.node-organism',
-  'tyranids.prime-organism',
-])
+const CATALOGUE_HOSTS: Readonly<Record<string, true | readonly string[]>> = {
+  'astra-militarum.regimental-attaches': true,
+  'tau-empire.commander-in-crisis-battlesuit': true,
+  'imperial-agents.watch-master': AGENTS_LEGENDS_SQUADS,
+  'imperial-agents.watch-captain-artemis': AGENTS_LEGENDS_SQUADS,
+  'tyranids.node-organism': true,
+  'tyranids.prime-organism': true,
+}
 
 /**
  * Who each datasheet may join in one rules version, from VS Data's attachment records, by the BSData entry IDs saved
@@ -126,8 +131,9 @@ export function vsAttachmentsIndex(
     if (!resolved.has(unit)) resolved.set(unit, attachmentOf(record.data))
     const found = resolved.get(unit)
     // A joiner VS Data has no roster definition of yet, as a copied Crucible datasheet, keeps the catalogue's hosts too.
-    const settled = !CATALOGUE_HOSTS.has(unit) && definitions.get('unit', unit)
-    if (found) attachments[entryId] = settled ? found : { ...found, catalogueHosts: true }
+    const kept = CATALOGUE_HOSTS[unit] ?? (definitions.get('unit', unit) ? undefined : true)
+    if (found)
+      attachments[entryId] = kept ? { ...found, catalogueHosts: kept === true ? true : [...new Set(kept.flatMap(namesOf))] } : found
   }
   return attachments
 }

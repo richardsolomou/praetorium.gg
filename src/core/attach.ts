@@ -67,8 +67,8 @@ export type VsAttachment = {
   joins?: AttachmentJoin[]
   /** As a bodyguard, the attachments it takes beyond the core one leader and one support unit. */
   capacity?: VsCapacity
-  /** The catalogue's hosts VS Data does not name stay, where VS Data's hosts for this joiner are known wrong or unsettled. */
-  catalogueHosts?: true
+  /** The catalogue's hosts VS Data does not name stay, all of them or these, where VS Data's are known wrong or unsettled. */
+  catalogueHosts?: true | string[]
 }
 
 /**
@@ -314,8 +314,12 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined, h
   }
 }
 
-const deferredOf = (vsData: VsAttachment, hosts: ReadonlySet<string>) =>
-  vsData.catalogueHosts ? new Set(vsData.named.map(normalizedName)) : new Set([...vsData.named.map(normalizedName), ...hosts])
+function deferredOf(vsData: VsAttachment, hosts: ReadonlySet<string>) {
+  const named = vsData.named.map(normalizedName)
+  if (vsData.catalogueHosts === true) return new Set(named)
+  const kept = new Set((vsData.catalogueHosts ?? []).map(normalizedName))
+  return new Set([...named, ...hosts].filter((host) => !kept.has(host)))
+}
 
 /**
  * The attachment a datasheet page shows: its ability text, or failing that its unselected associations, with every host
