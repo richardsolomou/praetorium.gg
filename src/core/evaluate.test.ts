@@ -1550,8 +1550,12 @@ describe('a pick VS Data checks and prices', () => {
     const vs = { id: 'immortals' }
     const other = { id: 'immortals' }
     expect(
-      evaluateForces([[vs, other]], indexOf(cappedBook(1)), {}, { checked: new Set([vs, other]), priced: new Set(), ownLimits: true })
-        .errors,
+      evaluateForces(
+        [[vs, other]],
+        indexOf(cappedBook(1)),
+        {},
+        { checked: new Set([vs, other]), priced: new Set(), ownLimits: new Set([vs, other]) },
+      ).errors,
     ).toHaveLength(2)
   })
 })
