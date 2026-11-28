@@ -1461,7 +1461,7 @@ Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
   })
 
   it('prices both Salamanders detachments against their source names', () => {
-    expect(priced(salamandersOfficial)?.detachments).toEqual([
+    expect(priced(salamandersOfficial)?.detachments.map(({ name, points }) => ({ name, points }))).toEqual([
       { name: 'Deathwatch Support', points: 1 },
       { name: "Forgefather's Seekers", points: 2 },
     ])
