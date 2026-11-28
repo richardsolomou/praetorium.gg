@@ -75,6 +75,61 @@ function vsDataPlacement(data: VsRosterData | undefined, list: { catalogueId: st
   return { ...placed, detachments }
 }
 
+/** A keyword as a name reads, so a limit naming a unit is found whichever apostrophe either spells it with. */
+const asName = (text: string) => text.toUpperCase().replaceAll('’', "'")
+/** Faction keyword limits no unit VS Data defines could count, as one naming alternatives it reads as all of them. */
+const unholdableLimits = new WeakMap<object, Set<object>>()
+
+/**
+ * The list's units (by `CheckedUnit.key`) that VS Data's own limits cannot hold, so the catalogue's copy limits and rules
+ * stand for them. Keywords count as VS Data's checker counts them, spelled exactly, so an apostrophe spelled differently
+ * on the unit and in the limit still leaves the unit unheld.
+ * - A unit its faction limits by its own name, which VS Data's unit does not carry. Marneus Calgar's goes once the
+ *   release with richardsolomou/vs-data#226 is pinned; the Emperor's Champion's once the release after it spells his
+ *   keyword as the Black Templars limit does.
+ * - A unit holding a keyword of a faction limit no unit can count, as Commissar Graves beside Commissar Graves on Foot
+ *   or Commander Farsight beside an Ethereal. It goes once `vsDataRoster.ts` reads the alternative limits
+ *   richardsolomou/vs-data#227 adds.
+ */
+export function vsDataUnheld(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  units: readonly Pick<CheckedUnit, 'key' | 'entryId' | 'name' | 'vs'>[],
+): Set<number> {
+  const placed = vsDataPlacement(data, list)
+  if (!data || !placed) return new Set()
+  const { definitions } = placed
+  const limits = placed.record?.unitLimits ?? []
+  const unholdable = remember(
+    unholdableLimits,
+    limits,
+    () =>
+      new Set<object>(
+        limits.filter(
+          (limit) =>
+            !definitions.all('unit').some((unit) => {
+              const held = new Set(unit.data.keywords ?? [])
+              return limit.keywords.every((wanted) => held.has(wanted))
+            }),
+        ),
+      ),
+  )
+  return new Set(
+    units.flatMap((unit) => {
+      const record = definitions.get('unit', unit.vs?.unit ?? vsDataChecks(data, list.catalogueId, unit) ?? '')
+      if (!record) return []
+      const name = asName(record.name)
+      const held = new Set(record.data.keywords ?? [])
+      const unheld = limits.some(
+        (limit) =>
+          limit.keywords.some((wanted) => asName(wanted) === name && !held.has(wanted)) ||
+          (unholdable.has(limit) && limit.keywords.some((wanted) => held.has(wanted))),
+      )
+      return unheld ? [unit.key] : []
+    }),
+  )
+}
+
 /**
  * The list's units (by `CheckedUnit.key`) that VS Data's checker counts towards an ally points limit at the list's battle
  * size: each joins the first ally entry offering it under one of the list's Detachments, as `checkVsRoster` reads it.
