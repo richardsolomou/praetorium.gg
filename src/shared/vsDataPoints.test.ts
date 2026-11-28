@@ -179,7 +179,7 @@ describe('vsCostRows', () => {
   })
 
   it('labels a row priced by its mix of models with their names', () => {
-    expect(vsCostRows(index, 'bs-host', 'bs-mixed-pack')?.find((row) => row.cost === '115')?.mix).toBe('3 Hunter, 3 Hound')
+    expect(vsCostRows(index, 'bs-host', 'bs-mixed-pack')?.find((row) => row.cost === '115')?.mix).toBe('3 × Hunter, 3 × Hound')
   })
 })
 

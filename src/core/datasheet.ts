@@ -59,7 +59,7 @@ export type Datasheet = {
     detachment: string | null
     /** The army keyword of another army the unit is taken into at this cost, as Imperium is for an Assassin. */
     allied?: string
-    /** The models the row prices the unit as, by name and count, where a size costs by its mix of models. */
+    /** The models the row prices the unit as, "3 × Wolf Guard Headtaker, 3 × Hunting Wolf", where a size costs by its mix of models. */
     mix?: string
     copies?: string
   }[]

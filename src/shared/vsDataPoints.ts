@@ -1,5 +1,6 @@
 import type { PointsCost, VsDataDefinitions } from '../core/vsDataConstruction'
 import { circumstance, costRowFor, pointsAt, sameName } from '../core/vsDataPoints'
+import { modelLine } from './vsDataUnitLines'
 import type { MfmUnit } from './mfm'
 
 type Tier = {
@@ -9,7 +10,7 @@ type Tier = {
     points: number
     composition?: string
     mix?: Readonly<Record<string, number>>
-    /** The models a `mix` holds, by VS Data's names, as "3 Wolf Guard Headtaker, 3 Hunting Wolf". */
+    /** The models a `mix` holds, as a datasheet's composition writes them: "3 × Wolf Guard Headtaker, 3 × Hunting Wolf". */
     mixNames?: string
   }[]
 }
@@ -96,7 +97,7 @@ export function vsPointsIndex(
     // In the order VS Data writes the mix, as its composition reads.
     const mixNames = (mix: Readonly<Record<string, number>>) =>
       Object.entries(mix)
-        .flatMap(([model, n]) => (n ? [`${n} ${definitions.get('model', model)?.name ?? model}`] : []))
+        .flatMap(([model, n]) => (n ? [modelLine(definitions.get('model', model)?.name ?? model, n)] : []))
         .join(', ')
     const tiers = row.tiers.map((tier) => ({
       copies: tier.copies,
