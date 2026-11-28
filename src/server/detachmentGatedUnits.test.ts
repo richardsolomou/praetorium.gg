@@ -3,6 +3,7 @@ import type { Condition } from '../core/catalogue'
 import { bookOf, points } from './catalogue.fixtures'
 import { unitsIn } from '../shared/cataloguePicker'
 import { calculateRosterPrice } from '../shared/pricing'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 const hiddenUnless = (condition: Condition) => [{ field: 'hidden', type: 'set' as const, value: true, conditions: [condition] }]
 
@@ -73,6 +74,36 @@ it('lists a unit a detachment unlocks while no detachment is chosen', () => {
 
 it('keeps listing a unit that every detachment hides alike', () => {
   expect(listed(['gladius'])).toContain('Relic')
+})
+
+it('keeps hiding a unit its detachment unlocks where VS Data offers it under any detachment', () => {
+  const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+  const vsRoster = vsRosterData(
+    {
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'test' },
+      unavailable: [],
+      points: [],
+      definitions: {
+        faction: { chapter: record('Chapter', { allies: [{ units: ['watch.veteran'] }] }), watch: record('Watch', {}) },
+        detachment: { 'chapter.gladius': record('Gladius Task Force', { faction: 'chapter' }) },
+        unit: {
+          'chapter.marine': record('Marine', { faction: 'chapter', sizes: [1] }),
+          'watch.veteran': record('Veteran', { faction: 'watch', sizes: [1] }),
+        },
+      },
+    },
+    {
+      books: { cat: 'chapter' },
+      detachments: { gladius: 'chapter.gladius' },
+      units: { marine: 'chapter.marine', veteran: 'watch.veteran' },
+      enhancements: {},
+    },
+    null,
+    (id) => ({ marine: 'Marine', veteran: 'Veteran' })[id],
+  )
+  const names = unitsIn({ ...loaded, vsRoster }, 'cat', '', { detachmentIds: ['gladius'] }).map((unit) => unit.name)
+  expect(names).not.toContain('Veteran')
 })
 
 it('reports a unit held without the detachment that unlocks it', () => {

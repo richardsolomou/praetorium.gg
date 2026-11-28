@@ -100,6 +100,26 @@ export function vsDataAllyLimited(
   )
 }
 
+/**
+ * The VS Data Detachments whose ally entries offer a datasheet the list's own Detachments don't, as Deathwatch Support
+ * offers Deathwatch to a chapter; null where the list's Detachments offer it or none would, and undefined where VS Data
+ * cannot place the list or doesn't read the datasheet, which leaves the answer to the catalogue.
+ */
+export function vsDataDetachmentsOffering(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[] },
+  unit: Pick<CheckedUnit, 'entryId' | 'name'>,
+): string[] | null | undefined {
+  const placed = vsDataPlacement(data, list)
+  const id = placed ? vsDataChecks(data, list.catalogueId, unit) : undefined
+  if (!placed || !id) return undefined
+  // As `checkVsRoster` reads it, an ally entry binds even a unit of the army's own faction, as Yvraine in an Aeldari army.
+  const offering = (placed.record?.allies ?? []).filter((ally) => ally.units.includes(id))
+  if (offering.some((ally) => !ally.detachments || ally.detachments.some((d) => placed.detachments.includes(d)))) return null
+  const detachments = [...new Set(offering.flatMap((ally) => ally.detachments ?? []))]
+  return detachments.length ? detachments : null
+}
+
 /** Whether VS Data's checker reads the list as a whole, as `vsDataErrors` does wherever it is not null. */
 export const vsDataPlaces = (data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) =>
   vsDataPlacement(data, list) !== null
