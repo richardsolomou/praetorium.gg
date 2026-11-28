@@ -110,7 +110,7 @@ export function localConstruction(catalogueId?: string): Promise<Built | null> {
     value: loadConstructionData(saved.download.construction, catalogueId, read)
       .then((data) => {
         const source = constructionSource(data, catalogueId)
-        return source ? buildConstruction(source) : null
+        return source ? buildConstruction(source, data) : null
       })
       .catch(() => null),
   }

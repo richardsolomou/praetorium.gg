@@ -72,20 +72,21 @@ export function buildPick(
   return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
 }
 
-const savedVersions = new WeakMap<LoadedCatalogue, Map<string, LoadedCatalogue | null>>()
+const savedVersions = new WeakMap<LoadedCatalogue, Map<string, LoadedCatalogue>>()
 
 /**
  * The catalogue as it reads VS Data in another rules version: its own catalogue tree, with that version's roster
  * definitions and points (`vsRosterIn`); none where the host gives no such lookup or holds no release for it.
  */
 export function savedVersionOf(loaded: LoadedCatalogue, rulesVersion: string): LoadedCatalogue | null {
-  const versions = savedVersions.get(loaded) ?? new Map<string, LoadedCatalogue | null>()
+  const versions = savedVersions.get(loaded) ?? new Map<string, LoadedCatalogue>()
   savedVersions.set(loaded, versions)
+  // A version the host has not loaded yet, as a device reading its part, is asked again next time.
   if (!versions.has(rulesVersion)) {
     const vsRoster = loaded.vsRosterIn?.(rulesVersion)
-    versions.set(rulesVersion, vsRoster ? { ...loaded, vsRoster } : null)
+    if (vsRoster) versions.set(rulesVersion, { ...loaded, vsRoster })
   }
-  return versions.get(rulesVersion)!
+  return versions.get(rulesVersion) ?? null
 }
 
 /**
