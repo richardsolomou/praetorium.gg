@@ -240,6 +240,42 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
   constraint.childName ?? index.categories.get(constraint.childId ?? '')?.name ?? ''
 
 /**
+ * What a unit holds of its own, which an association asks about the unit itself, as Murdermind on a Chronomancer or a
+ * Mark of Chaos: its catalogue tree, or for a VS pick what `ownByName` gives without one. `models` is its size, for the
+ * capacity a bodyguard gains as it grows.
+ */
+export type OwnSelections = { holds: (childId: string | undefined, deep: boolean) => boolean; models: () => number }
+
+const ownOf = (selection: Selection | OwnSelections, index: CatalogueIndex): OwnSelections =>
+  'holds' in selection
+    ? selection
+    : { holds: (childId, deep) => selectionHas(selection, childId, deep, index), models: () => modelCountOf(selection, index) }
+
+/**
+ * A unit's own selections read from its datasheet and the names of what it holds, as a VS pick's allegiance, the keywords
+ * that allegiance gives and its Enhancement: a condition on one of its selections holds where that selection's catalogue
+ * entry or keyword bears one of `names`.
+ */
+export function ownByName(definition: Definition, index: CatalogueIndex, names: Iterable<string>, models: number): OwnSelections {
+  const held = new Set([...names].map(ownName))
+  const named = (childId: string) => {
+    const entry = index.definitions.get(childId)
+    return index.categories.get(childId)?.name ?? (entry ? nameOf(entry, index.definitions) : childId)
+  }
+  return {
+    holds: (childId, deep) =>
+      definitionHas(definition, childId, index) || (deep && childId !== undefined && held.has(ownName(named(childId)))),
+    models: () => models,
+  }
+}
+
+/** A selection's name as `ownByName` compares it: its letters and digits alone, without BSData's "upgrade". */
+const ownName = (name: string) =>
+  normalizedName(name)
+    .replace(/\bupgrade\b/g, '')
+    .replace(/[^\p{L}\p{N}]/gu, '')
+
+/**
  * Which units this entry may be attached to, read out of its own ability text and,
  * given a selection, the associations that selection carries.
  *
@@ -249,14 +285,14 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
  * simply cannot be attached, and every name that fails to match a datasheet is
  * dropped rather than guessed at.
  */
-export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection): Attachment | null {
+export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection | OwnSelections): Attachment | null {
   const caches = cachesOf(index)
   const attachment = textAttachmentOf(definition, index)
   const vsData = vsAttachmentOf(definition, index)
   const hosts = vsHostsOf(index)
   if (!selection) return remember(caches.merged, definition, () => withVsData(attachment, vsData, hosts))
 
-  const associated = attachmentFromAssociations(definition, selection, index)
+  const associated = attachmentFromAssociations(definition, ownOf(selection, index), index)
   if (!associated) return remember(caches.merged, definition, () => withVsData(attachment, vsData, hosts))
   return withVsData(
     {
@@ -266,7 +302,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
       ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
       ...(attachment?.swap ? { swap: attachment.swap } : {}),
     },
-    vsData && withUnlockedHosts(vsData, associated, attachmentFromAssociations(definition, { id: definition.id }, index)),
+    vsData && withUnlockedHosts(vsData, associated, attachmentFromAssociations(definition, ownOf({ id: definition.id }, index), index)),
     hosts,
   )
 }
@@ -408,7 +444,7 @@ const datasheetNamesOf = (index: CatalogueIndex) =>
     return { exact, loose }
   })
 
-function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
+function attachmentFromAssociations(definition: Definition, own: OwnSelections, index: CatalogueIndex): Attachment | null {
   const sources = definitionAndTarget(definition, index)
   const associations = sources.flatMap((source) =>
     (source.associations ?? []).flatMap((association) => {
@@ -427,12 +463,10 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
   const found: Attachment[] = []
   for (const { association, kind } of associations) {
     const byAnswers = remember(byAssociation, association, () => new Map<string, string[]>())
-    const answers = selfAnswers(association, selection, index).join('')
+    const answers = selfAnswers(association, own).join('')
     const targets = remember(byAnswers, answers, () =>
       candidates
-        .filter(
-          (candidate) => definitionHas(candidate, association.childId, index) && associationHolds(association, selection, candidate, index),
-        )
+        .filter((candidate) => definitionHas(candidate, association.childId, index) && associationHolds(association, own, candidate, index))
         .map((candidate) => nameOf(candidate, index.definitions)),
     )
     if (targets.length) found.push({ kind, targets })
@@ -449,29 +483,29 @@ const associationKind = (association: Association): Attachment['kind'] | null =>
   return null
 }
 
-function selfAnswers(group: Association | ConditionGroup, selection: Selection, index: CatalogueIndex): number[] {
+function selfAnswers(group: Association | ConditionGroup, own: OwnSelections): number[] {
   return [
     ...(group.conditions ?? []).flatMap((condition) =>
       condition.field === 'selections' && condition.queryFromSelf
-        ? [selectionHas(selection, condition.childId, condition.includeChildSelections === true, index) ? 1 : 0]
+        ? [own.holds(condition.childId, condition.includeChildSelections === true) ? 1 : 0]
         : [],
     ),
-    ...(group.conditionGroups ?? []).flatMap((nested) => selfAnswers(nested, selection, index)),
+    ...(group.conditionGroups ?? []).flatMap((nested) => selfAnswers(nested, own)),
   ]
 }
 
-function associationHolds(association: Association, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
+function associationHolds(association: Association, own: OwnSelections, candidate: Definition, index: CatalogueIndex): boolean {
   const results = [
-    ...(association.conditions ?? []).map((condition) => associationConditionHolds(condition, selection, candidate, index)),
-    ...(association.conditionGroups ?? []).map((group) => associationGroupHolds(group, selection, candidate, index)),
+    ...(association.conditions ?? []).map((condition) => associationConditionHolds(condition, own, candidate, index)),
+    ...(association.conditionGroups ?? []).map((group) => associationGroupHolds(group, own, candidate, index)),
   ]
   return results.length > 0 && results.every(Boolean)
 }
 
-function associationGroupHolds(group: ConditionGroup, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
+function associationGroupHolds(group: ConditionGroup, own: OwnSelections, candidate: Definition, index: CatalogueIndex): boolean {
   const results = [
-    ...(group.conditions ?? []).map((condition) => associationConditionHolds(condition, selection, candidate, index)),
-    ...(group.conditionGroups ?? []).map((nested) => associationGroupHolds(nested, selection, candidate, index)),
+    ...(group.conditions ?? []).map((condition) => associationConditionHolds(condition, own, candidate, index)),
+    ...(group.conditionGroups ?? []).map((nested) => associationGroupHolds(nested, own, candidate, index)),
   ]
   if (!results.length) return false
   const met = results.filter(Boolean).length
@@ -483,12 +517,11 @@ function associationGroupHolds(group: ConditionGroup, selection: Selection, cand
   return false
 }
 
-function associationConditionHolds(condition: Condition, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
+function associationConditionHolds(condition: Condition, own: OwnSelections, candidate: Definition, index: CatalogueIndex): boolean {
   let measured: number
   if (condition.field === 'associations') measured = 0
   else if (condition.field !== 'selections') return false
-  else if (condition.queryFromSelf)
-    measured = selectionHas(selection, condition.childId, condition.includeChildSelections === true, index) ? 1 : 0
+  else if (condition.queryFromSelf) measured = own.holds(condition.childId, condition.includeChildSelections === true) ? 1 : 0
   else measured = definitionHas(candidate, condition.childId, index) ? 1 : 0
 
   if (condition.type === 'instanceOf') return measured > 0
@@ -711,10 +744,10 @@ export type AttachmentRefusal<T> =
   | { rule: 'exclusive'; holder: T }
 
 /** The attachment facts of a datasheet in a list, read once for both judging and the client. */
-export function attachmentPartyOf(definition: Definition, index: CatalogueIndex, selection?: Selection) {
+export function attachmentPartyOf(definition: Definition, index: CatalogueIndex, selection?: Selection | OwnSelections) {
   const attachment = attachmentOf(definition, index, selection)
   const limits = withVsCapacity(attachmentLimitsOf(definition, index), vsAttachmentOf(definition, index)?.capacity)
-  const models = selection && limits.growths ? modelCountOf(selection, index) : 0
+  const models = selection && limits.growths ? ownOf(selection, index).models() : 0
   const grown = (kind: Attachment['kind']) =>
     limits[kind] +
     (limits.growths ?? []).reduce((more, growth) => more + (growth.kind === kind && models >= growth.models ? growth.more : 0), 0)
@@ -854,7 +887,7 @@ const titleCaseKeywords = (keywords: readonly string[]) =>
 export function attachmentErrors(
   units: readonly { entryId: string; attachedTo?: number }[],
   index: CatalogueIndex,
-  selections: readonly (Selection | undefined)[] = [],
+  selections: readonly (Selection | OwnSelections | undefined)[] = [],
   /** Each unit's keyword names in this list, by position. */
   keywords: readonly (readonly string[] | undefined)[] = [],
   detachmentIds: readonly string[] = [],

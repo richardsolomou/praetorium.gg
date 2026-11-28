@@ -1,9 +1,10 @@
+import { ownByName, type OwnSelections } from '../core/attach'
 import type { BattleSize } from '../core/battleFormat'
 import { remember } from '../core/collections'
 import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core/roster'
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
-import { steppedSizes } from '../core/vsDataBuild'
+import { steppedSizes, type VsBuiltUnit } from '../core/vsDataBuild'
 import { countedKeywordsOf, priceVsRoster, type VsRoster } from '../core/vsDataRoster'
 import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -28,6 +29,27 @@ export function vsUnitIdOf(loaded: LoadedCatalogue, catalogueId: string, entryId
   const id = inBook(loaded.vsRoster?.units, catalogueId, entryId)
   const definitions = vsDefinitionsOf(loaded)
   return id && definitions?.get('unit', id) && !definitions.unavailable.has(id) && definitions.modelsOf(id).length ? id : undefined
+}
+
+/**
+ * What a VS pick holds of its own, as its catalogue associations ask about it, read from VS Data rather than a catalogue
+ * tree: its allegiance with the keywords that allegiance gives, its Enhancement, and its size.
+ */
+export function vsOwnSelections(loaded: LoadedCatalogue, entryId: string, vs: VsBuiltUnit): OwnSelections | undefined {
+  const definition = loaded.index.definitions.get(entryId)
+  const definitions = vsDefinitionsOf((vs.rulesVersion && savedVersionOf(loaded, vs.rulesVersion)) || loaded)
+  if (!definition || !definitions) return undefined
+  const { allegiance, enhancement } = vs.unit
+  const sworn = allegiance
+    ? [
+        definitions.get('allegiance', allegiance)?.name ?? allegiance,
+        ...(definitions.get('unit', vs.unit.unit)?.data.conditionalKeywords ?? []).flatMap((given) =>
+          given.when.allegiance === allegiance ? given.keywords : [],
+        ),
+      ]
+    : []
+  const enhanced = enhancement ? [definitions.get('enhancement', enhancement)?.name ?? enhancement] : []
+  return ownByName(definition, loaded.index, [...sworn, ...enhanced], vs.size.models)
 }
 
 /** The VS Data IDs a list of `catalogueId` with `detachmentIds` reads as, the IDs VS Data does not know left out. */
