@@ -33,9 +33,7 @@ const shieldHosts = [
 ]
 
 it('explains why a detachment sharing a one-per-army limit with a chosen one is unavailable', () => {
-  expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe(
-    "Can't be taken with Aquilan Shield: only one Shield Host detachment",
-  )
+  expect(detachmentConflict(shieldHosts[1]!, [shieldHosts[0]!])).toBe("Can't be taken with Aquilan Shield: only one Shield Host detachment")
 })
 
 it('offers a detachment that shares no limit with the chosen ones', () => {
