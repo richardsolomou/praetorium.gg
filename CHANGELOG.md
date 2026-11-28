@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.280.33 (2026-11-28)
+
+### Patch Changes
+
+- a22ebb5: [rosters] Printed datasheets now show the enhancements and upgrades each unit carries, with rules summaries where available.
+- a22ebb5: [rosters] Printed rosters now show the army’s points total and limit and which transport each embarked unit starts in.
+
 ## 0.280.32 (2026-11-28)
 
 ### Patch Changes
