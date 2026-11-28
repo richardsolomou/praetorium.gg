@@ -324,6 +324,20 @@ function unitPointsOf(
   return { points, adjustment }
 }
 
+/** Each pick read in its saved rules version, said once: the list's own checks read it by its datasheet alone. */
+function savedVersionNotes(loaded: LoadedCatalogue, picked: readonly { name: string; vs?: BuiltUnit['vs'] }[]) {
+  const current = loaded.vsRoster?.construction.rulesVersion.update
+  return picked.flatMap((unit) => {
+    const rulesVersion = unit.vs?.rulesVersion
+    const saved = rulesVersion ? savedVersionOf(loaded, rulesVersion)?.vsRoster?.construction.rulesVersion.update : undefined
+    return saved && current
+      ? [
+          `${unit.name} is kept as saved under ${saved}, since ${current} no longer has its loadout. Remove it and add it again to field it under ${current}.`,
+        ]
+      : []
+  })
+}
+
 /** What is wrong with a pick read in its saved rules version, by that version's VS Data: its own models and wargear. */
 function savedVersionErrors(
   loaded: LoadedCatalogue,
@@ -1031,6 +1045,7 @@ function calculateRoster(
     unhandled: [
       ...whole.unhandled,
       ...pointCapResult.unhandled.filter((note) => !whole.unhandled.includes(note)),
+      ...savedVersionNotes(loaded, picked),
       ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
     ],
     selections,

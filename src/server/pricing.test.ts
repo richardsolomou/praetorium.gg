@@ -1920,11 +1920,11 @@ describe('a datasheet VS Data prices', () => {
 describe('a pick saved in an earlier rules version its list no longer holds', () => {
   const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
   /** One rules version's VS Data, its squad fielding `model` at `points`. */
-  const version = (model: string, points: number) =>
+  const version = (update: string, model: string, points: number) =>
     vsRosterData(
       {
         release: 'test',
-        rulesVersion: { edition: '11th', update: 'test' },
+        rulesVersion: { edition: '11th', update },
         unavailable: [],
         points: [
           {
@@ -1948,10 +1948,10 @@ describe('a pick saved in an earlier rules version its list no longer holds', ()
       null,
       (id) => (id === 'squad' ? 'Squad' : undefined),
     )
-  const legacy = version('veteran', 90)
+  const legacy = version('MFM 1.4', 'veteran', 90)
   const loaded = {
     ...bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: pointsCost(100) }] }),
-    vsRoster: version('trooper', 80),
+    vsRoster: version('MFM 1.6', 'trooper', 80),
     vsRosterIn: (rulesVersion: string) => (rulesVersion === 'legacy' ? legacy : null),
   }
   const price = (veterans: number) =>
@@ -1970,6 +1970,12 @@ describe('a pick saved in an earlier rules version its list no longer holds', ()
 
   it('costs what its saved rules version charges', () => {
     expect(price(1)?.points).toBe(90)
+  })
+
+  it('says the unit is kept as saved, and how to field it under the current rules', () => {
+    expect(price(1)?.unhandled).toContain(
+      'Squad is kept as saved under MFM 1.4, since MFM 1.6 no longer has its loadout. Remove it and add it again to field it under MFM 1.6.',
+    )
   })
 
   it('is checked by its saved rules version', () => {
