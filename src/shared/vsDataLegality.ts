@@ -49,8 +49,6 @@ export type CheckedUnit = {
   name: string
   size: { models: number; min: number; max: number }
   toggles: readonly Pick<UnitToggle, 'name' | 'selected'>[]
-  /** The unit's keywords as the catalogue reads them in the list. */
-  keywords: readonly string[]
   choices: readonly Pick<UnitChoice, 'name' | 'options'>[]
   /** The unit as VS Data fields it, for a pick by VS Data IDs: VS Data checks it whole, models and wargear included. */
   vs?: VsRosterUnit
@@ -65,7 +63,7 @@ export type VsDataError = { entryId: string; entryName: string; message: string 
  */
 export function vsDataErrors(
   data: VsRosterData | undefined,
-  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  list: { catalogueId: string; detachmentIds: readonly string[]; borrowedDetachmentId?: string | null; limit: number },
   units: readonly CheckedUnit[],
 ): VsDataError[] | null {
   const placed = vsDataBook(data, list.catalogueId)
@@ -133,20 +131,21 @@ export function vsDataErrors(
     units: checked.map(({ read }) => read),
   }
   const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
-  return (
-    checkVsRoster(definitions, roster, unpriced)
-      .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
-      // Saying it takes no Detachment says each one it holds is not its own.
-      .filter((problem) => !without || problem.code !== 'detachment-faction')
-      .flatMap((problem) => described(problem, checked, definitions) ?? [])
-  )
+  const errors = checkVsRoster(definitions, roster, unpriced)
+    .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
+    // Saying it takes no Detachment says each one it holds is not its own.
+    .filter((problem) => !without || problem.code !== 'detachment-faction')
+    .flatMap((problem) => described(problem, checked, definitions) ?? [])
+  // A faction that takes no Detachment borrows none either, King of the Colosseum's borrowed disposition included.
+  const borrows = without && list.borrowedDetachmentId && !errors.some((error) => error.message === 'takes no Detachment')
+  return borrows ? [...errors, { entryId: 'army', entryName: 'Army', message: 'takes no Detachment' }] : errors
 }
 
 /**
  * The VS Data faction a book's lists are checked as, with the factions whose units and Detachments are its own, and its
  * `withoutDetachments`; null where VS Data cannot place its lists, which leaves them to the catalogue's checks. That is a
  * book with no VS Data faction, one with neither Detachments of its own nor `withoutDetachments`, and one none of whose
- * datasheets reads as its own, as Titanicus Traitoris's read as the Imperial Titans they share BSData IDs with.
+ * datasheets reads as its own.
  */
 export function vsDataBook(data: VsRosterData | undefined, catalogueId: string) {
   if (!data) return null
@@ -374,8 +373,8 @@ export function vsDataEnhancementOptions(data: VsRosterData | undefined, detachm
  * The VS Data unit a list's datasheet is checked as, or undefined where the catalogue checks it: a datasheet VS Data
  * defines no unit for, or one it files under a faction the army neither is nor allies with where that may only mean VS
  * Data cannot name it there. That is a Warhammer Legends or Crucible datasheet, which the app's ally lists cannot name,
- * as a fortification, an Aeldari Legends hero or a Crucible Deathwatch Agent; and a Titan, as the Chaos Titans a chaos
- * army allies with share their BSData IDs with the Imperial Titans VS Data reads them as.
+ * as a fortification, an Aeldari Legends hero or a Crucible Deathwatch Agent; and a unit of a faction that takes no
+ * Detachment, as a Titan, which a book can link where its faction's ally lists do not name it.
  */
 export function vsDataChecks(
   data: VsRosterData | undefined,

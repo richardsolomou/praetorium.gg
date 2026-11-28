@@ -11,7 +11,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { type FormatRule, waivedFormatRules } from '../../core/battle'
+import { type BattleSize, type FormatRule, waivedFormatRules } from '../../core/battle'
+import { useBattleSizes } from './battleSizes'
 import { countLabel } from '../text'
 import { buttonClass } from './buttonClass'
 
@@ -26,9 +27,11 @@ import { buttonClass } from './buttonClass'
  * four places that name a restriction all name it the same way.
  */
 export function rosterWaivers(
-  roster: { limit: number; pointsBudget?: number | null; waivedRules?: readonly string[] | null } | null | undefined,
+  roster: { limit: number; pointsBudget?: number | null; waivedRules?: readonly string[] | null; catalogueId?: string } | null | undefined,
+  /** The battle sizes the list's rules version records, which a restriction's description reads its allowance from. */
+  sizes?: readonly BattleSize[],
 ): FormatRule[] {
-  return roster ? waivedFormatRules(roster.limit, roster.waivedRules ?? [], roster.pointsBudget) : []
+  return roster ? waivedFormatRules(roster.limit, roster.waivedRules ?? [], roster.pointsBudget, sizes) : []
 }
 
 /** The waived restrictions as one readable list, for a sentence that names them. */
@@ -117,7 +120,7 @@ export function WaiverConfirmDialog<Roster extends WaivingRoster>({
   onCancel: () => void
   onConfirm: (roster: Roster) => void
 }) {
-  const rules = rosterWaivers(roster)
+  const rules = rosterWaivers(roster, useBattleSizes(roster?.catalogueId))
   const one = rules.length === 1
   return (
     <AlertDialog open={roster !== null} onOpenChange={(open) => !open && !pending && onCancel()}>

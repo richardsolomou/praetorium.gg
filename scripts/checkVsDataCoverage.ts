@@ -13,7 +13,7 @@ import { routeSlug } from '../src/core/slug'
 import { canonicalDetachmentName } from '../src/core/detachmentName'
 import { weaponGrantsIn } from '../src/shared/textFacts'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
-import { summaryNamedBy } from '../src/shared/ruleSummaries'
+import { recordsPrinting } from '../src/shared/ruleSummaries'
 import { completeSteps } from '../src/shared/steps'
 import { baselineShortfall } from './lib/baselines'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
@@ -55,7 +55,7 @@ function weaponKeywords(read: VsDataSummaries) {
           shown.set(
             name,
             Boolean(
-              (tokens.length && summaryNamedBy(tokens, ofFile)) ||
+              (tokens.length && recordsPrinting(tokens, ofFile).length) ||
               read.abilities()[`weapon-ability:${slug}`] ||
               read.abilities()[`core-ability:${slug}`],
             ),

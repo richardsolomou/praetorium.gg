@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { fieldedDatasheets, importableLists, matchingLists, unitCounts, type WinningList } from './winningLists'
+import { fieldedDatasheets, finishedLists, importableLists, matchingLists, unitCounts, type WinningList } from './winningLists'
 
 const list = (
   id: string,
@@ -97,4 +97,18 @@ it('shows a list placed at two events once, at the newer one', async () => {
   await fs.writeFile(path.join(directory, 'verdicts.json'), JSON.stringify({ revision: 'r', lists: { [id]: verdict } }))
 
   expect((await importableLists(directory, 'r'))?.map(({ event }) => event.name)).toEqual(['newer'])
+})
+
+it("reads the last finished import's lists while a newer revision's import is part way through", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'winning-lists-'))
+  const id = '79bd96d67c746de718c92002c798f0ce'
+  const { id: _, placing: __, record: ___, event: ____, ...verdict } = list(id, 'x', [])
+  await fs.writeFile(
+    path.join(directory, 'events.json'),
+    JSON.stringify([{ eventId: 'gt', name: 'gt', date: '2026-11-14', players: [{ ranking: 1, record: 'W5 L0 D0', list: id }] }]),
+  )
+  await fs.writeFile(path.join(directory, 'verdicts.json'), JSON.stringify({ revision: 'old', lists: { [id]: verdict } }))
+  await fs.writeFile(path.join(directory, 'verdicts-checking.json'), JSON.stringify({ revision: 'new', lists: {} }))
+
+  expect((await finishedLists(directory))?.lists.map((found) => found.id)).toEqual([id])
 })

@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
+import { useBattleSizes } from '../../components/battleSizes'
 import { dispositionTag, OUTLINE_TAG } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { CornerDownRight, Lock } from 'lucide-react'
@@ -101,7 +102,7 @@ export function RosterSummary({
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
-  const waivers = rosterWaivers(roster)
+  const waivers = rosterWaivers(roster, useBattleSizes(null, faction?.edition?.id))
 
   return (
     // A phone puts the name beside the points and gives the army and details lines the full width beneath; a wider screen keeps the points in a column of their own.

@@ -13,10 +13,13 @@ import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
 import { vsLinksIndex } from '../shared/vsDataAttachments'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 
+/** The frozen map from each BSData datasheet, or `<book>/<datasheet>`, to its VS Data unit (`catalogue/legacy-ids/units.json`). */
+export const legacyUnitIds = legacyIdsSchema.parse(rawUnits).ids
+
 const ids: VsDataIds = {
   books: legacyIdsSchema.parse(rawBooks).ids,
   detachments: legacyIdsSchema.parse(rawDetachments).ids,
-  units: legacyIdsSchema.parse(rawUnits).ids,
+  units: legacyUnitIds,
   enhancements: legacyIdsSchema.parse(rawEnhancements).ids,
 }
 

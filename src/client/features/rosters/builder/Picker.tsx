@@ -18,7 +18,7 @@ import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons
 import { HoverTooltip } from '../../../components/HoverTooltip'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
 import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
-import { collectionCountsAsQuery, collectionQuery, meQuery, topFourUnitCountsQuery, unitsQuery } from '../../../queries'
+import { collectionCountsAsQuery, collectionQuery, factionQuery, meQuery, topFourUnitCountsQuery, unitsQuery } from '../../../queries'
 import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS, shelvesOf } from '../../../unitGroups'
@@ -204,7 +204,8 @@ export const Picker = memo(function Picker({
     ],
   )
   const shown = rows.units
-  const rules = formatRules(battleSize, pointsBudget)
+  const { data: faction } = useQuery({ ...factionQuery(catalogueId), enabled: Boolean(catalogueId) })
+  const rules = formatRules(battleSize, pointsBudget, faction?.battleSizes)
   const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
   const alliedFactions = useMemo(() => [...new Set(shown.flatMap((unit) => (unit.alliedFaction ? [unit.alliedFaction] : [])))], [shown])
   const sections = [

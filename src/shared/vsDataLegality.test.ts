@@ -135,7 +135,6 @@ const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): Checke
   name: over.entryId,
   size: { models: 1, min: 1, max: 1 },
   toggles: [],
-  keywords: [],
   choices: [],
   ...over,
 })
@@ -178,6 +177,12 @@ describe('vsDataErrors', () => {
       entryName: 'Army',
       message: 'takes no Detachment',
     })
+  })
+
+  it('refuses a borrowed Detachment to a faction that takes none', () => {
+    expect(
+      vsDataErrors(data, { catalogueId: 'bs-engines', detachmentIds: [], borrowedDetachmentId: 'bs-raid', limit: 1000 }, []),
+    ).toContainEqual({ entryId: 'army', entryName: 'Army', message: 'takes no Detachment' })
   })
 
   it('leaves a list to the catalogue when none of its book’s datasheets reads as its faction’s', () => {
