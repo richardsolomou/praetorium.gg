@@ -703,7 +703,8 @@ function calculateRoster(
   const checkedUnits = picked.map((unit) => ({ ...unit, vs: unit.vs?.unit, points: selectionPoints.get(unit.selection) ?? 0 }))
   const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
   // A keyword's points cap is VS Data's to say wherever VS Data limits every ally it counts, as Deathwatch's 500 in a
-  // chapter; the catalogue's stands wherever it also counts a datasheet VS Data doesn't, as a Crucible daemon.
+  // chapter. Where it also counts a datasheet VS Data doesn't map, as a Crucible daemon, both messages show, and only
+  // the catalogue's total counts every unit.
   const pointCapResult = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const allyLimited = vsData === null ? new Set<number>() : vsDataAllyLimited(loaded.vsRoster, data, checkedUnits)
   const keyOf = new Map(picked.map((unit) => [unit.selection, unit.key]))
