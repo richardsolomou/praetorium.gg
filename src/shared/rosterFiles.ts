@@ -185,10 +185,12 @@ export type ImportFactionNames = { name: string; vsFaction?: { name: string } | 
 /**
  * Whether a text's faction names this book: any name of the VS Data faction it plays, as "Heretic Astartes" and "Chaos Space
  * Marines", or a translation of one, read from the whole text or its last part, as New Recruit prints "Chaos - Chaos Space
- * Marines". A book with no VS Data faction, as one a download from an earlier release lists, answers to its catalogue name.
+ * Marines". The catalogue's own name, which New Recruit prints and the community translates, and a keyword it stands for,
+ * still read too, as does a book whose VS Data faction is its parent's, as an earlier rules version's Salamanders book.
  */
 export function matchesImportFaction(stated: string, book: ImportFactionNames, translations: CatalogueTranslations = NO_TRANSLATIONS) {
-  if (!book.vsFaction) return matchesCatalogueName(stated, book.name, translations)
+  if (matchesCatalogueName(stated, book.name, translations)) return true
+  if (!book.vsFaction) return false
   const wanted = new Set([stated, stated.split(' - ').at(-1)!].map(unaccented))
   // A faction's names are grouped together in the translations, and the community's translate each of them.
   return translationsOf(book.vsFaction.name, translations)

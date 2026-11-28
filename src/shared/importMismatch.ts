@@ -193,7 +193,10 @@ function namesIn(index: CatalogueIndex, catalogueId: string) {
   return names
 }
 
-const datasheetFactionCache = new WeakMap<CatalogueIndex, WeakMap<ImportNames['datasheetNames'], WeakMap<ImportNames['datasheets'], Map<string, string[]>>>>()
+const datasheetFactionCache = new WeakMap<
+  CatalogueIndex,
+  WeakMap<ImportNames['datasheetNames'], WeakMap<ImportNames['datasheets'], Map<string, string[]>>>
+>()
 
 /**
  * Which factions offer a datasheet under each name a list can give it, the names BSData gave it as frozen and VS Data's,

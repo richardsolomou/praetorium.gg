@@ -9,6 +9,7 @@ const current: NonNullable<Awaited<ReturnType<typeof faction>>> = {
   baseCatalogueId: 'book',
   displayName: 'Adeptus Custodes',
   name: 'Adeptus Custodes',
+  vsFaction: null,
   icon: null,
   edition: null,
   isDefault: true,
