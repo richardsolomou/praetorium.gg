@@ -6,7 +6,7 @@ In the library, choose **Share…** in a roster's menu. Under **Who can open it*
 
 - **Copy link** (**Share link** on a phone) copies the list's address. On a private list the button reads **Make unlisted and copy**, and makes it Unlisted first.
 - **Export** gives you text to **Copy text** or **Download text**, or a file for Tabletop Simulator. See [Exchange codes and export](/docs/exchange-and-export) for what each holds.
-- **Print** prepares a compact two-column reference pack with a datasheet for each unit, then army and detachment rules, stratagems, and the abilities and weapon rules your units use.
+- **Print** prepares a compact reference pack with your points total and limit, a datasheet for each unit with its enhancements and upgrades, and which units start in a transport. The appendix gives army and detachment rules, stratagems, and the abilities and weapon rules your units use.
 
 The **Build**/**View** switch in the header hides editing controls for reading at the table, and lists each unit's ranged and melee weapons separately. Each model fights with one melee weapon, so where a model holds more than one, the melee weapons are grouped by model and marked **Choose one**.
 
