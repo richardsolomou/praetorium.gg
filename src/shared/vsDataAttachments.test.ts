@@ -213,3 +213,23 @@ describe("an earlier rules version's attachments", () => {
     expect(roster.attachments.captain?.targets).toEqual(['Intercessor Squad'])
   })
 })
+
+it('reads the attachment record of a unit VS Data has no roster definition of yet', () => {
+  const { attachments } = linksOf(
+    vsDataDefinitions({
+      release: 'test',
+      rulesVersion: { edition: '11th', update: 'MFM 1.6' },
+      unavailable: [],
+      points: [],
+      definitions: {
+        faction: { test: record('Test', {}) },
+        unit: { 'test.warriors': unit('Warriors') },
+        attachment: { 'test.scientist': record('Scientist', { unit: 'test.scientist', leads: ['test.warriors'] }) },
+      },
+    }),
+    { units: { scientist: 'test.scientist', warriors: 'test.warriors' }, detachments: {} },
+    null,
+    (entryId) => ({ scientist: 'Scientist', warriors: 'Warriors' })[entryId],
+  )
+  expect(attachments.scientist?.targets).toEqual(['Warriors'])
+})

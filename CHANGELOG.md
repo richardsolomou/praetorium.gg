@@ -1,5 +1,33 @@
 # praetorium
 
+## 0.280.29 (2026-11-28)
+
+### Patch Changes
+
+- 3bd5b4b: [app] The collection CSV names datasheets as the official app does, and an import reads either spelling.
+- 3bd5b4b: [rosters] Exported army text names the faction, units, detachments, enhancements and wargear as the official app does.
+- 3bd5b4b: [rosters] Imports read wargear the official app spells its own way, such as an Indomitor Kill Team's "Bolt pistol*", and read an app export in the app's spellings first.
+- 3bd5b4b: [rosters] Termagants exported from the official app with "Termagant spinefists" import at the size and points the list prints, rather than as a larger squad with fleshborers.
+- 34943e2: [rosters] On MFM 1.4 of 2 September 2026 and MFM 1.5 of 2 October 2026, the Space Marines chapter books marked (11e) show how many of each unit a list can take, with their Epic Heroes at one.
+- 34943e2: [rosters] On earlier rules versions the unit picker also limits allied Agents of the Imperium by kind, as many Characters, Retinue units and Requisitioned units as that version's battle size allows.
+- 34943e2: [rosters] On earlier rules versions allied Chaos Daemons in a Chaos Space Marines or Chaos Knights army can be added again, limited only by their points.
+- 34943e2: [rosters] On MFM 1.5 and the October 2026 Space Marines codex versions, Kayvaan Shrike can be taken up to three times, as those versions' app gave him.
+- 34943e2: [rosters] On earlier rules versions Chaplain Kastiel and Judiciar Xacharus are limited to one per army.
+- 34943e2: [rosters] Earlier rules versions also limit Titans to three of each, The Silent King to one, Yvraine, the Visarch and the Yncarne to lists with Devoted of Ynnead, every unit to two copies at Incursion, and on MFM 1.4 Victrix Honour Guard to one.
+- 3bd5b4b: [rosters] The Tournament lists tab names each unit as the official app does.
+
+## 0.280.28 (2026-11-28)
+
+### Patch Changes
+
+- 2b93664: [app] Pages opened just after an update no longer wait minutes to finish loading.
+
+## 0.280.27 (2026-11-28)
+
+### Patch Changes
+
+- 8c4f9fa: [rosters] A Crucible Daemonic Charioteer, Hyperscientist or Martial Agent can join the units VS Data lists for it.
+
 ## 0.280.26 (2026-11-28)
 
 ### Patch Changes

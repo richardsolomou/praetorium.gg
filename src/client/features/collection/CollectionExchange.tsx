@@ -27,7 +27,7 @@ import { Problem } from '../../components/Problem'
 import { useExportText } from '../../useCopyText'
 import { countLabel } from '../../text'
 
-type Sheet = { id: string; name: string; faction: string }
+type Sheet = { id: string; name: string; appName?: string; faction: string }
 
 /** A collection file's export and its reviewed import; importing adds what is missing and changes saved counts only when asked. */
 export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet[]; current: ReadonlyMap<string, CollectionEntry> }) {
@@ -38,7 +38,7 @@ export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet
     collectionCsv(
       [...current].map(([entryId, counts]): CollectionCsvRow => {
         const sheet = named.get(entryId)
-        return { entryId, name: sheet?.name ?? entryId, faction: sheet?.faction ?? '', ...counts }
+        return { entryId, name: sheet?.appName ?? sheet?.name ?? entryId, faction: sheet?.faction ?? '', ...counts }
       }),
     )
   const exportFile = async () => {

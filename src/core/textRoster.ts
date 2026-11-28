@@ -11,6 +11,8 @@ export type TextRoster = {
   reportedPoints?: number
   /** The official app's data version the export was made from, as its footer's "Data Version: v995". */
   dataVersion?: number
+  /** Whose names the list spells its wargear in: the official app's, as a list dated by its data version or Praetorium's does, else unknown. */
+  spelling?: 'app'
   unread?: string[]
   units: TextRosterUnit[]
 }

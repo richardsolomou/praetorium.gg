@@ -113,7 +113,7 @@ it('uses the fallback cost in roster pricing', () => {
     loaded,
     null,
   )
-  expect(priced?.detachments).toEqual([{ name: 'Anvil Siege Force', points: 2 }])
+  expect(priced?.detachments).toEqual([{ id: 'anvil', name: 'Anvil Siege Force', points: 2 }])
 })
 
 it("allows the Detachment points the list's own rules version records for its battle size", () => {

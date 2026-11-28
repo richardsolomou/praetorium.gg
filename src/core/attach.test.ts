@@ -358,6 +358,33 @@ describe('a character that can join a unit', () => {
     expect(referenceAttachmentOf(index.definitions.get('chronomancer')!, index)?.targets).toEqual(['IMMORTALS'])
   })
 
+  it("shows a datasheet page without ability text its associations beside VS Data's hosts", () => {
+    const index = {
+      ...indexOf({
+        sharedSelectionEntries: [
+          {
+            id: 'agent',
+            name: 'Martial Agent',
+            type: 'model',
+            associations: [
+              {
+                name: 'Leading',
+                childId: 'unit',
+                action: 'group',
+                conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'tacticals' }],
+              },
+            ],
+          },
+          { id: 'tacticals', name: 'Tactical Squad', type: 'unit' },
+        ],
+        entryLinks: [{ id: 'tactical-link', name: 'Tactical Squad', type: 'selectionEntry', targetId: 'tacticals' }],
+      }),
+      attachments: { agent: { kind: 'leader' as const, targets: ['Crusaders'], named: ['Crusaders'] } },
+    }
+
+    expect(referenceAttachmentOf(index.definitions.get('agent')!, index)?.targets).toEqual(['Tactical Squad', 'Crusaders'])
+  })
+
   it('offers a unit association only datasheets that are units', () => {
     const index = indexOf({
       categoryEntries: [{ id: 'tacticus', name: 'Tacticus' }],

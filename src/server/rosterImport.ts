@@ -15,6 +15,7 @@ import {
 } from '../shared/rosterFiles'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { vsFactionOf } from '../shared/factionNames'
+import { rulesetCatalogueIds } from '../shared/vsDataNames'
 import { app } from './app'
 import { importVsMaps } from './importVsMaps'
 import { requireCatalogue } from './requireCatalogue'
@@ -82,8 +83,11 @@ async function importedFaction(
   if (!name) return null
   if (!statedCatalogueId)
     return factions.find((candidate) => matchesImportFaction(name, candidate, translations) && candidate.isDefault) ?? null
-  const stated = await factionById(statedCatalogueId)
-  return stated && matchesImportFaction(name, stated, translations) ? stated : null
+  for (const id of rulesetCatalogueIds(statedCatalogueId)) {
+    const stated = await factionById(id)
+    if (stated && matchesImportFaction(name, stated, translations)) return stated
+  }
+  return null
 }
 
 /** How long reading one pasted text may hold the server. The slowest of five thousand published lists takes 16 ms. */

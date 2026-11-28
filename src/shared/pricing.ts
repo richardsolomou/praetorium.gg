@@ -587,6 +587,7 @@ function calculateRoster(
     ),
   ]
   const purchased = chosen.map((option) => ({
+    id: option.id,
     name: option.name,
     points: detachmentPoints(loaded, data.catalogueId, option.id, referenceFor(option)),
   }))
