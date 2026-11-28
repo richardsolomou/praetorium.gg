@@ -4,7 +4,7 @@
  *
  * Units are recorded as VS Data reads them, so a list reads the same whether a unit came in as a catalogue pick or a VS
  * pick: its VS Data unit through `catalogue/legacy-ids/units.json` (else `bsdata:<entry>`), its Enhancement and
- * allegiance by VS Data ID, and its wargear in VS Data's spellings through the reviewed ones. A VS pick's own
+ * allegiance by VS Data ID, and its wargear in VS Data's spellings through the reviewed ones, its allegiance left out. A VS pick's own
  * selections are recorded beside it, and only counted by `compare`.
  *
  *   pnpm exec tsx scripts/importParity.ts record <out.json> [directory ...]

@@ -9,6 +9,7 @@ import { wargearOf } from '../../src/core/wargear'
 import { wargearKey } from '../../src/core/wargearNames'
 import { ARTICLE, vsSpelling } from '../../src/shared/wargearSpellings'
 import { same } from '../../src/shared/vsDataModelNames'
+import { vsModels } from '../../src/shared/importedVsPicks'
 import type { Counts, VsDataDefinitions } from '../../src/core/vsDataConstruction'
 import { checkVsUnit, type VsRoster, type VsRosterUnit } from '../../src/core/vsDataRoster'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
@@ -158,26 +159,6 @@ export function modelsByName(selection: Selection, index: CatalogueIndex) {
   if (target?.type === 'model') add(found, same(root?.name ?? target.name ?? ''), selection.count ?? 1)
   walk(selection, 1)
   return found
-}
-
-/** The VS Data model counts for a built unit of `total` models: by name where they tell, else fixed models and one variable. */
-export function vsModels(definitions: VsDataDefinitions, unit: string, named: ReadonlyMap<string, number>, total: number) {
-  const models = definitions.modelsOf(unit)
-  const byName = new Map(models.map((model) => [same(model.name), model]))
-  const counts: Record<string, number> = Object.fromEntries(models.map((model) => [model.id, 0]))
-  let matched = 0
-  for (const [name, count] of named) {
-    const model = byName.get(name)
-    if (!model) continue
-    counts[model.id] = (counts[model.id] ?? 0) + count
-    matched += count
-  }
-  if (matched === total) return counts
-  const bounds = models.map((model) => ({ id: model.id, ...(model.data.bySize?.find((row) => row.size === total) ?? model.data) }))
-  const variable = bounds.filter(({ min, max }) => min !== max)
-  const fixed = bounds.filter(({ min, max }) => min === max).reduce((sum, { min }) => sum + min, 0)
-  if (variable.length > 1) return null
-  return Object.fromEntries(bounds.map((model) => [model.id, model === variable[0] ? total - fixed : model.min]))
 }
 
 export type ReadGap = { unit?: number; reason: string }

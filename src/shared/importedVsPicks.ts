@@ -137,7 +137,7 @@ function translated<T extends RosterPick>(
     ...(warlord ? { warlord } : {}),
   }
   const { choices: _choices, ...rest } = pick
-  return { ...rest, ...(choices && Object.keys(choices).length ? { choices } : {}), vs }
+  return { ...rest, ...(choices && Object.keys(choices).length ? { choices } : {}), vs } as T
 }
 
 const facts = (loaded: LoadedCatalogue, unit: PricedUnit | undefined, pick: RosterPick, allegiance: string | undefined) =>

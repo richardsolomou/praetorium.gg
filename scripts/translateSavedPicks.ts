@@ -4,7 +4,7 @@ import { type CatalogueIndex, resolve } from '../src/core/catalogue'
 import { modelProfileOf } from '../src/core/definitions'
 import { battleSizeSelection, type Selection } from '../src/core/evaluate'
 import { buildUnit, type RosterPick, type VsPick } from '../src/core/roster'
-import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { legacyOptionSelections, legacyOptionsSchema } from '../src/core/legacyIds'
 import { wargearOf } from '../src/core/wargear'
 import { wargearKey } from '../src/core/wargearNames'
 import { type Counts, vsDataConstructionSchema, vsDataDefinitions, type VsDataDefinitions } from '../src/core/vsDataConstruction'
@@ -22,7 +22,8 @@ import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { copiedAtOf, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
 import { rulesVersionOf, SAVED_PICKS_RUN, savedPicksRunSchema } from './lib/savedPicksRun'
-import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
+import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf } from './lib/vsDataRosters'
+import { vsModels } from '../src/shared/importedVsPicks'
 import { modelsNamed, same, words } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
 
@@ -261,40 +262,10 @@ function guessOf(
   pick: { choices?: Record<string, string>; spreads?: Record<string, Counts>; floor?: boolean },
 ) {
   const entry = inBook(map, catalogueId, entryId)
-  if (!entry || entry.base === 'unmatched') return null
-  const parts: Selections[] = [entry.base?.options ?? {}]
-  const keyed = (key: string, times: number) => {
-    const translation = entry.choices[key]
-    if (!translation) return false
-    if ('options' in translation)
-      parts.push(
-        Object.fromEntries(
-          Object.entries(translation.options).map(([option, chosen]) => [
-            option,
-            Object.fromEntries(Object.entries(chosen).map(([w, n]) => [w, n * times])),
-          ]),
-        ),
-      )
-    return true
-  }
-  const choices = {
-    ...(pick.floor ? Object.fromEntries(Object.entries(entry.floor ?? {}).filter(([, value]) => typeof value === 'string')) : {}),
-    ...pick.choices,
-  } as Record<string, string>
-  const spreads = {
-    ...(pick.floor ? Object.fromEntries(Object.entries(entry.floor ?? {}).filter(([, value]) => typeof value !== 'string')) : {}),
-    ...pick.spreads,
-  } as Record<string, Counts>
-  for (const [key, option] of Object.entries(choices)) if (!keyed(`${key}|${option}`, 1)) return null
   const first = buildUnit(entryId, catalogue.index)
-  for (const [key, counts] of Object.entries(spreads)) {
-    const held = first?.choices.find((choice) => choice.key === key)
-    for (const [option, n] of Object.entries(counts)) {
-      const times = n - (held?.options.find(({ id }) => id === option)?.count ?? 0)
-      if (times && !keyed(`${key}|${option}`, times)) return null
-    }
-  }
-  return joined(...parts)
+  const held = (key: string, option: string) =>
+    first?.choices.find((choice) => choice.key === key)?.options.find(({ id }) => id === option)?.count ?? 0
+  return (entry && legacyOptionSelections(entry, pick, held)?.selections) ?? null
 }
 
 /** Each item a VS Data unit carries by the kind of model carrying it, models named alike as one kind, `''` for the unit. */
