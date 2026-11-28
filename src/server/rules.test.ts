@@ -6,7 +6,7 @@ import composition from '../../catalogue/composition.json' with { type: 'json' }
 import { loadRules } from './rules'
 import { wordsFrom } from './sourceTexts.fixtures'
 import { hasDetachmentSemantics, missionFor } from '../shared/rules'
-import type { VsDataMissionPack, VsDataStratagem, VsDataSummariesFile } from '../shared/vsData'
+import type { VsDataMissionPack, VsDataStratagem, VsDataSummariesFile, VsDataTerrain } from '../shared/vsData'
 import { missionPack } from './vsData.fixtures'
 import { bookOf } from './catalogue.fixtures'
 import { factionsFor } from '../shared/factionReferences'
@@ -105,10 +105,12 @@ function release({
   stratagems = [reapers, reroll],
   missionPacks = [pack],
   keywords = {},
+  terrain = [],
 }: {
   stratagems?: VsDataStratagem[]
   missionPacks?: VsDataMissionPack[]
   keywords?: Record<string, string>
+  terrain?: VsDataTerrain[]
 }) {
   const file: VsDataSummariesFile = {
     release: '0.1.0',
@@ -120,6 +122,7 @@ function release({
     stratagems,
     missionPacks,
     missionActions: [],
+    terrain,
     detachments: [],
     units: {},
     factions: {},
@@ -182,47 +185,48 @@ it('loads faction icons from a legacy snapshot', () => {
   expect(rules().factionIcons.get('necrons')).toContain('data:image/svg+xml;base64,')
 })
 
-it('loads the publisher-backed Colosseum battlefield when its source is present', () => {
-  write(path.join(directory, 'datacards', '11th', 'gdc', 'kotc.json'), {
-    format: 'praetorium.kotc.v1',
-    id: 'king-of-the-colosseum-2',
-    name: 'King of the Colosseum 2.0',
-    publisher: 'https://playontabletop.com/kotc/',
-    boardIn: 36,
-    deploymentDepthIn: 8,
-    objectiveDiagram: 'https://playontabletop.com/wp-content/uploads/2026/09/frontline-objectives.png',
-    terrainDiagram: 'https://playontabletop.com/wp-content/uploads/2026/09/frontline-terrain.png',
-    wallThicknessIn: 0.5,
-    arena: { radiusIn: 13, wallHalfAngleDeg: 31.4 },
-    objectiveRadiusIn: 3.79,
-    pieces: [
+it('loads the Colosseum battlefield the VS Data release draws', () => {
+  const point = (x: number, y: number) => ({ x, y })
+  release({
+    terrain: [
       {
-        name: 'Corner ruin',
-        mirrors: ['none'],
-        parts: [
+        formatVersion: 1,
+        kind: 'terrain-layout',
+        id: 'king-of-the-colosseum-2',
+        name: 'King of the Colosseum 2.0',
+        provenance: {},
+        board: { width: 36, height: 36 },
+        deployments: ['deployment-king-of-the-colosseum-2'],
+        areas: [
           {
-            name: 'Ruin wall',
-            material: 'dense',
-            walls: [
-              [
-                { x: 0.25, y: 5.15 },
-                { x: 5.75, y: 5.15 },
-              ],
-            ],
+            id: 'centre-objective',
+            footprint: { at: point(16, 16), rotation: 0 },
+            outline: [point(0, 0), point(4, 0), point(4, 4)],
+            group: null,
+            objective: { id: 'centre-objective', at: point(2, 2) },
+            parts: [],
           },
         ],
+      },
+      {
+        formatVersion: 1,
+        kind: 'deployment-map',
+        id: 'deployment-king-of-the-colosseum-2',
+        name: 'King of the Colosseum 2.0',
+        provenance: {},
+        board: { width: 36, height: 36 },
+        zones: [
+          { role: 'attacker', points: [point(36, 0), point(36, 36), point(28, 36), point(28, 0)] },
+          { role: 'defender', points: [point(8, 0), point(8, 36), point(0, 36), point(0, 0)] },
+        ],
+        territories: [],
+        objectives: [],
       },
     ],
   })
   const loaded = rules()
   const layout = loaded.terrainLayouts.find((entry) => entry.id === 'king-of-the-colosseum-2')
-  expect(layout).toMatchObject({
-    matchupId: 'king-of-the-colosseum',
-    deploymentId: 'deployment-king-of-the-colosseum-2',
-    geometry: { board: { width: 36, height: 36 } },
-  })
-  expect(layout?.geometry?.areas.filter((area) => area.objective)).toHaveLength(5)
-  expect(loaded.deployments.find((entry) => entry.id === layout?.deploymentId)?.zones).toHaveLength(2)
+  expect(layout).toMatchObject({ matchupId: 'king-of-the-colosseum', deploymentId: 'deployment-king-of-the-colosseum-2' })
 })
 
 it('uses the current detachment points and its VS Data Stratagems', () => {
@@ -312,6 +316,7 @@ it('takes a retained Detachment’s Stratagems from its listing, and names the p
     stratagems: [card('death-guard.plague-host.miasma', 'Flyblown Host')],
     missionPacks: [],
     missionActions: [],
+    terrain: [],
     detachments: [
       {
         name: 'Flyblown Host',

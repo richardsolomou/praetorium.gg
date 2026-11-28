@@ -57,7 +57,9 @@ function layoutOf(record: Layout, deployment: DeploymentMap): TerrainLayout {
           markers: [],
           objective: area.objective ? { position: board(area.objective.at), group: null } : null,
           group: area.group,
-          measurements: (area.measurements ?? []).map(({ from, to, approximate }) => (approximate ? { from, to, approximate } : { from, to })),
+          measurements: (area.measurements ?? []).map(({ from, to, approximate }) =>
+            approximate ? { from, to, approximate } : { from, to },
+          ),
           parts: area.parts.map((part) => {
             const placed = (point: Point) =>
               board(translate(part.at, rotate(part.mirror ? { x: -point.x, y: point.y } : point, part.rotation)))

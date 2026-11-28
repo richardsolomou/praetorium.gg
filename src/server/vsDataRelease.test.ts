@@ -671,7 +671,10 @@ it('keeps the release’s terrain records', () => {
     objectives: [{ id: 'centre', at: { x: 18, y: 18 } }],
   }
   fs.rmSync(directory, { recursive: true })
-  writeFiles(directory, vsDataReleaseFiles([record, { kind: 'deployment-map', id: deployment.id, aliases: [], category: 'terrain', data: deployment }]))
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record, { kind: 'deployment-map', id: deployment.id, aliases: [], category: 'terrain', data: deployment }]),
+  )
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).terrain.map(({ id }: { id: string }) => id)).toEqual([deployment.id])
