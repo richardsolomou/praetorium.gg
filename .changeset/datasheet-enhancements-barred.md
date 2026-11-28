@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[reference] A datasheet no longer lists Enhancements that leave out its keywords, such as those a Monster or a Kroot Shaper can't take, or any for a unit that can't take Enhancements at all.
+[reference] On the current rules version, a datasheet no longer lists Enhancements it can't take, such as those barred to a Monster or a Kroot Shaper, or any for a unit that can't take Enhancements at all.
