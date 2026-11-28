@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useId, useRef, useState } from 'react'
+import { type ReactNode, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,8 +18,6 @@ import {
   TURN_LABELS,
 } from '../../../core/reminders'
 import { TURN_SCOPES, type TurnScope } from '../../../core/battle'
-import { RuleText } from '../../components/RuleText'
-import { DatasheetUnit } from '../../components/UnitFromVsData'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 
@@ -61,8 +59,7 @@ const completeTiming = (draft: TimingDraft): ReminderTiming | null => {
 
 export function ReminderEditorDialog({
   draft,
-  ruleId,
-  owner,
+  rule,
   full,
   error,
   onClose,
@@ -70,9 +67,8 @@ export function ReminderEditorDialog({
   onRemove,
 }: {
   draft: ReminderDraft
-  /** The rule's id and the datasheet or detachment it belongs to, which find its summary as the page behind the dialog does. */
-  ruleId: string | undefined
-  owner: string | null
+  /** The rule's text as the page behind the dialog draws it, which may draw nothing. */
+  rule: ReactNode
   /** The player holds as many alerts as they may and this would be a new one. */
   full: boolean
   error: unknown
@@ -106,15 +102,7 @@ export function ReminderEditorDialog({
           </DialogHeader>
 
           <DialogBody>
-            <DatasheetUnit.Provider value={owner}>
-              <RuleText
-                text={draft.description}
-                rules={[]}
-                name={draft.ability}
-                abilityId={ruleId}
-                className="mt-0 rounded-lg border border-edge bg-sunken p-3"
-              />
-            </DatasheetUnit.Provider>
+            <div className="rounded-lg border border-edge bg-sunken p-3 empty:hidden *:mt-0 *:text-sm">{rule}</div>
 
             <div className="space-y-3">
               {timings.map((timing, index) => {

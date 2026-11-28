@@ -8,7 +8,7 @@ import type { Datasheet, DatasheetRelationship } from '../../../../contracts/cat
 import { datasheetQuery, type Fielded } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
-import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, KeywordRuleSummary, UnitKeywords } from '../../../components/Keyword'
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
@@ -264,7 +264,13 @@ export function AbilitySummary({
                   condition={ability.condition}
                   highlightNote={false}
                 />
-                {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
+                {reminders ? (
+                  <ReminderButton
+                    subject={ability}
+                    controls={reminders}
+                    rule={<KeywordRuleSummary rule={{ name: ability.name, description: ability.description ?? '' }} />}
+                  />
+                ) : null}
               </span>
             ))}
           </div>
@@ -288,7 +294,7 @@ export function AbilitySummary({
               <>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-xs">{ability.source ?? ability.name}</h3>
-                  {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
+                  {reminders ? <ReminderButton subject={ability} controls={reminders} rule={text} /> : null}
                 </div>
                 {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
                 {text}
@@ -319,7 +325,13 @@ export function AbilitySummary({
           const chip = (
             <>
               <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
-              {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
+              {reminders ? (
+                <ReminderButton
+                  subject={rule}
+                  controls={reminders}
+                  rule={<KeywordRuleSummary rule={{ name: rule.name, description: rule.description ?? '' }} />}
+                />
+              ) : null}
             </>
           )
           return (

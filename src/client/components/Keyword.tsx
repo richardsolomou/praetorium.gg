@@ -65,7 +65,7 @@ export function Keyword({
  * it or its faction, as a faction ability chip names one, or the summary of the text it prints, by
  * `useDatasheetAbilitySummary`; and else the core rule of that name.
  */
-function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
+export function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className?: string }) {
   // VS Data's weapon or core ability of the keyword's name comes first, as an owner can print the same rule in other words.
   const keyword = useKeywordSummary(rule.name)
   const asked = keyword === null

@@ -366,7 +366,7 @@ export function SpecialChoice({
               <SummaryByName name={option.name} className={PROSE} />
             ) : null
           const reminder =
-            reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} /> : null
+            reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} rule={text} /> : null
           return (
             <ChoiceOption
               key={option.id}

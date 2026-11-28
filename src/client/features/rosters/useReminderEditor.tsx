@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import {
   armyReminder,
   fieldedReminders,
@@ -35,11 +35,11 @@ export function useReminderEditor({
   positioned: readonly RosterPick[]
   units: ReturnType<typeof useRosterPrice>['units']
 }) {
-  const [editing, setEditing] = useState<{ draft: ReminderDraft; ruleId: string | undefined; owner: string | null } | null>(null)
+  const [editing, setEditing] = useState<{ draft: ReminderDraft; rule: ReactNode } | null>(null)
   const resetAbilityAlert = abilityAlerts.reset
   const controls = {
     active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
-    onSelect: (subject: ReminderSubject, owner: string | null) => {
+    onSelect: (subject: ReminderSubject, rule: ReactNode) => {
       const key = reminderKey(subject)
       const description = ownWords(subject.description ?? '') ?? ''
       const suggested = subject.reminder ?? {
@@ -57,7 +57,7 @@ export function useReminderEditor({
             timings: suggested.timings,
             ...(!armyReminder(subject) && suggested.whileDestroyed ? { whileDestroyed: true } : {}),
           }
-      setEditing({ draft, ruleId: subject.id, owner })
+      setEditing({ draft, rule })
     },
   }
   const { data: reminderAbilities } = useQuery({
@@ -72,8 +72,7 @@ export function useReminderEditor({
     <ReminderEditorDialog
       key={editing.draft.key}
       draft={editing.draft}
-      ruleId={editing.ruleId}
-      owner={editing.owner}
+      rule={editing.rule}
       full={!abilityAlerts.fits(editing.draft.key)}
       error={abilityAlerts.error}
       onClose={() => setEditing(null)}
