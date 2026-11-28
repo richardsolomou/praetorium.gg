@@ -13,6 +13,15 @@ const construction: VsDataConstruction = {
       other: record('Other', {}),
       chapter: record('Chapter', { parent: 'host', excludedDetachments: ['host.guard'] }),
       titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
+      band: record('Band', { unitLimits: [{ keywords: ['CHARACTER'], max: 1 }] }),
+      court: record('Court', {
+        allies: [
+          {
+            units: ['band.boss', 'band.retinue'],
+            limits: [{ keywords: ['CHARACTER'], battleSize: 'small', max: 1, free: [{ keywords: ['CHARACTER'], per: ['CREW'] }] }],
+          },
+        ],
+      }),
     },
     'battle-size': { small: record('Small', { points: 500, enhancements: 1 }) },
     detachment: {
@@ -36,6 +45,9 @@ const construction: VsDataConstruction = {
       'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),
       'host.pack': record('Pack', { faction: 'host', keywords: ['INFANTRY'], sizes: [6] }),
       'titan.engine': record('Engine', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
+      'band.boss': record('Boss', { faction: 'band', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
+      'band.retinue': record('Retinue', { faction: 'band', keywords: ['INFANTRY'], sizes: [2] }),
+      'court.crew': record('Crew', { faction: 'court', keywords: ['INFANTRY'], sizes: [1] }),
     },
     model: {
       'host.walker.walker': record('Walker', {
@@ -55,6 +67,10 @@ const construction: VsDataConstruction = {
       'host.pack.hunter': record('Hunter', { unit: 'host.pack', min: 3, max: 6, wargear: {} }),
       'host.pack.hound': record('Hound', { unit: 'host.pack', min: 0, max: 3, wargear: {} }),
       'titan.engine.engine': record('Engine', { unit: 'titan.engine', min: 1, max: 1, wargear: {} }),
+      'band.boss.boss': record('Boss', { unit: 'band.boss', min: 1, max: 1, wargear: {} }),
+      'band.retinue.master': record('Master', { unit: 'band.retinue', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
+      'band.retinue.follower': record('Follower', { unit: 'band.retinue', min: 1, max: 1, wargear: {} }),
+      'court.crew.hand': record('Hand', { unit: 'court.crew', min: 1, max: 1, keywords: ['CREW'], wargear: {} }),
     },
     'roster-option': {
       'host.rider.mount': record('Mount', { unit: 'host.rider', choose: { min: 0, max: 1 }, choices: ['host.rider.bike'] }),
@@ -240,6 +256,21 @@ describe('keywordsOf', () => {
 
 describe('checkVsRoster', () => {
   const codes = (units: VsRoster['units']) => checkVsRoster(definitions, roster(units)).map((problem) => problem.code)
+
+  const courtCodes = (units: VsRoster['units']) => checkVsRoster(definitions, roster(units, 'court', [])).map((problem) => problem.code)
+
+  it('counts an ally a Character model leads towards an allied CHARACTER limit', () => {
+    expect(courtCodes([{ unit: 'band.boss' }, { unit: 'band.retinue' }])).toContain('ally-limit')
+  })
+
+  it('frees an allied CHARACTER for each unit whose model holds the keyword the allowance names', () => {
+    expect(courtCodes([{ unit: 'band.boss' }, { unit: 'band.boss' }, { unit: 'court.crew' }])).not.toContain('ally-limit')
+  })
+
+  it('counts a unit a Character model leads towards a CHARACTER limit', () => {
+    const band = roster([{ unit: 'band.boss' }, { unit: 'band.retinue' }], 'band', [])
+    expect(checkVsRoster(definitions, band).map((problem) => problem.code)).toContain('unit-limit')
+  })
 
   it('refuses an Enhancement to a unit that is not a Character', () => {
     expect(codes([{ unit: 'host.agent', enhancement: 'host.guard.relic' }])).toEqual(['enhancement-keywords'])

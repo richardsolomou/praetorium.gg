@@ -26,7 +26,7 @@ import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitAnnotations } from './builder/UnitAnnotations'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { detachmentRuleOwners, useDetachmentRules } from './builder/useDetachmentRules'
-import { canAddCopy, unitLimitMessage, usePicks } from './builder/usePicks'
+import { canAddCopy, draftModels, unitLimitMessage, usePicks } from './builder/usePicks'
 import type { RosterSetup, RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterExchangeDialog } from './RosterExchangeDialog'
@@ -533,14 +533,13 @@ export function ListBuilder({
   const fieldedFallback = frozenSelected && (priceFailed || (!priceLoading && !pricePending && !selectedUnit)) ? frozenSelected : null
   const selectedUnitLoading = selected !== null && !selectedUnit && !fieldedFallback
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
-  const loadoutConstraintsPending = Boolean(
-    selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
-  )
+  const selectedModels = selectedPick && selectedUnit ? draftModels(selectedPick, selectedUnit) : undefined
+  const loadoutConstraintsPending = Boolean(selectedUnit && selectedModels !== undefined && selectedModels !== selectedUnit.size.models)
   const optimisticUnit =
     selectedUnit && selectedPick
       ? {
           ...selectedUnit,
-          size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
+          size: { ...selectedUnit.size, models: selectedModels ?? selectedUnit.size.models },
           // Pending counts build on the draft; the evaluated allocation wins once
           // it arrives because changing one group can rebalance another.
           choices: withDraftSpreadCounts(

@@ -152,11 +152,32 @@ export type ConditionalAttachment = {
   role: 'leads' | 'supports'
   units?: string[]
   keywords?: string[]
+  excludedKeywords?: string[]
   when?: { faction?: string; detachment?: string; withoutDetachment?: string; withUnit?: string; withoutUnit?: string }
   shared?: string
 }
-/** The units `unit` may join as a Leader or a support attachment, in any roster or only under `conditional`. */
-export type AttachmentData = { unit: string; leads?: string[]; supports?: string[]; conditional?: ConditionalAttachment[]; gaps?: Gap[] }
+/**
+ * The units `unit` may join as a Leader or a support attachment, in any roster or only under `conditional`; as a
+ * bodyguard, the units it stands in for (`insteadOf`) and the attachments it takes (`capacity`); as a leader, the
+ * bodyguards it leads beside another leader (`withAnotherLeader`); and the units it joins outside those roles (`joins`).
+ */
+export type AttachmentData = {
+  unit: string
+  leads?: string[]
+  supports?: string[]
+  conditional?: ConditionalAttachment[]
+  insteadOf?: { units: string[]; role?: 'leads' | 'supports'; keywords?: string[]; excludedKeywords?: string[] }[]
+  capacity?: {
+    leads?: number
+    supports?: number
+    startingStrength?: number
+    distinct?: true
+    limits?: { keywords: string[]; max: number }[]
+  }
+  withAnotherLeader?: { units: string[]; besideUnits?: string[]; besideKeywords?: string[] }[]
+  joins?: { units?: string[]; keywords?: string[]; ledBy?: string[]; required?: true; exclusive?: string[] }[]
+  gaps?: Gap[]
+}
 /** One allowance of a load: up to `limit` models or units matching any of `selectors`, each a keyword or a run of them. */
 export type TransportPool = { limit: number; count: 'models' | 'units'; selectors: string[]; maxWounds?: number }
 /** The transport's alternative loads, refusals, places a model takes, and pools that replace the first with some wargear. */

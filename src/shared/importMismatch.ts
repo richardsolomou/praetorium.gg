@@ -15,7 +15,8 @@ import { type CatalogueIndex, nameOf } from '../core/catalogue'
 import { eachDefinition } from '../core/definitions'
 import type { UnitSize } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { descriptionKey } from './datacards'
+import { cardName } from './datacards'
+import type { VsRosterData } from './vsDataLegality'
 import { factionDisplayName } from './factionNames'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { editionFamilyId } from '../core/catalogueEdition'
@@ -166,10 +167,47 @@ function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalog
   return elsewhere.length ? elsewhere.slice(0, 2).join(' or ') : null
 }
 
-/** Which detachment of this faction prints an enhancement by that name, if any does. */
+const enhancementNameCache = new WeakMap<VsRosterData, Map<string, ReadonlyMap<string, string>>>()
+
+/** The official app's name for each Enhancement a stored Detachment has in VS Data, by the catalogue option standing for it. */
+function vsEnhancementNames(loaded: LoadedCatalogue, detachmentId: string): ReadonlyMap<string, string> {
+  const data = loaded.vsRoster
+  const detachment = data?.detachments[detachmentId]
+  if (!data || !detachment) return new Map()
+  return cachedIn(enhancementNameCache, data, detachmentId, () => {
+    const names = new Map<string, string>()
+    for (const [key, id] of Object.entries(data.enhancements)) {
+      const [owner, option] = key.split('/') as [string, string]
+      const name = owner === detachment ? data.construction.definitions.enhancement?.[id]?.name : undefined
+      if (name) names.set(option, name)
+    }
+    return names
+  })
+}
+
+/** The catalogue option of the list's Detachments' Enhancement the official app names so, if any is. */
+export function vsEnhancementOption(stated: string, loaded: LoadedCatalogue, detachmentIds: readonly string[]) {
+  const wanted = cardName(stated)
+  if (!wanted) return undefined
+  for (const detachment of detachmentIds)
+    for (const [option, name] of vsEnhancementNames(loaded, detachment)) if (cardName(name) === wanted) return option
+  return undefined
+}
+
+/** Which detachment of this faction has an enhancement by that name, as the official app or BSData spells it, if any does. */
 export function enhancementDetachment(stated: string, loaded: LoadedCatalogue, catalogueId: string) {
   const options = loaded.detachments.get(catalogueId)?.options ?? []
-  return options.find((option) => loaded.datacards.enhancements.has(descriptionKey(option.name, stated))) ?? null
+  const wanted = cardName(stated)
+  if (!wanted) return null
+  const bsdataName = (id: string) => {
+    const definition = loaded.index.definitions.get(id)
+    return definition ? nameOf(definition, loaded.index.definitions) : ''
+  }
+  return (
+    options.find((option) =>
+      [...vsEnhancementNames(loaded, option.id)].some(([id, name]) => cardName(name) === wanted || cardName(bsdataName(id)) === wanted),
+    ) ?? null
+  )
 }
 
 const factionNameCache = new WeakMap<CatalogueIndex, Map<string, Set<string>>>()
