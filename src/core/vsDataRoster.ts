@@ -515,6 +515,29 @@ const choiceBound = (definitions: VsDataDefinitions, unit: string): ReadonlySet<
     for (const option of definitions.optionsOf(unit)) for (const id of option.data.choices) add(id)
     return new Set([...pieces].flatMap((id) => definitions.get('wargear', id)?.data.rules ?? []))
   })
+
+/**
+ * The models of a picked unit that carry wargear bringing `ability`: those it is fielded with and the carriers of the
+ * options it takes. An option that names no carrier gives none, as VS Data does not say which model takes it.
+ */
+export function vsAbilityCarriers(definitions: VsDataDefinitions, picked: VsRosterUnit, ability: string): Definition<'model'>[] {
+  const brings = (id: string): boolean => {
+    const wargear = definitions.get('wargear', id)?.data
+    return Boolean(wargear?.rules?.includes(ability) || Object.keys(wargear?.includes ?? {}).some(brings))
+  }
+  const counts = modelCounts(definitions, picked)
+  const fielded = definitions
+    .modelsOf(picked.unit)
+    .filter((model) => (counts.get(model.id) ?? 0) > 0 && Object.entries(model.data.wargear).some(([id, n]) => n > 0 && brings(id)))
+  const optioned = definitions
+    .optionsOf(picked.unit)
+    .flatMap((option) =>
+      option.data.carrier && Object.entries(picked.options?.[option.id] ?? {}).some(([id, n]) => n > 0 && brings(id))
+        ? [option.data.carrier]
+        : [],
+    )
+  return [...new Set([...fielded.map((model) => model.id), ...optioned])].flatMap((id) => definitions.get('model', id) ?? [])
+}
 const linkedAbilities = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
 const boundAbilities = new WeakMap<VsDataDefinitions, Map<string, ReadonlySet<string>>>()
 
