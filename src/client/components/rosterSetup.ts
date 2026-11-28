@@ -106,7 +106,7 @@ export function detachmentRefusal(
       return {
         kind: 'points',
         reason: selected.length
-          ? `Needs ${detachment.points} DP, ${left} left`
+          ? `Needs ${detachment.points} DP, ${Math.max(left, 0)} left`
           : `Needs ${detachment.points} DP, ${allowance} at this size`,
       }
   }

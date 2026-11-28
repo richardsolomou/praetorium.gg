@@ -48,6 +48,10 @@ it('refuses a detachment that costs more DP than the battle size has left', () =
   expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toEqual({ kind: 'points', reason: 'Needs 2 DP, 1 left' })
 })
 
+it('counts no DP left, never fewer, once a smaller battle size leaves the list over budget', () => {
+  expect(detachmentRefusal(priced('three', 1), [priced('one', 2), priced('two', 1)], 1000)?.reason).toBe('Needs 1 DP, 0 left')
+})
+
 it('offers a detachment over the DP left once the budget is waived', () => {
   expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000, ['detachment-points'])).toBeNull()
 })
