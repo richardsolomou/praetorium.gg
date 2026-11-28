@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[reference] Abilities several datasheets share, such as a Land Raider's Damaged, show their summary again.
+[reference] Datasheet abilities VS Data publishes once for several units show their summary again.
