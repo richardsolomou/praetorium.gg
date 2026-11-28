@@ -41,6 +41,7 @@ function partsInOrder(manifest: OfflineReferenceVersion, editions: string[], cat
     ...[...catalogues].flatMap((id) => reference.parts[`faction:${id}`] ?? []),
     construction.rules,
     construction.catalogue,
+    ...(construction.vs ? [construction.vs] : []),
     ...editions.map((id) => construction.editions[id]!),
     reference.search,
     ...Object.values(reference.parts),

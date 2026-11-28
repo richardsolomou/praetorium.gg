@@ -261,7 +261,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     parts,
   }
   const base = constructionFor(catalogue, rules)
-  const { rules: baseRules, ...baseCatalogue } = base
+  // Editions share against the whole base; VS Data's part of it is written apart from the catalogue's.
+  const { rules: baseRules, vsRoster, vsPoints, vsProfiles, ...baseCatalogue } = base
   const baseEditions: OfflineConstructionBase[] = []
   const editions: Record<string, string> = {}
   for (const { edition, base: current } of readCatalogueComposition(directory)?.editions ?? []) {
@@ -280,6 +281,11 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   const construction = {
     catalogue: await write('construction', { ...baseCatalogue, editions: baseEditions }, MAX_CONSTRUCTION_PART_BYTES),
     rules: await write('construction', { revision: base.revision, rules: baseRules }),
+    vs: await write(
+      'construction',
+      { ...(vsRoster ? { vsRoster } : {}), ...(vsPoints ? { vsPoints } : {}), ...(vsProfiles ? { vsProfiles } : {}) },
+      MAX_CONSTRUCTION_PART_BYTES,
+    ),
     editions,
   }
   const manifest: OfflineReferenceVersion = {
