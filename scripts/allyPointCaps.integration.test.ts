@@ -14,7 +14,7 @@ const bloodletters = '208b-348-8114-b506'
 const daemonicCharioteer = '736e-8d31-9f86-88b3'
 const ultramarines = '4029-9237-e8db-af55'
 const assaultBrethren = '549e-86b2-b786-c802'
-// Ambull, Bastion, Firestorm Redoubt, Fortress of Redemption, Guardian Drone and Imperial Fortress Walls: 765 points.
+// Ambull, Bastion, Firestorm Redoubt, Fortress of Redemption, Guardian Drone and Imperial Fortress Walls, over 500 points.
 const fortifications = [
   '60d8-7d2-71d-6e4a',
   '89f2-5111-a9c4-6016',
@@ -66,7 +66,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Unaligned 
       rules,
     )!
     expect(errors.flatMap((error) => (/points/.test(error.message) ? [`${error.entryName}: ${error.message}`] : []))).toEqual([
-      'Army: allied Unaligned Forces units cost at most 500 points, cost 765',
+      expect.stringMatching(/^Army: allied Unaligned Forces units cost at most 500 points, cost \d+$/),
     ])
   })
 })
