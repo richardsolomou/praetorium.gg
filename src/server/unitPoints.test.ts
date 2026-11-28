@@ -6,6 +6,7 @@ import { priceOf, rosterPrices } from '../shared/catalogueUnit'
 import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { unitPointAdjustment } from '../shared/unitPoints'
 import { mfmWargearOptionPoints } from '../shared/mfm'
+import { vsRosterData } from '../shared/vsDataLegality'
 
 const loaded = bookOf({
   selectionEntries: [
@@ -680,4 +681,51 @@ it('prices a datasheet whose models are all optional from the unit it lists', ()
   ])
 
   expect(priceOf(catalogue, 'cat', 'battery')).toBe(30)
+})
+
+it('lists a datasheet the builder adds by VS Data at what its first pick costs, its printed wargear included', () => {
+  const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+  const tank = 'astra-militarum.leman-russ-battle-tank'
+  const loaded = {
+    ...bookOf({ selectionEntries: [{ id: 'russ', name: 'Leman Russ Battle Tank', type: 'unit', costs: points(160) }] }),
+    vsRoster: vsRosterData(
+      {
+        release: 'test',
+        rulesVersion: { edition: '11th', update: 'test' },
+        unavailable: [],
+        points: [
+          {
+            id: 'test',
+            factions: [
+              {
+                id: 'astra-militarum',
+                detachments: [],
+                units: [
+                  {
+                    id: tank,
+                    name: 'Leman Russ Battle Tank',
+                    tiers: [{ copies: { from: 1 }, costs: [{ models: 1, points: 160 }] }],
+                    wargear: [{ item: `${tank}.lascannon`, points: 5 }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        definitions: {
+          faction: { 'astra-militarum': record('Astra Militarum', {}) },
+          unit: { [tank]: record('Leman Russ Battle Tank', { faction: 'astra-militarum', keywords: ['VEHICLE'], sizes: [1] }) },
+          model: {
+            [`${tank}.tank`]: record('Leman Russ Battle Tank', { unit: tank, min: 1, max: 1, wargear: { [`${tank}.lascannon`]: 1 } }),
+          },
+          wargear: { [`${tank}.lascannon`]: record('Lascannon', {}) },
+        },
+      },
+      { books: { cat: 'astra-militarum' }, detachments: {}, units: { russ: tank }, enhancements: {} },
+      null,
+      (id) => ({ russ: 'Leman Russ Battle Tank' })[id],
+    ),
+  }
+
+  expect(priceOf(loaded, 'cat', 'russ')).toBe(165)
 })
