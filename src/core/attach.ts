@@ -314,6 +314,26 @@ function withVsData(read: Attachment | null, vsData: VsAttachment | undefined, h
   }
 }
 
+/**
+ * Whether VS Data lets the datasheet `joinerEntryId` join a host of this name and keywords, in any army: true or false
+ * where VS Data decides, undefined where the catalogue's reading stands, as for a host VS Data has no unit for, a joiner
+ * it has no record of, or a pair `catalogueHosts` keeps. It reads entry IDs, so a list not yet built from VS Data asks it.
+ */
+export function vsDecidesHost(
+  index: CatalogueIndex,
+  joinerEntryId: string,
+  hostName: string,
+  hostKeywords?: readonly string[],
+): boolean | undefined {
+  const joiner = index.definitions.get(joinerEntryId)
+  const vsData = joiner && vsAttachmentOf(joiner, index)
+  if (!vsData || vsData.catalogueHosts === true) return undefined
+  const host = normalizedName(hostName)
+  if (!deferredOf(vsData, vsHostsOf(index)).has(host)) return undefined
+  const decided = withVsData(null, vsData, vsHostsOf(index))
+  return Boolean(decided && admitsHost(decided, hostName, hostKeywords))
+}
+
 function deferredOf(vsData: VsAttachment, hosts: ReadonlySet<string>) {
   const named = vsData.named.map(normalizedName)
   if (vsData.catalogueHosts === true) return new Set(named)
