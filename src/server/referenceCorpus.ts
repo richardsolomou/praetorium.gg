@@ -414,14 +414,14 @@ function missionRevisions(revisions: CanonicalCatalogue['revisions']) {
 }
 
 /**
- * A battlefield's sources: VS Data's, drawn with Battlemaster's geometry where it has any, except King of the
- * Colosseum arenas, which Praetorium traces from their publishers' diagrams in the datacards tree.
+ * A battlefield's sources: VS Data's, drawn with Battlemaster's geometry where it has any. King of the Colosseum
+ * arenas are VS Data's geometry measured from their publishers' diagrams, which the terrain dialog links.
  */
 function battlefieldSources(revisions: CanonicalCatalogue['revisions'], matchupId: string | undefined, drawnByBattlemaster: boolean) {
   if (matchupId === KOTC_MATCHUP_ID) {
     return {
-      revisions: definedRevisions({ datacards: revisions.datacards }),
-      attribution: ['Battlefield diagrams from Play On Tabletop and Frontline Gaming'],
+      revisions: missionRevisions(revisions),
+      attribution: [VS_DATA_ATTRIBUTION, 'Battlefield diagrams from Play On Tabletop and Frontline Gaming'],
     }
   }
   if (!drawnByBattlemaster) return { revisions: missionRevisions(revisions), attribution: [VS_DATA_ATTRIBUTION] }
