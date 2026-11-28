@@ -1087,7 +1087,10 @@ function calculateRoster(
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
       const vsDefinitions = unit.vs ? vsDefinitionsIn(loaded, unit.vs) : null
       // An Enhancement VS Data's checker would refuse the unit is not offered, though one already taken stays to be undone.
-      const refused = vsData === null ? new Set<string>() : vsDataEnhancementsRefused(loaded.vsRoster, data, { ...unit, vs: unit.vs?.unit })
+      const refused =
+        vsData === null
+          ? new Set<string>()
+          : vsDataEnhancementsRefused(loaded.vsRoster, data, { ...unit, vs: unit.vs && !unit.vs.rulesVersion ? unit.vs.unit : undefined })
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           // A VS pick's options are VS Data's, priced by it, a bundle naming what it holds.
