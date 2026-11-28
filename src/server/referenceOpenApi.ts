@@ -258,6 +258,7 @@ export function referenceOpenApi(request: Request) {
                   detachment: nullable({ type: 'string' }),
                   allied: { type: 'string' },
                   mix: { type: 'string' },
+                  copies: { type: 'string' },
                 },
                 ['models', 'cost', 'keyword', 'faction', 'detachment'],
               ),

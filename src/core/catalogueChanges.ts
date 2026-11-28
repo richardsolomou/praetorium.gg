@@ -1,8 +1,9 @@
 import { groupBy } from './collections'
 import { z } from 'zod'
-import { catalogueEditionId } from './catalogueEdition'
+import { catalogueEditionId, editionFamilyId } from './catalogueEdition'
+import { canonicalDetachmentName } from './detachmentName'
 import { routeSlug } from './slug'
-import { compareText } from './text'
+import { compareText, joinKey } from './text'
 
 /**
  * What one army-data update changed, between the reference data two snapshots state.
@@ -58,6 +59,10 @@ export type PointsRowChange = {
   models: string | null
   /** The keyword, faction or detachment a row applies under, when the source prints one. */
   condition: string | null
+  /** The other army, Detachment or army the unit is taken into that the row applies in, which a list must meet for it. */
+  faction?: string
+  detachment?: string
+  allied?: string
   from: Points
   to: Points
 }
@@ -91,7 +96,17 @@ const changeSchema = z.discriminatedUnion('kind', [
     ...datasheetIdentity,
     previousId: z.string().optional(),
     rows: z
-      .array(z.object({ models: z.string().nullable(), condition: z.string().nullable(), from: pointsSchema, to: pointsSchema }))
+      .array(
+        z.object({
+          models: z.string().nullable(),
+          condition: z.string().nullable(),
+          faction: z.string().optional(),
+          detachment: z.string().optional(),
+          allied: z.string().optional(),
+          from: pointsSchema,
+          to: pointsSchema,
+        }),
+      )
       .min(1),
   }),
   z.object({ kind: z.literal('datasheet-added'), ...datasheetIdentity }),
@@ -217,7 +232,15 @@ function datasheetChanges(before: Datasheet, after: Datasheet): CatalogueChange[
   }
   const named = old.length > 1 || next.length > 1
   const rows = pricedChanges(old, next, rowIdentity, (row) => row.cost)
-    .map(({ record, from, to }) => ({ models: named && record.models ? record.models : null, condition: rowCondition(record), from, to }))
+    .map(({ record, from, to }) => ({
+      models: named && record.models ? record.models : null,
+      condition: rowCondition(record),
+      ...(record.faction ? { faction: record.faction } : {}),
+      ...(record.detachment ? { detachment: record.detachment } : {}),
+      ...(record.allied ? { allied: record.allied } : {}),
+      from,
+      to,
+    }))
     .toSorted((left, right) => compareModels(left.models, right.models) || compareText(left.condition ?? '', right.condition ?? ''))
   return rows.length
     ? [{ kind: 'datasheet-points', id: after.id, ...(before.id !== after.id ? { previousId: before.id } : {}), name: after.name, rows }]
@@ -397,6 +420,8 @@ export const isEmptyChangeSet = (changes: CatalogueChangeSet) => !changes.factio
 export type ListContents = {
   catalogueId: string
   detachmentIds: readonly string[]
+  /** The names of its Detachments, where it was priced, which a points row for one Detachment is matched by. */
+  detachments?: readonly string[]
   datasheets: readonly { id: string; models: number | null }[]
   enhancements: readonly string[]
   upgrades: readonly string[]
@@ -413,7 +438,7 @@ type Fact = {
   item: string
   /** The change the fact is reported under; a datasheet's rows share one. */
   group: string
-  row: Pick<PointsRowChange, 'models' | 'condition'> | null
+  row: Pick<PointsRowChange, 'models' | 'condition' | 'faction' | 'detachment' | 'allied'> | null
   from: Points
   to: Points
   entry: ListChange
@@ -512,6 +537,15 @@ export function changesTouching(
     return range ? [...held.models].some((count) => count >= Number(range[1]) && count <= Number(range[2])) : true
   }
   const detachments = new Set(list.detachmentIds)
+  const detachmentKey = (name: string) => joinKey(canonicalDetachmentName(name))
+  const detachmentNames = list.detachments && new Set(list.detachments.map(detachmentKey))
+  // A row for another army, or one taking the unit into it, prices it only where the list is not its own book's; one for
+  // a Detachment only where the list holds it.
+  const meetsCondition = (row: Fact['row'], catalogueId: string) => {
+    if ((row?.faction || row?.allied) && editionFamilyId(catalogueId) === editionFamilyId(list.catalogueId)) return false
+    if (!row?.detachment) return true
+    return detachmentNames ? detachmentNames.has(detachmentKey(row.detachment)) : includeUnknownModels
+  }
   const held = (names: readonly string[]) => new Set(names.map(routeSlug))
   const enhancements = held(list.enhancements)
   const upgrades = held(list.upgrades)
@@ -537,7 +571,8 @@ export function changesTouching(
         for (const fact of factsOf(entry)) {
           if (
             change.kind === 'datasheet-points' &&
-            !fieldsModels(fact.row, datasheets.has(change.id) ? change.id : (change.previousId ?? change.id))
+            (!fieldsModels(fact.row, datasheets.has(change.id) ? change.id : (change.previousId ?? change.id)) ||
+              !meetsCondition(fact.row, faction.catalogueId))
           )
             continue
           const earlier = facts.get(fact.item)

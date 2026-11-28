@@ -16,6 +16,7 @@ const definitions = vsDataDefinitions({
       'host.relic-tank': record('Relic Tank', { faction: 'host', keywords: [], sizes: [1], legends: true }),
       'host.pack': record('Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
       'host.mixed-pack': record('Mixed Pack', { faction: 'host', keywords: [], sizes: [3, 6, 12] }),
+      'host.assassin': record('Assassin', { faction: 'host', keywords: [], sizes: [1] }),
     },
     model: {
       'host.mixed-pack.hunter': record('Hunter', { unit: 'host.mixed-pack', min: 3, max: 12, wargear: {} }),
@@ -60,6 +61,19 @@ const definitions = vsDataDefinitions({
               ],
             },
             {
+              id: 'host.assassin',
+              name: 'Assassin',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { composition: 'as Imperium', models: 1, points: 100 },
+                    { composition: 'in the Guard Detachment', models: 1, points: 115 },
+                  ],
+                },
+              ],
+            },
+            {
               id: 'host.mixed-pack',
               name: 'Mixed Pack',
               tiers: [
@@ -86,6 +100,7 @@ const names: Record<string, string> = {
   'bs-banner': 'Banner',
   'bs-pack': 'Pack',
   'bs-mixed-pack': 'Mixed Pack',
+  'bs-assassin': 'Assassin',
   'bs-shared': 'Shared Tank',
   'bs-gone': 'Gone Tank',
 }
@@ -99,6 +114,7 @@ const index = vsPointsIndex(
       'bs-relic': 'host.relic-tank',
       'bs-pack': 'host.pack',
       'bs-mixed-pack': 'host.mixed-pack',
+      'bs-assassin': 'host.assassin',
       'bs-shared': 'host.tank',
       'bs-other/bs-shared': 'host.relic-tank',
       'bs-gone': 'host.tank',
@@ -158,6 +174,10 @@ describe('vsMfmUnit', () => {
 })
 
 describe('vsCostRows', () => {
+  it('prints a row for other armies unlabelled where no row is its own army’s, as the one its own list pays', () => {
+    expect(vsCostRows(index, 'bs-host', 'bs-assassin')?.find((row) => row.cost === '100')?.allied).toBeUndefined()
+  })
+
   it('labels a row priced by its mix of models with their names', () => {
     expect(vsCostRows(index, 'bs-host', 'bs-mixed-pack')?.find((row) => row.cost === '115')?.mix).toBe('3 Hunter, 3 Hound')
   })

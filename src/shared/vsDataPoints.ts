@@ -224,28 +224,46 @@ export function vsMfmUnit(
 
 /**
  * A datasheet's VS Data cost rows as its page prints them, for a list of the book `catalogueId`: every size of every
- * copy tier, its `copies` as that tier's range, and a row for one army, Detachment or army it is taken into labelled
- * with VS Data's name for it, or for one mix of models with their names (`mix`).
+ * copy tier, its `copies` as that tier's range, and a row for another army, a Detachment or an army it is taken into
+ * labelled with VS Data's name for it, or for one mix of models with their names (`mix`).
  */
 export function vsCostRows(index: VsPointsIndex | undefined, catalogueId: string, entryId: string) {
   const unit = inBook(index?.units, catalogueId, entryId)
   if (!index || !unit) return null
-  const army = (name: string) =>
-    Object.entries(index.factions).find(([id, faction]) => sameName(id.replaceAll('-', ' '), name) || sameName(faction.name, name))?.[1]
-      .name ?? name
+  const armyOf = (name: string) =>
+    Object.entries(index.factions).find(([id, faction]) => sameName(id.replaceAll('-', ' '), name) || sameName(faction.name, name))
+  const own = index.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+  const owners = new Set([own, own ? index.factions[own]?.parent : undefined].filter(Boolean))
+  // Only another army is a condition: the datasheet's own army's row is what its list pays.
+  const army = (name: string) => {
+    const found = armyOf(name)
+    return found && owners.has(found[0]) ? null : (found?.[1].name ?? name)
+  }
   const detachment = (name: string) => Object.values(index.detachments).find((entry) => sameName(entry.name, name))?.name ?? name
-  const labelled = (composition = '') => {
-    const inDetachment = /^in the (.+) Detachment$/.exec(composition)
+  const inArmy = (composition = '') => (composition.startsWith('in an army of ') ? composition.slice('in an army of '.length) : null)
+  // Whether a row is what the datasheet's own list pays at its size: its own army's, or one naming no circumstance.
+  const ownRow = (composition?: string) => {
+    const named = inArmy(composition)
+    return named ? army(named) === null : !circumstance(composition)
+  }
+  const labelled = (composition: string | undefined, siblings: readonly { composition?: string }[]) => {
+    const inDetachment = /^in the (.+) Detachment$/.exec(composition ?? '')
     if (inDetachment) return { faction: null, detachment: detachment(inDetachment[1]!) }
-    if (composition.startsWith('in an army of ')) return { faction: army(composition.slice('in an army of '.length)), detachment: null }
-    return { faction: null, detachment: null, ...(composition.startsWith('as ') ? { allied: composition.slice('as '.length) } : {}) }
+    const named = inArmy(composition)
+    if (named) return { faction: army(named), detachment: null }
+    // A row for other armies is the one its own list pays where no row is its own army's, as for an Assassin.
+    const allied = composition?.startsWith('as ') && siblings.some((other) => ownRow(other.composition))
+    return { faction: null, detachment: null, ...(allied ? { allied: composition!.slice('as '.length) } : {}) }
   }
   const rows = unit.tiers.flatMap((tier) =>
     tier.costs.map((cost) => ({
       models: String(cost.models),
       cost: String(cost.points),
       keyword: null,
-      ...labelled(cost.composition),
+      ...labelled(
+        cost.composition,
+        tier.costs.filter((other) => other !== cost && other.models === cost.models),
+      ),
       ...(cost.mixNames ? { mix: cost.mixNames } : {}),
       ...(tier.copies.from === 1 && tier.copies.to === undefined ? {} : { copies: rangeOf(tier.copies) }),
     })),

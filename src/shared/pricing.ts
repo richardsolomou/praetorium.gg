@@ -853,6 +853,7 @@ function calculateRoster(
     return {
       kind: 'assessment' as const,
       points,
+      detachments: purchased,
       detachmentError,
       errors,
       units: picked.map((unit) => {

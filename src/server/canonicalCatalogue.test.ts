@@ -120,7 +120,7 @@ describe('canonical catalogue', () => {
     expect({ points: sheet?.points, costs: sheet?.costs }).toEqual({
       points: 55,
       costs: [
-        { models: '1', cost: '55', keyword: null, faction: 'Agents of the Imperium', detachment: null },
+        { models: '1', cost: '55', keyword: null, faction: null, detachment: null },
         { models: '1', cost: '65', keyword: null, faction: null, detachment: null, allied: 'Imperium' },
         { models: '1', cost: '75', keyword: null, faction: null, detachment: 'Veiled Blade' },
       ],
