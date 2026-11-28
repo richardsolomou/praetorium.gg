@@ -102,7 +102,7 @@ if (command === 'record') {
         ...imported.unplaced.flatMap((unit) => unit.choices.map((choice) => `${unit.unit}: ${choice.name}`)),
       ].toSorted(),
       units: (priced?.units ?? []).map((unit) => {
-        const pick = imported.units[unit.key]!
+        const pick: RosterPick = imported.units[unit.key]!
         const vsUnit = catalogue && vsUnitIdOf(catalogue, catalogueId, unit.entryId)
         const allegiance = allegianceOf(pick)
         const enhancements = pick.vs?.enhancement
