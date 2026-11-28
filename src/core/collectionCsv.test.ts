@@ -5,6 +5,7 @@ import { parseCsv } from './csv'
 const sheets = [
   { id: 'warriors', name: 'Necron Warriors', faction: 'Necrons' },
   { id: 'overlord', name: 'Overlord', faction: 'Necrons' },
+  { id: 'tarantula', name: 'Tarantula Air Defense Battery', appName: 'Tarantula Air Defence Battery', faction: 'Space Marines' },
   { id: 'rhino-sm', name: 'Rhino', faction: 'Space Marines' },
   { id: 'rhino-csm', name: 'Rhino', faction: 'Chaos Space Marines' },
 ]
@@ -86,6 +87,14 @@ describe('collection CSV', () => {
 
   it('matches a name when the file has no ids', () => {
     expect(status(read('datasheet,models\nnecron   warriors,10\n'))).toEqual(['recognised'])
+  })
+
+  it("matches the official app's name of a datasheet", () => {
+    expect(read('datasheet,models\nTarantula Air Defence Battery,1\n')[0]).toMatchObject({ status: 'recognised', entryId: 'tarantula' })
+  })
+
+  it("still matches the catalogue's name of a datasheet the app names otherwise", () => {
+    expect(read('datasheet,models\nTarantula Air Defense Battery,1\n')[0]).toMatchObject({ status: 'recognised', entryId: 'tarantula' })
   })
 
   it('asks which datasheet a shared name means', () => {
