@@ -10,7 +10,8 @@ import { comparableText } from '../core/sourceText'
 import type { DetachmentRulesDetail } from '../contracts/factions'
 
 type DetachmentCatalogueDetail = {
-  rules: { name: string; description: string | null }[]
+  /** Each rule with its BSData id, which VS Data's alias of it names. */
+  rules: { bsdataId: string; name: string; description: string | null }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
 }
@@ -22,11 +23,10 @@ export function sameRuleName(left: string, right: string) {
 }
 
 /** The cards' rules of a Detachment, then those only the catalogue prints, but for the ones the rules version marks absent there. */
-export function mergeDetachmentRules<Card extends { name: string; description: string }>(
-  catalogueRules: readonly { name: string; description: string | null }[],
-  cardRules: readonly Card[],
-  absent: readonly string[] = [],
-): (Card | { name: string; description: string | null; vsDataId?: undefined })[] {
+export function mergeDetachmentRules<
+  Card extends { name: string; description: string },
+  Rule extends { name: string; description: string | null },
+>(catalogueRules: readonly Rule[], cardRules: readonly Card[], absent: readonly string[] = []): (Card | Rule)[] {
   const supplied: string[] = cardRules.map((rule) => rule.name)
   const missing = catalogueRules.filter((rule) => {
     if (absent.includes(abilityKey(rule.name))) return false
@@ -62,7 +62,7 @@ export function detachmentCatalogueDetail(
       return rule && !rule.hidden && !core ? [rule] : []
     }) ?? []),
     ...(definition?.rules?.filter((rule) => !rule.hidden) ?? []),
-  ].flatMap((rule) => (rule.name ? [{ name: rule.name, description: rule.description ?? null }] : []))
+  ].flatMap((rule) => (rule.name ? [{ bsdataId: rule.id, name: rule.name, description: rule.description ?? null }] : []))
 
   const indexed = enhancementIndex(loaded)
   const enhancements = enhancementNames

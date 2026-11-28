@@ -135,12 +135,9 @@ const primaryMission = (await search('Death Trap', 'mission')).body.results.find
 )
 if (!primaryMission) throw new Error('primary mission search returned no mission')
 const primaryMissionDocument = await request(`/api/reference/v1/documents/${encodeURIComponent(primaryMission.id)}`)
-const primaryDocument = (await primaryMissionDocument.json()) as { sections?: { textSources?: { source?: string; url?: string }[] }[] }
-if (
-  !primaryMissionDocument.ok ||
-  !primaryDocument.sections?.some((section) => section.textSources?.some((source) => source.source && source.url?.startsWith('https://')))
-) {
-  throw new Error('primary mission retrieval omitted its published source pointer')
+const primaryDocument = (await primaryMissionDocument.json()) as { sections?: { ruleSummary?: { text?: string } }[] }
+if (!primaryMissionDocument.ok || !primaryDocument.sections?.some((section) => section.ruleSummary?.text)) {
+  throw new Error('primary mission retrieval omitted its rule summary')
 }
 const primaryRecordResponse = await request(`/api/reference/v1/records/${encodeURIComponent(primaryMission.id)}`)
 const primaryRecord = (await primaryRecordResponse.json()) as {

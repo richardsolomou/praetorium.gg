@@ -2,7 +2,13 @@ import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleRefere
 import { escapeRegExp } from '../core/text'
 import type { AbilityGrantStatement } from '../core/textFacts'
 
-type AbilityGrant = { name: string; recipient: 'bearer' | 'leader' | 'unit' | 'models'; models?: string; condition?: string }
+type AbilityGrant = {
+  name: string
+  recipient: 'bearer' | 'leader' | 'unit' | 'models'
+  models?: string
+  condition?: string
+  conditional?: true
+}
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
 export function parseAbilityGrants(
@@ -20,7 +26,7 @@ export function parseAbilityGrants(
     written: string,
     recipient: Exclude<AbilityGrant['recipient'], 'models'>,
     explicitDeployment = false,
-    condition?: string,
+    limits: Pick<AbilityGrant, 'condition' | 'conditional'> = {},
   ): AbilityGrant[] => {
     // An invulnerable save is a characteristic the save collectors read, never a named ability.
     if (/\binvulnerable save\b/iu.test(written)) return []
@@ -33,7 +39,7 @@ export function parseAbilityGrants(
     if (!names.length) names.push(linkedAbilities.length === 1 && sameAbility(written, linkedAbilities[0]!) ? linkedAbilities[0]! : written)
     return names
       .filter((name) => explicitDeployment || mayUseUnlinked(name))
-      .map((name) => ({ name: titleCaseAbility(name), recipient, ...(condition ? { condition } : {}) }))
+      .map((name) => ({ name: titleCaseAbility(name), recipient, ...limits }))
   }
   return {
     matched: statement.matched,
@@ -42,7 +48,10 @@ export function parseAbilityGrants(
       if (written.attached && !attached) return []
       if (written.target !== undefined && !attachmentTargetMatches(written.target, counterpartReferences)) return []
       if (written.linked && !allowUnlinkedDeployment && !linked(written.written)) return []
-      return grant(written.written, written.recipient, written.explicit, written.condition)
+      return grant(written.written, written.recipient, written.explicit, {
+        ...(written.condition ? { condition: written.condition } : {}),
+        ...(written.conditional ? { conditional: written.conditional } : {}),
+      })
     }),
   }
 }

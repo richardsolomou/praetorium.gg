@@ -89,24 +89,35 @@ export function optionBounds(option: OptionData, total: number, carriers: number
   return { min: option.choose.min * n, max: option.choose.max * n }
 }
 
-function holds(when: When | undefined, roster: VsRoster, allegiance?: string): boolean {
+function holds(when: When | undefined, roster: VsRoster, allegiance?: string, held?: ReadonlyMap<string, number>): boolean {
   if (!when) return true
   return (
     (when.allegiance === undefined || when.allegiance === allegiance) &&
+    (when.wargear === undefined || (held?.get(when.wargear) ?? 0) > 0) &&
     (when.faction === undefined || when.faction === roster.faction) &&
     (when.detachment === undefined || roster.detachments.includes(when.detachment)) &&
     (when.warlord === undefined || roster.units.some((unit) => unit.warlord === when.warlord))
   )
 }
 
-/** A unit's keywords in this roster: its own and every conditional keyword whose condition holds. */
-export function unitKeywords(unit: UnitData, roster: VsRoster, allegiance?: string): string[] {
+/**
+ * A unit's keywords in this roster: its own, less those a conditional keyword whose condition holds replaces, and every
+ * such conditional keyword, given the allegiance it took and the wargear it carries.
+ */
+function unitKeywords(unit: UnitData, roster: VsRoster, allegiance?: string, held?: ReadonlyMap<string, number>): string[] {
+  const applying = (unit.conditionalKeywords ?? []).filter((conditional) => holds(conditional.when, roster, allegiance, held))
+  const replaced = new Set(applying.flatMap((conditional) => conditional.replaces ?? []))
   return [
-    ...new Set([
-      ...unit.keywords,
-      ...(unit.conditionalKeywords ?? []).filter((conditional) => holds(conditional.when, roster, allegiance)).flatMap((c) => c.keywords),
-    ]),
+    ...new Set([...unit.keywords.filter((keyword) => !replaced.has(keyword)), ...applying.flatMap((conditional) => conditional.keywords)]),
   ]
+}
+
+/** A picked unit's keywords in this roster; one read by its size alone carries what the catalogue builds, so no wargear gives it any. */
+export function keywordsOf(definitions: VsDataDefinitions, roster: VsRoster, picked: VsRosterUnit): string[] {
+  const unit = definitions.get('unit', picked.unit)
+  if (!unit) return []
+  const sizeOnly = picked.size !== undefined && !picked.models
+  return unitKeywords(unit.data, roster, picked.allegiance, sizeOnly ? undefined : carried(definitions, picked))
 }
 
 const holdsAll = (keywords: readonly string[], wanted: readonly string[]) => wanted.every((keyword) => keywords.includes(keyword))
@@ -421,7 +432,7 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
     const add = (code: VsProblemCode, message: string) => problems.push({ code, unit: at, message })
     if (!current('unit', picked.unit, at)) return
     const unit = definitions.get('unit', picked.unit)!
-    const keywords = unitKeywords(unit.data, roster, picked.allegiance)
+    const keywords = keywordsOf(definitions, roster, picked)
     keywordsAt[at] = keywords
     const entry = entryOf(unit.id)
     const offered = allies.filter((ally) => ally.units.includes(unit.id))
