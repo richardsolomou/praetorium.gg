@@ -87,5 +87,6 @@ export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, 
   const data = vsRosterData(found.construction, ids, found.entry.base ? null : found.entry.edition.id, (entryId) => nameIn(index, entryId))
   if (!found.entry.base) return data
   shell ??= vsShellOf(legacyOptionsSchema.parse(rawOptions).units)
-  return { ...data, shell }
+  const allegiances = legacyIdsSchema.parse(rawUnits).allegiances
+  return { ...data, shell, ...(allegiances ? { allegiances } : {}) }
 }

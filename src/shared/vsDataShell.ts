@@ -10,8 +10,11 @@ import type { VsRosterData } from './vsDataLegality'
  */
 export type VsShell = Record<string, Record<string, Record<string, [string, string][]>>>
 
-/** The roster definitions as the server loads them for the current rules version, with the shell its options map gives. */
-export type VsRosterWithShell = VsRosterData & { shell?: VsShell }
+/**
+ * The roster definitions as the server loads them for the current rules version, with the shell its options map gives and
+ * the allegiance each catalogue datasheet that stands for one god holds (`units.json`'s `allegiances`).
+ */
+export type VsRosterWithShell = VsRosterData & { shell?: VsShell; allegiances?: Record<string, string> }
 
 export function vsShellOf(units: z.infer<typeof legacyOptionsSchema>['units']): VsShell {
   const shell: VsShell = {}
@@ -32,6 +35,9 @@ export function vsShellOf(units: z.infer<typeof legacyOptionsSchema>['units']): 
   }
   return shell
 }
+
+/** The allegiance a catalogue datasheet entry stands for, where it stands for one god. */
+export const vsSwornIn = (vsRoster: VsRosterWithShell | undefined, entryId: string) => vsRoster?.allegiances?.[entryId]
 
 /** The shell of a datasheet entry, where the loaded definitions carry one. */
 export const vsShellIn = (vsRoster: VsRosterWithShell | undefined, entryId: string) => vsRoster?.shell?.[entryId]

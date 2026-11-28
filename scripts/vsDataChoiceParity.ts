@@ -303,8 +303,7 @@ for (const [entryId, catalogueId] of listing) {
     count('keywords')
     // A catalogue datasheet that stands for one of a VS Data unit's allegiances, as one Soul Grinder datasheet per god does,
     // is compared with the VS pick taking that allegiance.
-    const sworn = allegianceOf[entryId]
-    const { unit: _unit, ...firstPick } = { ...vsFirstPick(definitions, unitId), ...(sworn ? { allegiance: sworn } : {}) }
+    const { unit: _unit, ...firstPick } = vsFirstPick(definitions, unitId, {}, allegianceOf[entryId])
     // A unit has all its models' keywords, so one VS Data prints on a fielded model and BSData leaves off the unit agrees.
     const counts = modelCounts(definitions, { unit: unitId, ...firstPick })
     const fromModels = new Set(
